@@ -1,0 +1,234 @@
+import Library as lb
+import BuildData as bd
+import ctypes
+from xml.etree import ElementTree as ET
+from shutil import copyfile
+import os
+import os.path
+
+
+def SetCLCompile(pdbIndex: int, root: ET.Element, prep: str, includeDir: str, xmlns):
+    inc = lb.XML_GetSubElement(root, 'AdditionalIncludeDirectories', xmlns)
+    inc.text = includeDir + "%(AdditionalIncludeDirectories);"
+    ppEle = lb.XML_GetSubElement(root, 'PreprocessorDefinitions', xmlns)
+    ppEle.text = prep + "%(PreprocessorDefinitions);"
+    pdb = lb.XML_GetSubElement(root, 'ProgramDataBaseFileName', xmlns)
+    pdb.text = "$(IntDir)vc_" + str(pdbIndex) + ".pdb"
+
+
+def SetLink(root: ET.Element, dep: str, xmlns):
+    depEle = lb.XML_GetSubElement(root, 'AdditionalDependencies', xmlns)
+    depEle.text = dep + "%(AdditionalDependencies);"
+
+
+def GeneratePlaceHolder():
+    for i in bd.SubProj:
+        holder = i.get("PlaceHolder")
+        if holder == None or holder == "":
+            continue
+        path = holder.replace("#", i["Name"])
+        if os.path.isfile(path):
+            continue
+        f = open(path, 'w')
+        f.write("0")
+        f.close()
+
+
+def SetItemDefinitionGroup(pdbIndex: int, root: ET.Element, data: dict, xmlns):
+    itemGroups = []
+    lb.XML_GetSubElements(itemGroups, root, 'ItemDefinitionGroup', xmlns)
+    gIncludePaths = data["IncludePaths"]
+    gDep = data["Dependices"]
+    gPP = data["PreProcessor"]
+    for itemGroup in itemGroups:
+        att = itemGroup.attrib.get("Condition")
+        if att == None:
+            continue
+        preprocess = ''
+        includes = ''
+        deps = ''
+        for inc in gIncludePaths:
+            includes += inc + ';'
+        for d in gDep:
+            deps += d + ';'
+        for i in gPP:
+            if att.find('\'' + i + '|') >= 0:
+                for macro in gPP[i]:
+                    preprocess += macro
+                    preprocess += ';'
+        clComp = lb.XML_GetSubElement(itemGroup, 'ClCompile', xmlns)
+        SetCLCompile(pdbIndex, clComp, preprocess, includes, xmlns)
+        link = lb.XML_GetSubElement(itemGroup, 'Link', xmlns)
+        SetLink(link, deps, xmlns)
+
+
+def RemoveIncludes(root: ET.Element, xmlns):
+    items = []
+    lb.XML_GetSubElements(items, root, 'ItemGroup', xmlns)
+    removeItemGroups = []
+    for item in items:
+        if len(item.attrib) > 0:
+            continue
+        removeItems = []
+        for inc in item:
+            if lb.XML_GetTag(inc, xmlns) == 'ClInclude':
+                removeItems.append(inc)
+        for i in removeItems:
+            item.remove(i)
+        if len(item) == 0:
+            removeItemGroups.append(item)
+    for i in removeItemGroups:
+        root.remove(i)
+
+
+def RemoveNonExistsPath(subName: str, dll, root: ET.Element, xmlns):
+    subName = subName.lower()
+    itemGroups = []
+    lb.XML_GetSubElements(itemGroups, root, "ItemGroup", xmlns)
+    itemGroupsRemoveList = []
+    for i in itemGroups:
+        if len(i.attrib) != 0:
+            continue
+        isCompileList = True
+        for sub in i:
+            if lb.XML_GetTag(sub, xmlns) != 'ClCompile':
+                isCompileList = False
+                break
+        if isCompileList:
+            itemGroupsRemoveList.append(i)
+    for i in itemGroupsRemoveList:
+        root.remove(i)
+    CompileItemGroup = ET.Element("ItemGroup", {})
+    root.append(CompileItemGroup)
+    dll.Py_SetPackageName(subName.encode("utf-8"))
+    sz = dll.Py_PathSize()
+    for i in range(sz):
+        p = str(ctypes.string_at(dll.Py_GetPath(i)), "utf-8")
+        CompileItemGroup.append(
+            ET.Element("ClCompile", {'Include': p}))
+
+
+def GetVCXProj(path: str):
+    tree = ET.parse(path)
+    root = tree.getroot()
+    xmlns = lb.XML_GetNameSpace(root)
+    if xmlns != None:
+        ET.register_namespace('', xmlns)
+    return tree, xmlns
+
+
+def ClearFilter(path):
+    filterPath = path + '.filters'
+    if os.path.exists(filterPath):
+        os.remove(filterPath)
+
+
+def OutputXML(tree, path):
+    tree.write(path)
+
+
+def UpdateCPPFile(filePath: str, resultDict: dict):
+    cppFile = open(filePath)
+    firstLine = cppFile.readline().lower().replace(
+        '\n', ' ').replace('\r', ' ').replace('\t', ' ')
+    cppFile.close()
+    pragmaStr = "#pragma"
+    packageStr = "vengine_package"
+    pragmaID = firstLine.find(pragmaStr)
+    if pragmaID == -1:
+        return
+    for i in range(pragmaID):
+        if firstLine[i] != ' ':
+            return
+    packID = firstLine.find(packageStr)
+    if packID == -1 or packID <= (pragmaID + len(pragmaStr)):
+        return
+    startRange = 0
+    for i in range(packID + len(packageStr), len(firstLine)):
+        if firstLine[i] != ' ':
+            startRange = i
+            break
+    endRange = len(firstLine)
+    for i in range(endRange - 1, startRange, -1):
+        if (firstLine[i] == ' '):
+            endRange = i
+            break
+    if(endRange - startRange > 0):
+        packageName = firstLine[startRange: endRange]
+        lst = resultDict.get(packageName)
+        if lst == None:
+            lst = []
+            resultDict[packageName] = lst
+        lst.append(filePath)
+
+
+def UpdateCPPFiles(fileDict: dict):
+    resultDict = {}  # Package : Path
+    for v in ["cpp", "c", "cc", "cxx"]:
+        lst = fileDict.get(v)
+        if lst != None:
+            for path in lst:
+                UpdateCPPFile(path, resultDict)
+    return resultDict
+
+
+def VCXProjSettingMain():
+    dll = ctypes.cdll.LoadLibrary("BuildTools/VEngine_DLL.dll")
+    dll.Py_InitFileSys("BuildTools/mimalloc.dll".encode("utf-8"))
+    dll.Py_AddExtension("cpp".encode("utf-8"))
+    dll.Py_AddExtension("c".encode("utf-8"))
+    dll.Py_AddExtension("cxx".encode("utf-8"))
+    dll.Py_AddExtension("cc".encode("utf-8"))
+    dll.Py_AddIgnorePath(".vs".encode("utf-8"))
+    dll.Py_AddIgnorePath("Build".encode("utf-8"))
+    dll.Py_AddIgnorePath("BuildTools".encode("utf-8"))
+    dll.Py_AddIgnorePath("x64".encode("utf-8"))
+    dll.Py_AddIgnorePath("x86".encode("utf-8"))
+    dll.Py_ExecuteFileSys()
+    dll.Py_GetPath.restype = ctypes.c_char_p
+
+    pdbIndex = 0
+    for sub in bd.SubProj:
+        subName = sub["Name"]
+        subPath = subName + '.vcxproj'
+        subTree, subXmlns = GetVCXProj(subPath)
+        subRoot = subTree.getroot()
+        if sub.get("RemoveHeader") == 1:
+            RemoveIncludes(subRoot, subXmlns)
+        RemoveNonExistsPath(subName, dll, subRoot, subXmlns)
+        SetItemDefinitionGroup(pdbIndex, subRoot, sub, subXmlns)
+        pdbIndex += 1
+        lb.XML_Format(subRoot)
+        OutputXML(subTree, subPath)
+    dll.Py_DisposeFileSys()
+    print("Build Success!")
+
+def MakeVCXProj():
+    ext = {"vcxprojbackup" : 1}
+    fileResults = {}
+    lb.File_GetRootFiles(fileResults, ".", ext)
+    lst = fileResults.get("vcxprojbackup")
+    if lst == None:
+        return
+    for i in lst:
+        copyfile(i, i.replace(".vcxprojbackup", ".vcxproj"))
+    
+
+def ClearFilters():
+    for sub in bd.SubProj:
+        subPath = sub["Name"] + '.vcxproj'
+        ClearFilter(subPath)
+    print("Clear Filters Success!")
+
+
+def CopyFiles():
+    for i in bd.CopyFilePaths:
+        copyfile(i[0], i[1])
+    print("Copy Success!")
+
+
+def VcxMain():
+    MakeVCXProj()
+    GeneratePlaceHolder()
+    ClearFilters()
+    VCXProjSettingMain()

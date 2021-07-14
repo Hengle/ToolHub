@@ -1,0 +1,84 @@
+#pragma once
+#include <VEngineConfig.h>
+#include <Common/Common.h>
+struct ActorPointer {
+	void* ptr;
+	void (*disposer)(void*);
+	void operator=(ActorPointer const& p);
+	~ActorPointer();
+	ActorPointer(){};
+	ActorPointer(
+		void* ptr,
+		void (*disposer)(void*)) : ptr(ptr), disposer(disposer) {}
+};
+class VENGINE_DLL_COMMON Actor final
+{
+private:
+	
+	HashMap<Type, ActorPointer> hash;
+	void* GetComponent(Type t) const;
+	void RemoveComponent(Type t);
+	void SetComponent(Type t, void* ptr, void(*disposer)(void*));
+	mutable spin_mutex mtx;
+
+public:
+	Actor();
+	Actor(uint32_t initComponentCapacity);
+	~Actor();
+	template <typename T>
+	T* GetComponent() const
+	{
+		return reinterpret_cast<T*>(GetComponent(typeid(T)));
+	}
+	template <typename T>
+	void RemoveComponent()
+	{
+		RemoveComponent(typeid(T));
+	}
+	template <typename T>
+	void SetComponent(T* ptr)
+	{
+		SetComponent(
+			typeid(T),
+			ptr,
+			[](void* pp)->void
+			{
+				delete ((T*)pp);
+			}
+		);
+	}
+	KILL_COPY_CONSTRUCT(Actor)
+	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
+};
+
+class VENGINE_DLL_COMMON ActorSingleThread final {
+private:
+	HashMap<Type, ActorPointer> hash;
+	void* GetComponent(Type t) const;
+	void RemoveComponent(Type t);
+	void SetComponent(Type t, void* ptr, void (*disposer)(void*));
+
+public:
+	ActorSingleThread();
+	ActorSingleThread(uint32_t initComponentCapacity);
+	~ActorSingleThread();
+	template<typename T>
+	T* GetComponent() const {
+		return reinterpret_cast<T*>(GetComponent(typeid(T)));
+	}
+	template<typename T>
+	void RemoveComponent() {
+		RemoveComponent(typeid(T));
+	}
+	template<typename T>
+	void SetComponent(T* ptr) {
+		SetComponent(
+			typeid(T),
+			ptr,
+			[](void* pp) -> void {
+				delete ((T*)pp);
+			});
+	}
+	KILL_COPY_CONSTRUCT(ActorSingleThread)
+	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
+};
