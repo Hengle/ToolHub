@@ -28,6 +28,7 @@ Temp/
 **/*.lib
 **/*.users
 **/*.user
+**/*.exe
 **/*.vcxproj
 Sandbox_Demo_Client/.idea/
 *.csproj

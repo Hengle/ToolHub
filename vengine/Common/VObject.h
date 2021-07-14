@@ -72,7 +72,7 @@ protected:
 	VObjectClass const* originClassDesc = nullptr;
 	VObject();
 	template<typename T>
-	T* _GetInterface(VObject* ptr) const {
+	T* M_GetInterface(VObject* ptr) const {
 		return VObjectClass::GetCastPtr<T>(originClassDesc, ptr);
 	}
 
@@ -82,11 +82,11 @@ public:
 	}
 	template<typename T>
 	T* GetInterface() {
-		return _GetInterface(this);
+		return M_GetInterface(this);
 	}
 	template<typename T>
 	T const* GetInterface() const {
-		return _GetInterface(const_cast<VObject*>(this));
+		return M_GetInterface(const_cast<VObject*>(this));
 	}
 	template<typename T>
 	size_t GetInterfaceOffset() const {
@@ -108,7 +108,7 @@ T* VObjectClass::GetCastPtr(VObjectClass const* ths, VObject* ptr) {
 	if (ite) {
 		return reinterpret_cast<T*>(ite.Value()(ptr));
 	}
-	VObjectClass const* basePtr = ths->baseLevel.load(std::memory_order_relaxed);
+	VObjectClass const* basePtr = ths->baseLevel.load(std::memory_order_acquire);
 	if (basePtr) {
 		return GetCastPtr<T>(basePtr, ptr);
 	}

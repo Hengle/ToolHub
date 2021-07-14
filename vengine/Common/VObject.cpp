@@ -204,16 +204,16 @@ PtrLink::PtrLink(PtrWeakLink&& p) noexcept
 #undef PRINT_SIZE
 
 VObjectClass::VObjectClass() {
-	baseLevel.store(nullptr, std::memory_order_relaxed);
+	baseLevel.store(nullptr, std::memory_order_release);
 }
 VObjectClass::VObjectClass(Type type, funcPtr_t<void*(VObject*)> func) {
-	baseLevel.store(nullptr, std::memory_order_relaxed);
+	baseLevel.store(nullptr, std::memory_order_release);
 	allowCastClass.Emplace(type, func);
 }
 VObjectClass::~VObjectClass() {
 }
 
 VObjectClass* VObjectClass::SetBase(VObjectClass const* base) {
-	this->baseLevel.store(base, std::memory_order_relaxed);
+	this->baseLevel.store(base, std::memory_order_release);
 	return this;
 }
