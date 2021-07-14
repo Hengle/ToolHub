@@ -267,7 +267,7 @@ bool BinaryJson::Get(vstd::string const& name, BinaryJson*& objValue) const {
 }
 bool BinaryJson::ContainedKey(vstd::string const& name) {
 	if (isArray) return false;
-	return keyValueDatas->Contains(name);
+	return keyValueDatas->Find(name);
 }
 bool BinaryJson::Get(uint64 iWitch, vstd::string& str) const {
 	if (!isArray) return false;

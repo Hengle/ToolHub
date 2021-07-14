@@ -47,7 +47,7 @@ void FileUtility::GetFiles(vstd::string const& path, vstd::vector<vstd::string>&
 	if ((hFile = _findfirst((path + "/*"_sv).c_str(), &fileinfo)) != -1) {
 		do {
 			if ((fileinfo.attrib & _A_SUBDIR)) {
-				if (ignoreFolders.Contains(fileinfo.name)) continue;
+				if (ignoreFolders.Find(fileinfo.name)) continue;
 				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
 					GetFiles(path + ('/') + (fileinfo.name), files, ignoreFolders);
 			} else {
@@ -111,7 +111,7 @@ void FileUtility::GetFiles(vstd::string const& path, vstd::vector<vstd::string>&
 	if ((hFile = _findfirst((path + "/*").c_str(), &fileinfo)) != -1) {
 		do {
 			if ((fileinfo.attrib & _A_SUBDIR)) {
-				if (ignoreFolders.Contains(fileinfo.name)) continue;
+				if (ignoreFolders.Find(fileinfo.name)) continue;
 				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0) {
 					vstd::string& folderPath = folders.emplace_back(path + ('/') + (fileinfo.name));
 					GetFiles(folderPath, files, folders, ignoreFolders);

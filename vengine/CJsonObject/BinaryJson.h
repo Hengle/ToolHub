@@ -130,9 +130,10 @@ template<typename IteFunc>
 inline void BinaryJson::IterateKeyValue(
 	IteFunc const& func) const {
 	if (!isArray) {
-		keyValueDatas->IterateAll([&](vstd::string const& key, std::unique_ptr<SerializeStruct::SerializedData>& value) -> void {
-			func(key, *value.get());
-		});
+		for (auto&& i : *keyValueDatas) {
+			func(i.first, *i.second.get());
+		}
+
 	}
 }
 template<typename IteFunc>

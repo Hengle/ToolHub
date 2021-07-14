@@ -31,7 +31,7 @@ static vstd::optional<MAllocator> vengine_malloc_dll;
 
 void vengine_init_malloc() {
 	using namespace v_mimalloc;
-	vengine_malloc_dll.New("mimalloc-override.dll"_sv);
+	vengine_malloc_dll.New("mimalloc.dll"_sv);
 }
 void vengine_init_malloc_path(
 	char const* path) {

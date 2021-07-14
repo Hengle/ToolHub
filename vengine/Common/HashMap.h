@@ -22,7 +22,7 @@ public:
 	struct NodePair {
 	public:
 		K first;
-		V second;
+		mutable V second;
 		NodePair() {}
 		template<typename A, typename... B>
 		NodePair(A&& a, B&&... b) : first(std::forward<A>(a)), second(std::forward<B>(b)...) {}
@@ -39,7 +39,8 @@ public:
 		static void Add(LinkNode*& source, LinkNode* dest) noexcept {
 			if (!source) {
 				source = dest;
-			} else {
+			}
+			else {
 				if (source->next) {
 					source->next->last = dest;
 				}
@@ -121,7 +122,7 @@ private:
 	public:
 		HashArray(HashArray&& map)
 			: nodesPtr(map.nodesPtr),
-			  mSize(map.mSize) {
+			mSize(map.mSize) {
 			map.mSize = 0;
 			map.nodesPtr = nullptr;
 		}
@@ -207,7 +208,8 @@ private:
 			LinkNode*& targetHeaderLink = newNode[hashValue];
 			if (!targetHeaderLink) {
 				targetHeaderLink = node;
-			} else {
+			}
+			else {
 				node->next = targetHeaderLink;
 				targetHeaderLink->last = node;
 				targetHeaderLink = node;
@@ -238,8 +240,8 @@ public:
 	}
 	HashMap(SelfType&& map)
 		: allocatedNodes(std::move(map.allocatedNodes)),
-		  nodeVec(std::move(map.nodeVec)),
-		  pool(std::move(map.pool)) {
+		nodeVec(std::move(map.nodeVec)),
+		pool(std::move(map.pool)) {
 	}
 
 	void operator=(SelfType&& map) {
@@ -326,33 +328,12 @@ public:
 		return std::make_tuple(Index(this, hashOriginValue, newNode), true);
 	}
 
-	//void(size_t, K const&, V&)
-	template<typename Func>
-	void IterateAll(const Func& func) const noexcept {
-		using FuncType = std::remove_cvref_t<std::remove_pointer_t<Func>>;
-		static constexpr size_t ArgSize = FuncArgCount<FuncType>;
-		using ReturnType = typename FunctionDataType<FuncType>::RetType;
-		static_assert(std::is_same_v<ReturnType, void>, "Iterate functor must return void!");
-		if constexpr (ArgSize == 3) {
-			for (size_t i = 0; i < allocatedNodes.size(); ++i) {
-				auto vv = allocatedNodes[i];
-				func(i, (K const&)vv->first, vv->second);
-			}
-		} else if constexpr (ArgSize == 2) {
-			for (auto vv : allocatedNodes) {
-				func((K const&)vv->first, vv->second);
-			}
-		} else if constexpr (ArgSize == 1) {
-			for (auto vv : allocatedNodes) {
-				func(vv->second);
-			}
-		} else {
-			static_assert(std::_Always_false<Func>, "Invalid Iterate Functions");
-		}
-	}
 	void Reserve(size_t capacity) noexcept {
 		size_t newCapacity = GetPow2Size(capacity);
 		Resize(newCapacity);
+	}
+	void reserve(size_t capacity) noexcept {
+		Reserve(capacity);
 	}
 	Index Find(const K& key) const noexcept {
 		size_t hashOriginValue = hsFunc(key);
@@ -420,31 +401,6 @@ public:
 		}
 
 		return *(V const*)nullptr;
-	}
-	bool TryGet(const K& key, V& value) const noexcept {
-
-		size_t hashOriginValue = hsFunc(key);
-		size_t hashValue = GetHash(hashOriginValue, nodeVec.size());
-		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
-				value = node->second;
-				return true;
-			}
-		}
-
-		return false;
-	}
-	bool Contains(const K& key) const noexcept {
-
-		size_t hashOriginValue = hsFunc(key);
-		size_t hashValue = GetHash(hashOriginValue, nodeVec.size());
-		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 	void Clear() noexcept {
 		if (allocatedNodes.empty()) return;
