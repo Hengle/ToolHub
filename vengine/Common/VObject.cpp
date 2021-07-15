@@ -43,13 +43,14 @@ PtrLink::PtrLink(const PtrLink& p) noexcept : offset(p.offset) {
 		++p.heapPtr->refCount;
 		++p.heapPtr->looseRefCount;
 		heapPtr = p.heapPtr;
-	} else {
+	}
+	else {
 		heapPtr = nullptr;
 	}
 }
 PtrLink::PtrLink(PtrLink&& p) noexcept
 	: offset(p.offset),
-	  heapPtr(p.heapPtr) {
+	heapPtr(p.heapPtr) {
 	p.heapPtr = nullptr;
 }
 void PtrLink::operator=(const PtrLink& p) noexcept {
@@ -59,7 +60,8 @@ void PtrLink::operator=(const PtrLink& p) noexcept {
 		++p.heapPtr->looseRefCount;
 		Dispose();
 		heapPtr = p.heapPtr;
-	} else {
+	}
+	else {
 		Dispose();
 	}
 	offset = p.offset;
@@ -137,7 +139,8 @@ PtrWeakLink::PtrWeakLink(const PtrLink& p) noexcept : offset(p.offset) {
 	if (p.heapPtr && p.heapPtr->ptr) {
 		++p.heapPtr->looseRefCount;
 		heapPtr = p.heapPtr;
-	} else {
+	}
+	else {
 		heapPtr = nullptr;
 	}
 }
@@ -145,13 +148,14 @@ PtrWeakLink::PtrWeakLink(const PtrWeakLink& p) noexcept : offset(p.offset) {
 	if (p.heapPtr && p.heapPtr->ptr) {
 		++p.heapPtr->looseRefCount;
 		heapPtr = p.heapPtr;
-	} else {
+	}
+	else {
 		heapPtr = nullptr;
 	}
 }
 PtrWeakLink::PtrWeakLink(PtrWeakLink&& p) noexcept
 	: heapPtr(p.heapPtr),
-	  offset(p.offset) {
+	offset(p.offset) {
 	p.heapPtr = nullptr;
 }
 void PtrWeakLink::operator=(const PtrLink& p) noexcept {
@@ -159,7 +163,8 @@ void PtrWeakLink::operator=(const PtrLink& p) noexcept {
 		Dispose();
 		++p.heapPtr->looseRefCount;
 		heapPtr = p.heapPtr;
-	} else {
+	}
+	else {
 		Dispose();
 	}
 	offset = p.offset;
@@ -170,7 +175,8 @@ void PtrWeakLink::operator=(const PtrWeakLink& p) noexcept {
 		++p.heapPtr->looseRefCount;
 		Dispose();
 		heapPtr = p.heapPtr;
-	} else {
+	}
+	else {
 		Dispose();
 	}
 	offset = p.offset;
@@ -188,14 +194,15 @@ PtrLink::PtrLink(const PtrWeakLink& p) noexcept
 		++p.heapPtr->refCount;
 		++p.heapPtr->looseRefCount;
 		heapPtr = p.heapPtr;
-	} else {
+	}
+	else {
 		heapPtr = nullptr;
 	}
 }
 
 PtrLink::PtrLink(PtrWeakLink&& p) noexcept
 	: heapPtr(p.heapPtr),
-	  offset(p.offset) {
+	offset(p.offset) {
 	if (heapPtr) {
 		++heapPtr->refCount;
 	}
@@ -203,10 +210,21 @@ PtrLink::PtrLink(PtrWeakLink&& p) noexcept
 }
 #undef PRINT_SIZE
 
+void* VObjectClass::M_GetCastPtr(VObjectClass const* ths, VObject* ptr, Type t)
+{
+	if (ths == nullptr)
+		return nullptr;
+	auto ite = ths->allowCastClass.Find(t);
+	if (ite) {
+		return ite.Value()(ptr);
+	}
+	return nullptr;
+}
+
 VObjectClass::VObjectClass() {
 	baseLevel.store(nullptr, std::memory_order_release);
 }
-VObjectClass::VObjectClass(Type type, funcPtr_t<void*(VObject*)> func) {
+VObjectClass::VObjectClass(Type type, funcPtr_t<void* (VObject*)> func) {
 	baseLevel.store(nullptr, std::memory_order_release);
 	allowCastClass.Emplace(type, func);
 }
@@ -214,6 +232,13 @@ VObjectClass::~VObjectClass() {
 }
 
 VObjectClass* VObjectClass::SetBase(VObjectClass const* base) {
-	this->baseLevel.store(base, std::memory_order_release);
+	auto lastBase = this->baseLevel.exchange(base, std::memory_order_release);
+	//Shall only executed once
+	if (lastBase != base) {
+		for (auto&& i : base->allowCastClass) {
+			std::lock_guard lck(setBaseLock);
+			allowCastClass.Emplace(i.first, i.second);
+		}
+	}
 	return this;
 }

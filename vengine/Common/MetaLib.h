@@ -73,10 +73,13 @@ public:
 		if constexpr (!std::is_trivially_destructible_v<T>)
 			(reinterpret_cast<T*>(storage))->~T();
 	}
-	T& operator*() noexcept {
+	T& operator*() & noexcept {
 		return *reinterpret_cast<T*>(storage);
 	}
-	T const& operator*() const noexcept {
+	T&& operator*() && noexcept {
+		return std::move(*reinterpret_cast<T*>(storage));
+	}
+	T const& operator*() const& noexcept {
 		return *reinterpret_cast<T const*>(storage);
 	}
 	T* operator->() noexcept {
@@ -114,7 +117,7 @@ public:
 			VENGINE_EXIT;
 		}
 	}
-	template <typename ... Args>
+	template<typename... Args>
 	StackObject(Args&&... args) {
 		new (storage) T(std::forward<Args>(args)...);
 	}
@@ -198,6 +201,10 @@ public:
 	inline SelfType&& InPlaceNew(Args&&... args) && noexcept {
 		return std::move(InPlaceNew(std::forward<Args>(args)...));
 	}
+	bool hash_value() const noexcept {
+		return initialized;
+	}
+
 	bool Initialized() const noexcept {
 		return initialized;
 	}
@@ -213,10 +220,39 @@ public:
 		stackObj.Delete();
 		return true;
 	}
-	T& operator*() noexcept {
+	void reset() const noexcept {
+		Delete();
+	}
+	T& value() & noexcept {
 		return *stackObj;
 	}
-	T const& operator*() const noexcept {
+	T const& value() const& noexcept {
+		return *stackObj;
+	}
+	T&& value() && noexcept {
+		return std::move(*stackObj);
+	}
+	template<class U>
+	T value_or(U&& default_value) const& {
+		if (initialized)
+			return *stackObj;
+		else
+			return std::forward<U>(default_value);
+	}
+	template<class U>
+	T value_or(U&& default_value) && {
+		if (initialized)
+			return std::move(*stackObj);
+		else
+			return std::forward<U>(default_value);
+	}
+	T& operator*() & noexcept {
+		return *stackObj;
+	}
+	T&& operator*() && noexcept {
+		return std::move(*stackObj);
+	}
+	T const& operator*() const& noexcept {
 		return *stackObj;
 	}
 	T* operator->() noexcept {
@@ -351,9 +387,10 @@ using PureType_t = std::remove_pointer_t<std::remove_cvref_t<T>>;
 struct Type {
 private:
 	const std::type_info* typeEle;
+	struct DefaultType {};
 
 public:
-	Type() noexcept : typeEle(nullptr) {
+	Type() noexcept : typeEle(&typeid(DefaultType)) {
 	}
 	Type(const Type& t) noexcept : typeEle(t.typeEle) {
 	}
@@ -361,12 +398,6 @@ public:
 	}
 	Type(std::nullptr_t) noexcept : typeEle(nullptr) {}
 	bool operator==(const Type& t) const noexcept {
-		size_t a = (size_t)(typeEle);
-		size_t b = (size_t)(t.typeEle);
-		//have nullptr
-		if ((a & b) == 0) {
-			return !(a | b);
-		}
 		return *t.typeEle == *typeEle;
 	}
 	bool operator!=(const Type& t) const noexcept {

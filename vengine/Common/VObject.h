@@ -23,6 +23,8 @@ protected:
 	}
 
 	std::atomic<VObjectClass const*> baseLevel;
+	spin_mutex setBaseLock;
+	static void* M_GetCastPtr(VObjectClass const* cls, VObject* ptr, Type t);
 
 public:
 	VObjectClass* operator->() {
@@ -46,7 +48,9 @@ public:
 	~VObjectClass();
 	VObjectClass* SetBase(VObjectClass const* base);
 	template<typename T>
-	static T* GetCastPtr(VObjectClass const* cls, VObject* ptr);
+	static T* GetCastPtr(VObjectClass const* cls, VObject* ptr) {
+		return reinterpret_cast<T*>(M_GetCastPtr(cls, ptr, typeid(T)));
+	}
 };
 
 //__VA_ARGS__
@@ -71,10 +75,6 @@ private:
 protected:
 	VObjectClass const* originClassDesc = nullptr;
 	VObject();
-	template<typename T>
-	T* M_GetInterface(VObject* ptr) const {
-		return VObjectClass::GetCastPtr<T>(originClassDesc, ptr);
-	}
 
 public:
 	Type GetType() const noexcept {
@@ -82,15 +82,15 @@ public:
 	}
 	template<typename T>
 	T* GetInterface() {
-		return M_GetInterface(this);
+		return VObjectClass::GetCastPtr<T>(originClassDesc, this);
 	}
 	template<typename T>
 	T const* GetInterface() const {
-		return M_GetInterface(const_cast<VObject*>(this));
+		return VObjectClass::GetCastPtr<T>(originClassDesc, const_cast<VObject*>(this));
 	}
 	template<typename T>
 	size_t GetInterfaceOffset() const {
-		return reinterpret_cast<size_t>(VObjectClass::GetCastPtr<T>(originClassDesc, reinterpret_cast<VObject*>(1))) - (size_t)1;
+		return reinterpret_cast<size_t>(VObjectClass::GetCastPtr<T>(originClassDesc, reinterpret_cast<VObject*>(0x7fffffff))) - (size_t)0x7fffffff;
 	}
 
 	void AddEventBeforeDispose(Runnable<void(VObject*)>&& func) noexcept;
@@ -100,17 +100,5 @@ public:
 	KILL_COPY_CONSTRUCT(VObject)
 		VObject(VObject&& v) = delete;
 };
-template<typename T>
-T* VObjectClass::GetCastPtr(VObjectClass const* ths, VObject* ptr) {
-	if (ths == nullptr)
-		return nullptr;
-	auto ite = ths->allowCastClass.Find(typeid(T));
-	if (ite) {
-		return reinterpret_cast<T*>(ite.Value()(ptr));
-	}
-	VObjectClass const* basePtr = ths->baseLevel.load(std::memory_order_acquire);
-	if (basePtr) {
-		return GetCastPtr<T>(basePtr, ptr);
-	}
-}
+
 #include <Common/ObjectPtr.h>

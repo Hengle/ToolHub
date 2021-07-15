@@ -3,48 +3,11 @@ SubProj = [
     {
         "Name": "VEngine_DLL",
         "PlaceHolder": "../Build/#.lib",
-        "RemoveHeader": 1,
-        "Dependices": [
-        ],
-        "IncludePaths": ["."],
-        "PreProcessor": {
-            "Debug": [
-                "_DEBUG",
-                "COMMON_DLL_PROJECT",
-                "_CONSOLE",
-                "_CRT_SECURE_NO_WARNINGS",
-                "_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS"
-            ],
-            "Release": [
-                "NDEBUG",
-                "COMMON_DLL_PROJECT",
-                "_CONSOLE",
-                "_CRT_SECURE_NO_WARNINGS",
-                "_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS"
-            ]
-        }
+        "RemoveHeader": 1
     },
     {
         "Name": "VEngine_Compute",
-        "Dependices": [
-        ],
-        "IncludePaths": [".", "./VectorCompute"],
-        "PreProcessor": {
-            "Debug": [
-                "_DEBUG",
-                "VENGINE_COMPUTE_PROJECT",
-                "_CONSOLE",
-                "_CRT_SECURE_NO_WARNINGS",
-                "_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS"
-            ],
-            "Release": [
-                "NDEBUG",
-                "VENGINE_COMPUTE_PROJECT",
-                "_CONSOLE",
-                "_CRT_SECURE_NO_WARNINGS",
-                "_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS"
-            ]
-        }
+        "RemoveHeader": 1
     }
 
 ]

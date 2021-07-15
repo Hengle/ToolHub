@@ -1,24 +1,12 @@
-MEngine-Unity/Library/
-MEngine-Unity/Assembly-CSharp.csproj
-MEngine-Unity/Assembly-CSharp-Editor.csproj
-MEngine-Unity/Assets/ConsolePro/
-MEngine-Unity/Assets/ConsolePro.meta
-vector_engine/Engine/Build/Vector Engine.exe
-vector_engine/Engine/Build/VEngine_Compute.exe
-vector_engine/Engine/Build/VEngine_Compute.dll
-vector_engine/Engine/Build/VEngine_DLL.dll
-vector_engine/Engine/Build/VEngine_Renderer.dll
-vector_engine/Engine/Build/VEngineToolkit.dll
+
 .vs/
 x64/
 Library/
 Debug/
 Release/
-MEngine-Unity/.idea/
-MEngine_Unreal/
-vector_engine/.idea/
-Unreal_DLL/
 Temp/
+build/VEngine_DLL.dll
+build/VEngine_Compute.dll
 *.lnk
 **/*.exp
 **/*.iobj
@@ -30,6 +18,5 @@ Temp/
 **/*.user
 **/*.exe
 **/*.vcxproj
-Sandbox_Demo_Client/.idea/
 *.csproj
 __pycache__/

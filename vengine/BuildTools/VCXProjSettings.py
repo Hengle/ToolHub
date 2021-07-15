@@ -7,11 +7,7 @@ import os
 import os.path
 
 
-def SetCLCompile(pdbIndex: int, root: ET.Element, prep: str, includeDir: str, xmlns):
-    inc = lb.XML_GetSubElement(root, 'AdditionalIncludeDirectories', xmlns)
-    inc.text = includeDir + "%(AdditionalIncludeDirectories);"
-    ppEle = lb.XML_GetSubElement(root, 'PreprocessorDefinitions', xmlns)
-    ppEle.text = prep + "%(PreprocessorDefinitions);"
+def SetCLCompile(pdbIndex: int, root: ET.Element, xmlns):
     pdb = lb.XML_GetSubElement(root, 'ProgramDataBaseFileName', xmlns)
     pdb.text = "$(IntDir)vc_" + str(pdbIndex) + ".pdb"
 
@@ -37,29 +33,13 @@ def GeneratePlaceHolder():
 def SetItemDefinitionGroup(pdbIndex: int, root: ET.Element, data: dict, xmlns):
     itemGroups = []
     lb.XML_GetSubElements(itemGroups, root, 'ItemDefinitionGroup', xmlns)
-    gIncludePaths = data["IncludePaths"]
-    gDep = data["Dependices"]
-    gPP = data["PreProcessor"]
     for itemGroup in itemGroups:
         att = itemGroup.attrib.get("Condition")
         if att == None:
             continue
-        preprocess = ''
-        includes = ''
-        deps = ''
-        for inc in gIncludePaths:
-            includes += inc + ';'
-        for d in gDep:
-            deps += d + ';'
-        for i in gPP:
-            if att.find('\'' + i + '|') >= 0:
-                for macro in gPP[i]:
-                    preprocess += macro
-                    preprocess += ';'
         clComp = lb.XML_GetSubElement(itemGroup, 'ClCompile', xmlns)
-        SetCLCompile(pdbIndex, clComp, preprocess, includes, xmlns)
+        SetCLCompile(pdbIndex, clComp, xmlns)
         link = lb.XML_GetSubElement(itemGroup, 'Link', xmlns)
-        SetLink(link, deps, xmlns)
 
 
 def RemoveIncludes(root: ET.Element, xmlns):
@@ -81,7 +61,7 @@ def RemoveIncludes(root: ET.Element, xmlns):
         root.remove(i)
 
 
-def RemoveNonExistsPath(subName: str, dll, root: ET.Element, xmlns):
+def RemoveNonExistsPath(subName: str, dll, root: ET.Element, xmlns, addFile:bool):
     subName = subName.lower()
     itemGroups = []
     lb.XML_GetSubElements(itemGroups, root, "ItemGroup", xmlns)
@@ -98,14 +78,15 @@ def RemoveNonExistsPath(subName: str, dll, root: ET.Element, xmlns):
             itemGroupsRemoveList.append(i)
     for i in itemGroupsRemoveList:
         root.remove(i)
-    CompileItemGroup = ET.Element("ItemGroup", {})
-    root.append(CompileItemGroup)
-    dll.Py_SetPackageName(subName.encode("utf-8"))
-    sz = dll.Py_PathSize()
-    for i in range(sz):
-        p = str(ctypes.string_at(dll.Py_GetPath(i)), "utf-8")
-        CompileItemGroup.append(
-            ET.Element("ClCompile", {'Include': p}))
+    if addFile:
+        CompileItemGroup = ET.Element("ItemGroup", {})
+        root.append(CompileItemGroup)
+        dll.Py_SetPackageName(subName.encode("utf-8"))
+        sz = dll.Py_PathSize()
+        for i in range(sz):
+            p = str(ctypes.string_at(dll.Py_GetPath(i)), "utf-8")
+            CompileItemGroup.append(
+                ET.Element("ClCompile", {'Include': p}))
 
 
 def GetVCXProj(path: str):
@@ -172,20 +153,22 @@ def UpdateCPPFiles(fileDict: dict):
     return resultDict
 
 
-def VCXProjSettingMain():
-    dll = ctypes.cdll.LoadLibrary("BuildTools/VEngine_DLL.dll")
-    dll.Py_InitFileSys("BuildTools/mimalloc.dll".encode("utf-8"))
-    dll.Py_AddExtension("cpp".encode("utf-8"))
-    dll.Py_AddExtension("c".encode("utf-8"))
-    dll.Py_AddExtension("cxx".encode("utf-8"))
-    dll.Py_AddExtension("cc".encode("utf-8"))
-    dll.Py_AddIgnorePath(".vs".encode("utf-8"))
-    dll.Py_AddIgnorePath("Build".encode("utf-8"))
-    dll.Py_AddIgnorePath("BuildTools".encode("utf-8"))
-    dll.Py_AddIgnorePath("x64".encode("utf-8"))
-    dll.Py_AddIgnorePath("x86".encode("utf-8"))
-    dll.Py_ExecuteFileSys()
-    dll.Py_GetPath.restype = ctypes.c_char_p
+def VCXProjSettingMain(readFile:bool):
+    dll = None
+    if readFile:
+        dll = ctypes.cdll.LoadLibrary("BuildTools/VEngine_DLL.dll")
+        dll.Py_InitFileSys("BuildTools/mimalloc.dll".encode("utf-8"))
+        dll.Py_AddExtension("cpp".encode("utf-8"))
+        dll.Py_AddExtension("c".encode("utf-8"))
+        dll.Py_AddExtension("cxx".encode("utf-8"))
+        dll.Py_AddExtension("cc".encode("utf-8"))
+        dll.Py_AddIgnorePath(".vs".encode("utf-8"))
+        dll.Py_AddIgnorePath("Build".encode("utf-8"))
+        dll.Py_AddIgnorePath("BuildTools".encode("utf-8"))
+        dll.Py_AddIgnorePath("x64".encode("utf-8"))
+        dll.Py_AddIgnorePath("x86".encode("utf-8"))
+        dll.Py_ExecuteFileSys()
+        dll.Py_GetPath.restype = ctypes.c_char_p
 
     pdbIndex = 0
     for sub in bd.SubProj:
@@ -195,24 +178,35 @@ def VCXProjSettingMain():
         subRoot = subTree.getroot()
         if sub.get("RemoveHeader") == 1:
             RemoveIncludes(subRoot, subXmlns)
-        RemoveNonExistsPath(subName, dll, subRoot, subXmlns)
+        RemoveNonExistsPath(subName, dll, subRoot, subXmlns,readFile)
         SetItemDefinitionGroup(pdbIndex, subRoot, sub, subXmlns)
         pdbIndex += 1
         lb.XML_Format(subRoot)
         OutputXML(subTree, subPath)
-    dll.Py_DisposeFileSys()
+    if readFile:
+        dll.Py_DisposeFileSys()
     print("Build Success!")
 
-def MakeVCXProj():
-    ext = {"vcxprojbackup" : 1}
+
+def MakeVCXProj(inverse:bool):
+    backup = ""
+    vs = ""
+    if inverse:
+        backup = "vcxproj"
+        vs = "vcxprojbackup"
+    else:
+        vs = "vcxproj"
+        backup = "vcxprojbackup"
+
+    ext = {backup: 1}
     fileResults = {}
     lb.File_GetRootFiles(fileResults, ".", ext)
-    lst = fileResults.get("vcxprojbackup")
+    lst = fileResults.get(backup)
     if lst == None:
         return
     for i in lst:
-        copyfile(i, i.replace(".vcxprojbackup", ".vcxproj"))
-    
+        copyfile(i, i.replace("." + backup, "." + vs))
+
 
 def ClearFilters():
     for sub in bd.SubProj:
@@ -228,7 +222,13 @@ def CopyFiles():
 
 
 def VcxMain():
-    MakeVCXProj()
+    MakeVCXProj(False)
     GeneratePlaceHolder()
     ClearFilters()
-    VCXProjSettingMain()
+    VCXProjSettingMain(True)
+
+def VcxMain_EmptyFile():
+    GeneratePlaceHolder()
+    ClearFilters()
+    VCXProjSettingMain(False)
+    MakeVCXProj(True)
