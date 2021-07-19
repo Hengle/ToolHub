@@ -53,3 +53,7 @@ void VEngine_Log(std::type_info const& t) {
 		{t.name(),
 		 " runtime error! Usually did mistake operation, like vstd::optional\n"_sv});
 }
+
+void VEngine_Log(char const* chunk) {
+	VEngine_Log(vstd::string_view(chunk));
+}

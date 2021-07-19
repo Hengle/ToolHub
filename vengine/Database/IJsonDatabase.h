@@ -1,14 +1,16 @@
 #pragma once
 #include <Common/Common.h>
 namespace toolhub::db {
-class JsonObject;
-class JsonArray;
+class IJsonDict;
+class IJsonArray;
 
 class IJsonDataBase {
 public:
-	virtual JsonObject* GetRootObject() = 0;
-	virtual void Dispose(JsonObject* jsonObj) = 0;
-	virtual void Dispose(JsonArray* jsonArr) = 0;
+	virtual IJsonDict* GetRootObject() = 0;
+	virtual IJsonDict* CreateJsonObject() = 0;
+	virtual IJsonArray* CreateJsonArray() = 0;
+	virtual void Dispose(IJsonDict* jsonObj) = 0;
+	virtual void Dispose(IJsonArray* jsonArr) = 0;
 	virtual void Save() = 0;
 
 	virtual ~IJsonDataBase() {}

@@ -44,7 +44,7 @@ public:
 
 private:
 	StackObject<BeginIteratorType, true> curType;
-	T* colPtr;
+	T const* colPtr;
 	ElementType const* ptr;
 
 public:
@@ -60,7 +60,7 @@ public:
 
 	virtual ~IEnumerator() {}
 	IEnumerator(
-		T& collection) {
+		T const& collection) {
 		colPtr = &collection;
 	}
 	IEnumerator(T&&) = delete;
