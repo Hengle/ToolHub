@@ -28,8 +28,8 @@ static int32_t cJSON_strcasecmp(const char* s1, const char* s2) {
 	return tolower(*(const unsigned char*)s1)
 		   - tolower(*(const unsigned char*)s2);
 }
-static void* (*cJSON_malloc)(uint64_t sz) = vengine_malloc;
-static void (*cJSON_free)(void* ptr) = vengine_free;
+#define cJSON_malloc vengine_malloc
+#define cJSON_free vengine_free
 static char* cJSON_strdup(const char* str) {
 	uint64_t len;
 	char* copy;
@@ -40,13 +40,6 @@ static char* cJSON_strdup(const char* str) {
 	return copy;
 }
 void cJSON_InitHooks(cJSON_Hooks* hooks) {
-	if (!hooks) { /* Reset hooks */
-		cJSON_malloc = vengine_malloc;
-		cJSON_free = vengine_free;
-		return;
-	}
-	cJSON_malloc = (hooks->malloc_fn) ? hooks->malloc_fn : vengine_malloc;
-	cJSON_free = (hooks->free_fn) ? hooks->free_fn : vengine_free;
 }
 /* Internal constructor. */
 static cJSON* cJSON_New_Item() {
@@ -884,3 +877,6 @@ cJSON* cJSON_CreateStringArray(const char** strings, int32_t count) {
 	}
 	return a;
 }
+
+#undef cJSON_malloc
+#undef cJSON_free

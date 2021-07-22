@@ -39,7 +39,7 @@ namespace neb {
 	}
 
 	CJsonObject& CJsonObject::operator=(const CJsonObject& oJsonObject) {
-		Parse(oJsonObject.ToString().c_str());
+		Parse(oJsonObject.ToString());
 		return (*this);
 	}
 

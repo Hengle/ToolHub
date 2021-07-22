@@ -80,6 +80,10 @@ public:
 			GetPtr()->CopyConstruct(placePtr, f.placePtr, &funcPtrPlaceHolder, allocHandle);
 		}
 	}
+	Runnable(SelfType& f) noexcept
+		: Runnable(static_cast<SelfType const&>(f)) {}
+	Runnable(SelfType const && f) noexcept
+		: Runnable(f) {}
 	Runnable(SelfType&& f) noexcept
 		: logicPlaceHolder(f.logicPlaceHolder),
 		  runFunc(f.runFunc) {
@@ -92,54 +96,46 @@ public:
 
 	template<typename Functor>
 	Runnable(Functor&& f) noexcept {
-		if constexpr (std::is_same_v<Functor&&, SelfType&>) {
-			logicPlaceHolder = f.logicPlaceHolder;
-			runFunc = f.runFunc;
-			if (f.placePtr) {
-				GetPtr()->CopyConstruct(placePtr, f.placePtr, &funcPtrPlaceHolder, allocHandle);
-			}
-		} else {
 
-			using PureType = std::remove_cvref_t<Functor>;
-			constexpr bool USE_HEAP = (sizeof(PureType) > PLACEHOLDERSIZE);
-			struct FuncPtrLogic final : public IProcessFunctor {
-				void Delete(void* pp, VAllocHandle<allocType> const& allocHandle) const override {
-					PureType* ff = (PureType*)pp;
-					ff->~PureType();
-					if constexpr (USE_HEAP) {
-						allocHandle.Free(pp);
-					}
+		using PureType = std::remove_cvref_t<Functor>;
+		constexpr bool USE_HEAP = (sizeof(PureType) > PLACEHOLDERSIZE);
+		struct FuncPtrLogic final : public IProcessFunctor {
+			void Delete(void* pp, VAllocHandle<allocType> const& allocHandle) const override {
+				PureType* ff = (PureType*)pp;
+				ff->~PureType();
+				if constexpr (USE_HEAP) {
+					allocHandle.Free(pp);
 				}
-				void CopyConstruct(void*& dest, void const* source, PlaceHolderType* placeHolder, VAllocHandle<allocType> const& allocHandle) const override {
-					if constexpr (USE_HEAP) {
-						dest = allocHandle.Malloc(sizeof(PureType));
-					} else {
-						dest = placeHolder;
-					}
-					new (dest) PureType(*(PureType const*)source);
-				}
-				void MoveConstruct(void*& dest, void* source, PlaceHolderType* placeHolder) const override {
-					if constexpr (USE_HEAP) {
-						dest = source;
-					} else {
-						dest = placeHolder;
-						new (dest) PureType(
-							std::move(*reinterpret_cast<PureType*>(source)));
-					}
-				}
-			};
-			runFunc = [](void const* pp, TypeArgs&&... tt) -> Ret {
-				PureType const* ff = reinterpret_cast<PureType const*>(pp);
-				return (*ff)(std::forward<TypeArgs>(tt)...);
-			};
-			new (&logicPlaceHolder) FuncPtrLogic();
-			if constexpr (USE_HEAP) {
-				placePtr = allocHandle.Malloc(sizeof(PureType));
-			} else {
-				placePtr = &funcPtrPlaceHolder;
 			}
-			new (placePtr) PureType(std::forward<Functor>(f));
+			void CopyConstruct(void*& dest, void const* source, PlaceHolderType* placeHolder, VAllocHandle<allocType> const& allocHandle) const override {
+				if constexpr (USE_HEAP) {
+					dest = allocHandle.Malloc(sizeof(PureType));
+				} else {
+					dest = placeHolder;
+				}
+				new (dest) PureType(*(PureType const*)source);
+			}
+			void MoveConstruct(void*& dest, void* source, PlaceHolderType* placeHolder) const override {
+				if constexpr (USE_HEAP) {
+					dest = source;
+				} else {
+					dest = placeHolder;
+					new (dest) PureType(
+						std::move(*reinterpret_cast<PureType*>(source)));
+				}
+			}
+		};
+		runFunc = [](void const* pp, TypeArgs&&... tt) -> Ret {
+			PureType const* ff = reinterpret_cast<PureType const*>(pp);
+			return (*ff)(std::forward<TypeArgs>(tt)...);
+		};
+		new (&logicPlaceHolder) FuncPtrLogic();
+		if constexpr (USE_HEAP) {
+			placePtr = allocHandle.Malloc(sizeof(PureType));
+		} else {
+			placePtr = &funcPtrPlaceHolder;
 		}
+		new (placePtr) PureType(std::forward<Functor>(f));
 	}
 
 	void operator=(std::nullptr_t) noexcept {

@@ -20,7 +20,13 @@ private:
 	bool Equal(char const* str, size_t count) const noexcept;
 	void* string_malloc(size_t sz);
 	void string_free(void* freeMem);
-	
+	static constexpr char const* GetEnd(char const* ptr) {
+		while (*ptr != 0) {
+			ptr++;
+		}
+		return ptr;
+	}
+
 public:
 	string(const string& a, const string& b) noexcept;
 	string(string_view a, const string& b) noexcept;
@@ -33,7 +39,9 @@ public:
 	inline size_t length() const noexcept { return lenSize; }
 	inline size_t getCapacity() const noexcept { return capacity; }
 	string() noexcept;
-	string(const char* cstr) noexcept;
+	string(char const* cstr) noexcept
+		: string(cstr, GetEnd(cstr)) {}
+	string(char* cstr) noexcept : string((char const*)cstr) {}
 	string(const char* cstrBegin, const char* cstrEnd) noexcept;
 	string(string_view tempView);
 	string(const string& data) noexcept;
@@ -136,6 +144,12 @@ private:
 		}
 		return sz;
 	}
+	static constexpr wchar_t const* GetEnd(wchar_t const* ptr) {
+		while (*ptr != 0) {
+			ptr++;
+		}
+		return ptr;
+	}
 	static constexpr size_t PLACEHOLDERSIZE = 32;
 	std::aligned_storage_t<PLACEHOLDERSIZE, 1> localStorage;
 	void* wstring_malloc(size_t sz);
@@ -153,7 +167,8 @@ public:
 	size_t length() const noexcept { return lenSize; }
 	size_t getCapacity() const noexcept { return capacity; }
 	wstring() noexcept;
-	wstring(const wchar_t* wchr) noexcept;
+	wstring(const wchar_t* wchr) noexcept
+		: wstring(wchr, GetEnd(wchr)) {}
 	wstring(const wchar_t* wchr, const wchar_t* wchrEnd) noexcept;
 	wstring(const char* wchr) noexcept;
 	wstring(const char* wchr, const char* wchrEnd) noexcept;

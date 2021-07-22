@@ -100,14 +100,7 @@ string::~string() noexcept {
 		string_free(ptr);
 	}
 }
-string::string(char const* chr) noexcept {
-	size_t size = strlen(chr);
-	size_t newLenSize = size;
-	size += 1;
-	reserve(size);
-	lenSize = newLenSize;
-	memcpy(ptr, chr, size);
-}
+
 string::string(const char* chr, const char* chrEnd) noexcept {
 	size_t size = chrEnd - chr;
 	size_t newLenSize = size;
@@ -381,15 +374,6 @@ wstring::wstring() noexcept {
 wstring::~wstring() noexcept {
 	if (ptr)
 		wstring_free(ptr);
-}
-wstring::wstring(wchar_t const* chr) noexcept {
-	size_t size = wstrLen(chr);
-	size_t newLenSize = size;
-	size += 1;
-	reserve(size);
-	lenSize = newLenSize;
-	memcpy(ptr, chr, size * 2);
-	ptr[lenSize] = 0;
 }
 wstring::wstring(const wchar_t* wchr, const wchar_t* wchrEnd) noexcept {
 	size_t size = wchrEnd - wchr;

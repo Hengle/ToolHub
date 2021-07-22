@@ -277,6 +277,9 @@ public:
 	StackObject() noexcept {
 		initialized = false;
 	}
+	StackObject(std::nullptr_t) noexcept {
+		initialized = false;
+	}
 	template<typename... Args>
 	StackObject(Args&&... args)
 		: stackObj(std::forward<Args>(args)...),
@@ -652,10 +655,7 @@ class variant {
 	};
 
 	static constexpr size_t argSize = sizeof...(AA);
-	template<typename T, typename Args>
-	static void GetFuncPtr(void* ptr, void* arg) {
-		(*reinterpret_cast<T*>(ptr))(*reinterpret_cast<Args*>(arg));
-	}
+
 	template<typename T, typename Args>
 	static void GetFuncPtr_Const(void* ptr, void const* arg) {
 		(*reinterpret_cast<T*>(ptr))(*reinterpret_cast<Args const*>(arg));
@@ -675,14 +675,18 @@ class variant {
 		template<typename F, typename... Funcs>
 		static void Set(FuncType* funcPtr, void** funcP, F&& f, Funcs&&... fs) {
 			if constexpr (idx == c) return;
-			*funcPtr = GetFuncPtr<std::remove_reference_t<F>, std::remove_reference_t<T>>;
+			*funcPtr = [](void* ptr, void* arg) {
+				(*reinterpret_cast<std::remove_reference_t<F>*>(ptr))(*reinterpret_cast<std::remove_reference_t<T>*>(arg));
+			};
 			*funcP = &f;
 			Iterator<idx + 1, c, Args...>::template Set<Funcs...>(funcPtr + 1, funcP + 1, std::forward<Funcs>(fs)...);
 		}
 		template<typename F, typename... Funcs>
 		static void Set_Const(FuncType_Const* funcPtr, void** funcP, F&& f, Funcs&&... fs) {
 			if constexpr (idx == c) return;
-			*funcPtr = GetFuncPtr_Const<std::remove_reference_t<F>, std::remove_reference_t<T>>;
+			*funcPtr = [](void* ptr, void const* arg) {
+				(*reinterpret_cast<std::remove_reference_t<F>*>(ptr))(*reinterpret_cast<std::remove_reference_t<T> const*>(arg));
+			};
 			*funcP = &f;
 			Iterator<idx + 1, c, Args...>::template Set_Const<Funcs...>(funcPtr + 1, funcP + 1, std::forward<Funcs>(fs)...);
 		}
@@ -769,16 +773,18 @@ class variant {
 	size_t switcher = 0;
 
 public:
-	template<typename... Arg>
-	variant(Arg&&... arg) {
+	variant() {
+		switcher = sizeof...(AA);
+	}
+	template<typename T, typename... Arg>
+	variant(T&& t, Arg&&... arg) {
 		if constexpr (sizeof...(Arg) == 0) {
-			switcher = sizeof...(AA);
-		} else if constexpr (sizeof...(Arg) == 1) {
-			switcher = Constructor<AA...>::template CopyOrMoveConst<Arg...>(placeHolder, 0, std::forward<Arg>(arg)...);
+			switcher = Constructor<AA...>::template CopyOrMoveConst<T>(placeHolder, 0, std::forward<T>(t));
 			if (switcher < sizeof...(AA)) return;
 		}
-		switcher = Constructor<AA...>::template AnyConst<Arg...>(placeHolder, 0, std::forward<Arg>(arg)...);
+		switcher = Constructor<AA...>::template AnyConst<T, Arg...>(placeHolder, 0, std::forward<T>(t), std::forward<Arg>(arg)...);
 	}
+
 	variant(variant const& v)
 		: switcher(v.switcher) {
 		Constructor<AA...>::Copy(switcher, placeHolder, v.placeHolder);
@@ -787,10 +793,17 @@ public:
 		: switcher(v.switcher) {
 		Constructor<AA...>::Move(switcher, placeHolder, v.placeHolder);
 	}
+	variant(variant& v)
+		: variant(static_cast<variant const&>(v)) {
+	}
+	variant(variant const&& v)
+		: variant(v) {
+	}
 	~variant() {
 		Constructor<AA...>::Dispose(switcher, placeHolder);
 	}
-
+	void* GetPlaceHolder() { return placeHolder; }
+	void const* GetPlaceHolder() const { return placeHolder; }
 	size_t GetType() const { return switcher; }
 
 	template<size_t i>

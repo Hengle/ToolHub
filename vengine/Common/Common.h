@@ -15,3 +15,4 @@
 #include <Common/DXMath/DXMath.h>
 #include <Common/MathHelper.h>
 #include <Common/spin_mutex.h>
+#include <Common/unique_ptr.h>

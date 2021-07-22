@@ -2,234 +2,191 @@
 
 #include <Common/Common.h>
 #include <Common/Runnable.h>
-#include <Database/IJsonDatabase.h>
-#include <Database/JsonObject.h>
+#include <Common/Pool.h>
+#include <CJsonObject/CJsonObject.hpp>
+#include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
+
 class SimpleBinaryJson;
-enum class ValueType : uint8_t {
-	Int,
-	Float,
-	Bool,
-	String,
-	Dict,
-	Array
-};
-template<typename T>
-T PopValue(std::span<uint8_t>& arr) {
-	T* ptr = reinterpret_cast<T*>(arr.data());
-	arr = std::span<uint8_t>(arr.data() + sizeof(T), arr.size() - sizeof(T));
-	return T(std::move(*ptr));
+
+SimpleBinaryJson::SimpleBinaryJson() {
+	//TODO: root
+	rootObj.instanceID = 0;
 }
-ValueType type;
-class SimpleJsonLoader {
-	std::atomic_bool loaded;
-	std::mutex mtx;
+IJsonDict* SimpleBinaryJson::GetRootObject() {
+	return &rootObj;
+}
+IJsonDict* SimpleBinaryJson::CreateJsonObject() {
+	auto dict = dictObj.Create(this);
+	return dict;
+}
+IJsonArray* SimpleBinaryJson::CreateJsonArray() {
+	return arrObj.Create(this);
+}
+void SimpleBinaryJson::Dispose(IJsonDict* jsonObj) {
+	dictObj.Remove(static_cast<SimpleJsonDict*>(jsonObj));
+}
+void SimpleBinaryJson::Dispose(IJsonArray* jsonArr) {
+	arrObj.Remove(static_cast<SimpleJsonArray*>(jsonArr));
+}
 
-public:
-	std::span<uint8_t> dataChunk;
-	//TODO
-	SimpleJsonLoader()
-		: loaded(false) {
-	}
-	template<typename T>
-	void Load(T&& t) {
-		if (loaded.load(std::memory_order_acquire)) return;
-		std::lock_guard lck(mtx);
-		if (loaded.load(std::memory_order_acquire)) return;
-		if (!dataChunk.empty())
-			t.Load(dataChunk);
-		loaded.store(true, std::memory_order_release);
-	}
-	static JsonVariant Serialize(std::span<uint8_t>& arr, SimpleBinaryJson* db);
-};
-class SimpleJsonArray : public IJsonArray {
-public:
-	vstd::vector<JsonVariant> arrs;
-	SimpleJsonLoader loader;
-	uint64 instanceID;
-	SimpleBinaryJson* db;
-	void ExecuteLoad() {
-		loader.Load(*this);
-	}
-	//Array DeSerialize
-	void Load(std::span<uint8_t> sp) {
-		uint64 arrSize = PopValue<uint64>(sp);
-		arrs.reserve(arrSize);
-		arrs.push_back_func(
-			[&](size_t i) {
-				return SimpleJsonLoader::Serialize(sp, db);
-			},
-			arrSize);
-	}
-	size_t Length() override {
-		ExecuteLoad();
-		return arrs.size();
-	}
-	JsonVariant Get(size_t index) override {
-		ExecuteLoad();
-		return arrs[index];
-	}
-	void Set(size_t index, JsonVariant value) override {
-		ExecuteLoad();
-		arrs[index] = std::move(value);
-	}
-	void Remove(size_t index) override {
-		ExecuteLoad();
-		arrs.erase(arrs.begin() + index);
-	}
-	void Add(JsonVariant value) override {
-		ExecuteLoad();
-		arrs.emplace_back(std::move(value));
-	}
-	vstd::linq::Iterator<JsonVariant>* GetIterator() override {
-		ExecuteLoad();
-		return new vstd::linq::IEnumerator(arrs);
-	}
-};
-class SimpleJsonDict : public IJsonDict {
-public:
-	HashMap<vstd::string, JsonVariant> vars;
-	SimpleJsonLoader loader;
-	uint64 instanceID;
-	SimpleBinaryJson* db;
-	void ExecuteLoad() {
-		loader.Load(*this);
-	}
-	//Dict Deserialize
-	void Load(std::span<uint8_t> sp) {
-		uint64 arrSize = PopValue<uint64>(sp);
-		vars.reserve(arrSize);
-		auto GetNextKeyValue = [&]() {
-			uint64 strSize = PopValue<uint64>(sp);
-			auto strv = vstd::string_view((char const*)sp.data(), strSize);
-			sp = std::span<uint8_t>(sp.data() + strSize, sp.size() - strSize);
-			return std::pair<vstd::string, JsonVariant>(strv, SimpleJsonLoader::Serialize(sp, db));
-		};
-		for (auto i : vstd::range(arrSize)) {
-			auto kv = GetNextKeyValue();
-			vars.Emplace(std::move(kv.first), std::move(kv.second));
-		}
-	}
-	JsonVariant Get(vstd::string_view key) override {
-		auto ite = vars.Find(key);
-		return ite ? ite.Value() : JsonVariant();
-	}
-	void Set(vstd::string key, JsonVariant value) override {
-		vars.ForceEmplace(std::move(key), std::move(value));
-	}
-	void Remove(vstd::string const& key) override {
-		vars.Remove(key);
-	}
-	vstd::linq::Iterator<JsonKeyPair>* GetIterator() override {
-		return vstd::linq::IEnumerator(vars)
-			.make_transformer(
-				[](auto&& kv) {
-					return JsonKeyPair{kv.first, kv.second};
-				})
-			.MoveNew();
-	}
-};
+SimpleBinaryJson::SerializeHeader SimpleBinaryJson::GetHeader() const {
+	return {
+		arrObj.count,
+		dictObj.count,
+		arrObj.map.size(),
+		dictObj.map.size()};
+}
 
-class SimpleBinaryJson : public IJsonDataBase {
-private:
-	template<typename T>
-	struct JsonObj {
-		HashMap<uint64, T*> map;
-		HashMap<uint64, std::span<uint8_t>> unserData;
-		std::mutex mtx;
-		uint64 count = 0;
-		Pool<T> alloc;
-		JsonObj() : alloc(256) {}
-		template<typename... Args>
-		T* Create(Args&&... args, SimpleBinaryJson* db) {
-			T* ptr = alloc.New(std::forward<Args>(args)...);
-			uint64 curCount;
-			mtx.lock();
-			auto ite = map.Emplace(++count, ptr);
-			curCount = count;
-			mtx.unlock();
-			ptr->instanceID = curCount;
-			ptr->db = db;
-			return ptr;
-		}
-		void Remove(T* ptr) {
-			std::lock_guard lck(mtx);
-			auto ite = map.Find(ptr->instanceID);
-#ifdef DEBUG
-			if (!ite || ite.Value() != ptr) {
-				VEngine_Log("Error Remove!\n");
-				VENGINE_EXIT;
+vstd::string SimpleBinaryJson::GetSerializedString() {
+	using namespace neb;
+	CJsonObject rootObj;
+	{
+		CJsonObject headerObj;
+		auto header = GetHeader();
+		headerObj.Add(header.arrID);
+		headerObj.Add(header.dictID);
+		headerObj.Add(header.arrCount);
+		headerObj.Add(header.dictCount);
+		rootObj.Add("header"_sv, headerObj);
+	}
+	{
+		CJsonObject arrJsons;
+		for (auto&& i : arrObj.map) {
+			CJsonObject arrJson;
+			for (auto&& v : i.second->arrs) {
+				auto func =
+					[&](auto&& o) {
+						arrJson.Add(o);
+					};
+				v.visit(
+					func,
+					func,
+					func,
+					[&](IJsonDict* dict) {
+						arrJson.Add('d' + vstd::to_string(static_cast<SimpleJsonDict*>(dict)->instanceID));
+					},
+					[&](IJsonArray* dict) {
+						arrJson.Add('a' + vstd::to_string(static_cast<SimpleJsonArray*>(dict)->instanceID));
+					});
 			}
-#endif
-			map.Remove(ite);
+			arrJsons.Add(vstd::to_string(i.first), arrJson);
+		}
+		rootObj.Add("arrays"_sv, arrJsons);
+	}
+	auto PrintDict = [&](CJsonObject& dictJson, SimpleJsonDict* dict) {
+		for (auto&& v : dict->vars) {
+			auto func =
+				[&](auto&& o) {
+					dictJson.Add(v.first, o);
+				};
+			v.second.visit(
+				func,
+				func,
+				func,
+				[&](IJsonDict* d) {
+					dictJson.Add(v.first, 'd' + vstd::to_string(static_cast<SimpleJsonDict*>(d)->instanceID));
+				},
+				[&](IJsonArray* d) {
+					dictJson.Add(v.first, 'a' + vstd::to_string(static_cast<SimpleJsonArray*>(d)->instanceID));
+				});
 		}
 	};
+	{
+		CJsonObject dictJsons;
+		for (auto&& i : dictObj.map) {
+			CJsonObject dictJson;
+			PrintDict(dictJson, i.second);
+			dictJsons.Add(vstd::to_string(i.first), dictJson);
+		}
+		rootObj.Add("dicts"_sv, dictJsons);
+	}
+	{
+		CJsonObject rootData;
+		PrintDict(rootData, &this->rootObj);
+		rootObj.Add("root"_sv, rootData);
+	}
+	return rootObj.ToFormattedString();
+}
+vstd::vector<uint8_t> SimpleBinaryJson::Save() {
+	vstd::vector<uint8_t> serData;
+	serData.reserve(65536);
+	auto Push = [&]<typename T>(T&& v) {
+		PushDataToVector<T>(std::forward<T>(v), serData);
+	};
+	auto Reserve = [&](size_t i) {
+		auto lastLen = serData.size();
+		serData.resize(lastLen + i);
+		return lastLen;
+	};
+	auto Set = [&]<typename T>(T&& t, size_t offset) {
+		using TT = std::remove_cvref_t<decltype(t)>;
+		*reinterpret_cast<TT*>(serData.data() + offset) = t;
+	};
 
-	JsonObj<SimpleJsonArray> arrObj;
-	JsonObj<SimpleJsonDict> dictObj;
+	auto PushVariant = [&](JsonVariant const& v) {
+		SimpleJsonLoader::Serialize(v, serData);
+	};
+	auto PushObj = [&](auto&& arr) {
+		arr->M_GetSerData(serData);
+	};
+	Push(GetHeader());
+	/////////////// Root Obj
+	PushObj(&rootObj);
+	/////////////// Array Obj
+	Push.operator()<uint64>(arrObj.map.size());
+	for (auto&& i : arrObj.map) {
+		PushObj(i.second);
+	}
+	/////////////// Dict Obj
+	Push.operator()<uint64>(dictObj.map.size());
+	for (auto&& i : dictObj.map) {
+		PushObj(i.second);
+	}
+	return serData;
+}
+void SimpleBinaryJson::Read(vstd::vector<uint8_t>&& data) {
+	vec = std::move(data);
+	std::span<uint8_t> sp = vec;
+	SerializeHeader header = PopValue<SerializeHeader>(sp);
+	arrObj.count = header.arrCount;
+	dictObj.count = header.dictCount;
+	arrObj.map.reserve(header.arrID);
+	dictObj.map.reserve(header.dictID);
+	auto PopObj = [&](auto&& createFunc) {
+		uint64 instanceID = PopValue<uint64>(sp);
+		uint64 spanSize = PopValue<uint64>(sp);
+		auto dict = createFunc(instanceID, std::span<uint8_t>(sp.data(), spanSize));
+		sp = std::span<uint8_t>(sp.data() + spanSize, sp.size() - spanSize);
+	};
+	PopObj([&](uint64 instanceID, std::span<uint8_t> sp) {
+		rootObj.instanceID = instanceID;
+		rootObj.loader.Reset();
+		rootObj.loader.dataChunk = sp;
+		rootObj.db = this;
+		return &rootObj;
+	});
+	auto CreateObj = [&](uint64 instanceID, std::span<uint8_t> sp, auto&& map) {
+		auto v = map.Create(instanceID, this);
+		v->loader.Reset();
+		v->loader.dataChunk = sp;
+		return v;
+	};
+	auto arrayCount = PopValue<uint64>(sp);
+	for (auto i : vstd::range(arrayCount)) {
+		PopObj([&](uint64 instanceID, std::span<uint8_t> sp) {
+			return CreateObj(instanceID, sp, arrObj);
+		});
+	}
+	auto dictCount = PopValue<uint64>(sp);
+	for (auto i : vstd::range(arrayCount)) {
+		PopObj([&](uint64 instanceID, std::span<uint8_t> sp) {
+			return CreateObj(instanceID, sp, dictObj);
+		});
+	}
+}
 
-public:
-	vstd::optional<SimpleJsonDict> rootObj;
-	SimpleBinaryJson() {
-		//TODO: root
-	}
-	IJsonDict* GetRootObject() override {
-		return rootObj ? rootObj.GetPtr() : nullptr;
-	}
-	IJsonDict* CreateJsonObject() override {
-		auto dict = dictObj.Create(this);
-		return dict;
-	}
-	IJsonArray* CreateJsonArray() override {
-		return arrObj.Create(this);
-	}
-	void Dispose(IJsonDict* jsonObj) override {
-		dictObj.Remove(static_cast<SimpleJsonDict*>(jsonObj));
-	}
-	void Dispose(IJsonArray* jsonArr) override {
-		arrObj.Remove(static_cast<SimpleJsonArray*>(jsonArr));
-	}
-	void Save() override {}
-};
-JsonVariant SimpleJsonLoader::Serialize(std::span<uint8_t>& arr, SimpleBinaryJson* db) {
-	ValueType type = PopValue<ValueType>(arr);
-	switch (type) {
-		case ValueType::Int: {
-			int64 v = PopValue<int64>(arr);
-			return JsonVariant(v);
-		}
-		case ValueType::Float: {
-			double d = PopValue<double>(arr);
-			return JsonVariant(d);
-		}
-		case ValueType::Bool: {
-			bool b = PopValue<bool>(arr);
-			return JsonVariant(b);
-		}
-		case ValueType::String: {
-			uint64 strSize = PopValue<uint64>(arr);
-			auto strv = vstd::string_view((char const*)arr.data(), strSize);
-			arr = std::span<uint8_t>(arr.data() + strSize, arr.size() - strSize);
-			return JsonVariant(strv);
-		}
-		case ValueType::Dict: {
-			uint64 arrSize = PopValue<uint64>(arr);
-			auto newSpan = std::span<uint8_t>(arr.data(), arrSize);
-			arr = std::span<uint8_t>(arr.data() + arrSize, arr.size() - arrSize);
-			auto dictObj = static_cast<SimpleJsonDict*>(db->CreateJsonObject());
-			dictObj->loader.dataChunk = newSpan;
-			return JsonVariant(dictObj);
-		}
-		case ValueType::Array: {
-			uint64 arrSize = PopValue<uint64>(arr);
-			auto newSpan = std::span<uint8_t>(arr.data(), arrSize);
-			arr = std::span<uint8_t>(arr.data() + arrSize, arr.size() - arrSize);
-			auto arrayObj = static_cast<SimpleJsonArray*>(db->CreateJsonArray());
-			arrayObj->loader.dataChunk = newSpan;
-			return JsonVariant(arrayObj);
-		}
-		default:
-			return JsonVariant();
-	}
+IJsonDataBase* CreateSimpleJsonDB() {
+	return new SimpleBinaryJson();
 }
 }// namespace toolhub::db
