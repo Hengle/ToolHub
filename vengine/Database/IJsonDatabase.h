@@ -12,8 +12,10 @@ public:
 	virtual void Dispose(IJsonDict* jsonObj) = 0;
 	virtual void Dispose(IJsonArray* jsonArr) = 0;
 	virtual vstd::string GetSerializedString() = 0;
-	virtual vstd::vector<uint8_t> Save() = 0;
+	virtual vstd::vector<uint8_t> Serialize() = 0;
 	virtual void Read(vstd::vector<uint8_t>&& data) = 0;
+	virtual vstd::vector<uint8_t> IncreSerialize(uint64 version) = 0;
+	virtual uint64 GetVersion() = 0;
 
 	virtual ~IJsonDataBase() {}
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW

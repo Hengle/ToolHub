@@ -1,15 +1,12 @@
 #pragma once
 #include <Database/SimpleJsonLoader.h>
+#include <Database/SimpleJsonObject.h>
 namespace toolhub::db {
 
 class SimpleJsonArray : public IJsonArray {
 public:
-	bool isDirty = false;
+	SimpleJsonObject jsonObj;
 	vstd::vector<JsonVariant> arrs;
-	SimpleJsonLoader loader;
-	uint64 instanceID;
-	SimpleBinaryJson* db;
-	void ExecuteLoad();
 	//Array DeSerialize
 	void Load(std::span<uint8_t> sp);
 	size_t Length() override;
@@ -23,7 +20,6 @@ public:
 	vstd::optional<vstd::string_view> GetString(size_t index) override;
 	vstd::optional<IJsonDict*> GetDict(size_t index) override;
 	vstd::optional<IJsonArray*> GetArray(size_t index) override;
-	bool IsDirty() override { return isDirty; }
 
 	void M_GetSerData(vstd::vector<uint8_t>& data);
 	vstd::vector<uint8_t> GetSerData() override {
@@ -31,6 +27,5 @@ public:
 		M_GetSerData(v);
 		return v;
 	}
-	void DeSer(std::span<uint8_t> data) override;
 };
 }// namespace toolhub::db

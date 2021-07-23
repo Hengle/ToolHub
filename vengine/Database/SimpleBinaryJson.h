@@ -8,45 +8,80 @@ class SimpleBinaryJson : public IJsonDataBase {
 public:
 	template<typename T>
 	struct JsonObj {
-		HashMap<uint64, T*> map;
-		HashMap<uint64, std::span<uint8_t>> unserData;
+		vstd::vector<vstd::variant<uint64, T*>> vec;
 		std::mutex mtx;
-		uint64 count = 0;
 		Pool<T> alloc;
 		JsonObj() : alloc(256) {}
-		template<typename... Args>
-		T* Create(SimpleBinaryJson* db, Args&&... args) {
-			T* ptr = alloc.New(std::forward<Args>(args)...);
-			uint64 curCount;
-			mtx.lock();
-			auto ite = map.Emplace(++count, ptr);
-			curCount = count;
-			mtx.unlock();
-			ptr->instanceID = curCount;
-			ptr->db = db;
-			return ptr;
+
+		void Clear() {
+			std::lock_guard lck(mtx);
+			for (auto&& i : vec) {
+				i.visit(
+					[](auto&&) {},
+					[](auto&& ptr) {
+						alloc.Delete(ptr);
+					});
+			}
+			vec.clear();
 		}
+
 		template<typename... Args>
-		T* Create(uint64 instanceID, SimpleBinaryJson* db, Args&&... args) {
+		T* TryCreate(uint64 version, uint64 instanceID, SimpleBinaryJson* db, Args&&... args) {
+			std::lock_guard lck(mtx);
+			if (vec.size() < instanceID) {
+				vec.resize(instanceID);
+			}
+			auto&& v = vec[instanceID];
+			if (v.GetType() == 1) {
+				auto&& obj = *reinterpret_cast<T**>(v.GetPlaceHolder());
+				if (obj->jsonObj.version < version) {
+					alloc.Delete(obj);
+					obj = nullptr;
+				} else {
+					obj->jsonObj.db = db;
+					return obj;
+				}
+			}
 			T* ptr = alloc.New(std::forward<Args>(args)...);
-			mtx.lock();
-			auto ite = map.Emplace(instanceID, ptr);
-			mtx.unlock();
-			ptr->instanceID = instanceID;
-			ptr->db = db;
+			v = ptr;
+			ptr->jsonObj.version = version;
+			ptr->jsonObj.instanceID = instanceID;
+			ptr->jsonObj.db = db;
 			return ptr;
 		}
 
-		void Remove(T* ptr) {
+		template<typename... Args>
+		T* TryCreate(uint64 version, SimpleBinaryJson* db, Args&&... args) {
 			std::lock_guard lck(mtx);
-			auto ite = map.Find(ptr->instanceID);
-#ifdef DEBUG
-			if (!ite || ite.Value() != ptr) {
+			auto instanceID = vec.size();
+			T* ptr = alloc.New(std::forward<Args>(args)...);
+			vec.emplace_back(ptr);
+			ptr->jsonObj.version = version;
+			ptr->jsonObj.instanceID = instanceID;
+			ptr->jsonObj.db = db;
+			return ptr;
+		}
+
+		void Remove(T* ptr, SimpleBinaryJson* db) {
+			std::lock_guard lck(mtx);
+			auto id = ptr->jsonObj.instanceID;
+			auto error = []() {
 				VEngine_Log("Error Remove!\n");
 				VENGINE_EXIT;
+			};
+			if (id < vec.size()) {
+				auto&& v = vec[id];
+				if (v.GetType() == 1) {
+					auto&& obj = *reinterpret_cast<T**>(v.GetPlaceHolder());
+					if (obj != ptr) {
+						error();
+					}
+					alloc.Delete(obj);
+					v = db->version;
+				} else {
+					error();
+				}
 			}
-#endif
-			map.Remove(ite);
 		}
 	};
 
@@ -61,15 +96,19 @@ public:
 	void Dispose(IJsonDict* jsonObj) override;
 	void Dispose(IJsonArray* jsonArr) override;
 	struct SerializeHeader {
-		uint64 arrID;
-		uint64 dictID;
 		uint64 arrCount;
 		uint64 dictCount;
+		uint64 version;
+		uint64 rootVersion;
 	};
+	uint64 version = 0;
 	SerializeHeader GetHeader() const;
 
 	vstd::string GetSerializedString() override;
-	vstd::vector<uint8_t> Save() override;
+	vstd::vector<uint8_t> Serialize() override;
+	uint64 GetVersion() override { return version; }
+
+	vstd::vector<uint8_t> IncreSerialize(uint64 version) override;
 	void Read(vstd::vector<uint8_t>&& data) override;
 };
-}
+}// namespace toolhub::db

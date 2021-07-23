@@ -3,7 +3,6 @@
 #include <Database/JsonObject.h>
 #include <Common/unique_ptr.h>
 
-
 void test() {
 	using namespace toolhub::db;
 	auto db = CreateSimpleJsonDB();
@@ -19,14 +18,14 @@ void test() {
 
 	rootObj->Set("array"_sv, subArr);
 	rootObj->Set("dict"_sv, subObj);
-	auto vec = db->Save();
+	auto vec = db->Serialize();
 	std::cout << vec.size() << '\n';
 
 	auto cloneDB = CreateSimpleJsonDB();
 	cloneDB->Read(std::move(vec));
 	auto cloneRoot = cloneDB->GetRootObject();
-	auto cloneSer = cloneRoot->GetSerData();
-	cloneRoot->DeSer(cloneSer);
+	subArr->Set(1, 10.5);
+
 	auto rIte = cloneRoot->GetIterator();
 	LINQ_LOOP(i, *rIte) {
 		auto func = [](auto&& f) {
@@ -40,7 +39,8 @@ void test() {
 			func);
 	}
 	auto cloneArr = cloneRoot->GetArray("array"_sv);
-	if (cloneArr) {	
+	if (cloneArr) {
+		auto subSer = subArr->GetSerData();
 		std::cout << "yes array!\n";
 		auto ite = (*cloneArr)->GetIterator();
 		LINQ_LOOP(i, *ite) {
@@ -88,7 +88,7 @@ public:
 	TestClass(TestClass&&) {
 		std::cout << "move\n";
 	}
-	template <typename T>
+	template<typename T>
 	TestClass(T&& t) {
 		std::cout << "template\n";
 	}
@@ -97,14 +97,12 @@ public:
 	}
 };
 
-
 int main() {
 	vengine_init_malloc();
 	//vstd::string sb = "fuck";
 	//std::cout << sb << '\n';
 	//std::cout << sb.size();
 	test();
-
 
 	return 0;
 }

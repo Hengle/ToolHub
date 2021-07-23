@@ -4,9 +4,6 @@
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
 
-void SimpleJsonDict::ExecuteLoad() {
-	loader.Load(*this);
-}
 //Dict Deserialize
 void SimpleJsonDict::Load(std::span<uint8_t> sp) {
 	uint64 arrSize = PopValue<uint64>(sp);
@@ -16,7 +13,7 @@ void SimpleJsonDict::Load(std::span<uint8_t> sp) {
 		uint64 strSize = PopValue<uint64>(sp);
 		auto strv = vstd::string_view((char const*)sp.data(), strSize);
 		sp = std::span<uint8_t>(sp.data() + strSize, sp.size() - strSize);
-		return std::pair<vstd::string, JsonVariant>(strv, SimpleJsonLoader::DeSerialize(sp, db));
+		return std::pair<vstd::string, JsonVariant>(strv, SimpleJsonLoader::DeSerialize(sp, jsonObj.db));
 	};
 	for (auto i : vstd::range(arrSize)) {
 		auto kv = GetNextKeyValue();
@@ -24,22 +21,22 @@ void SimpleJsonDict::Load(std::span<uint8_t> sp) {
 	}
 }
 JsonVariant SimpleJsonDict::Get(vstd::string_view key) {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	auto ite = vars.Find(key);
 	if (ite) return ite.Value();
 	return JsonVariant();
 }
 void SimpleJsonDict::Set(vstd::string key, JsonVariant value) {
-	isDirty = true;
+	jsonObj.Update();
 	vars.ForceEmplace(std::move(key), std::move(value));
 }
 void SimpleJsonDict::Remove(vstd::string const& key) {
-	ExecuteLoad();
-	isDirty = true;
+	jsonObj.loader.Load(*this);
+	jsonObj.Update();
 	vars.Remove(key);
 }
 vstd::unique_ptr<vstd::linq::Iterator<JsonKeyPair>> SimpleJsonDict::GetIterator() {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	return vstd::linq::IEnumerator(vars)
 		.make_transformer(
 			[](auto&& kv) {
@@ -49,7 +46,7 @@ vstd::unique_ptr<vstd::linq::Iterator<JsonKeyPair>> SimpleJsonDict::GetIterator(
 }
 
 vstd::optional<int64> SimpleJsonDict::GetInt(vstd::string_view key) {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	auto ite = vars.Find(key);
 	if (!ite) return nullptr;
 	auto&& v = ite.Value();
@@ -64,7 +61,7 @@ vstd::optional<int64> SimpleJsonDict::GetInt(vstd::string_view key) {
 	return nullptr;
 };
 vstd::optional<double> SimpleJsonDict::GetFloat(vstd::string_view key) {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	auto ite = vars.Find(key);
 	if (!ite) return nullptr;
 	auto&& v = ite.Value();
@@ -79,7 +76,7 @@ vstd::optional<double> SimpleJsonDict::GetFloat(vstd::string_view key) {
 	return nullptr;
 };
 vstd::optional<vstd::string_view> SimpleJsonDict::GetString(vstd::string_view key) {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	auto ite = vars.Find(key);
 	if (!ite) return nullptr;
 	auto&& v = ite.Value();
@@ -89,7 +86,7 @@ vstd::optional<vstd::string_view> SimpleJsonDict::GetString(vstd::string_view ke
 	return nullptr;
 };
 vstd::optional<IJsonDict*> SimpleJsonDict::GetDict(vstd::string_view key) {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	auto ite = vars.Find(key);
 	if (!ite) return nullptr;
 	auto&& v = ite.Value();
@@ -99,7 +96,7 @@ vstd::optional<IJsonDict*> SimpleJsonDict::GetDict(vstd::string_view key) {
 	return nullptr;
 };
 vstd::optional<IJsonArray*> SimpleJsonDict::GetArray(vstd::string_view key) {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	auto ite = vars.Find(key);
 	if (!ite) return nullptr;
 	auto&& v = ite.Value();
@@ -110,13 +107,15 @@ vstd::optional<IJsonArray*> SimpleJsonDict::GetArray(vstd::string_view key) {
 };
 
 size_t SimpleJsonDict::Length() {
-	ExecuteLoad();
+	jsonObj.loader.Load(*this);
 	return vars.size();
 }
 
 void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
-	ExecuteLoad();
-	PushDataToVector(instanceID, data);
+	jsonObj.loader.Load(*this);
+	PushDataToVector<uint8_t>(1, data);
+	PushDataToVector(jsonObj.version, data);
+	PushDataToVector(jsonObj.instanceID, data);
 	auto sizeOffset = data.size();
 	data.resize(sizeOffset + sizeof(uint64));
 	auto beginOffset = sizeOffset + sizeof(uint64);
@@ -128,12 +127,4 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
 }
-
-void SimpleJsonDict::DeSer(std::span<uint8_t> data) {
-	loader.Reset();
-	loader.dataChunk = std::span<uint8_t>(data.data() + sizeof(uint64) * 2, data.size() - sizeof(uint64) * 2);
-	ExecuteLoad();
-	isDirty = true;
-}
-
 }// namespace toolhub::db

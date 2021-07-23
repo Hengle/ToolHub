@@ -20,9 +20,7 @@ class IJsonObject {
 public:
 	virtual ~IJsonObject() = default;
 	virtual size_t Length() = 0;
-	virtual bool IsDirty() = 0;
 	virtual vstd::vector<uint8_t> GetSerData() = 0;
-	virtual void DeSer(std::span<uint8_t> data) = 0;
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
 

@@ -13,9 +13,11 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 	ValueType type = PopValue<ValueType>(arr);
 	auto ReadDict = [&](auto&& map) {
 		uint64 instanceID = PopValue<uint64>(arr);
-		auto ite = map.Find(instanceID);
-		if (ite) return JsonVariant(ite.Value());
-		return JsonVariant();
+		auto ite = map[instanceID];
+		if (ite.GetType() == 0) {
+			return JsonVariant();
+		}
+		return JsonVariant(ite.get<1>());
 	};
 	switch (type) {
 		case ValueType::Int: {
@@ -34,10 +36,10 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 			return JsonVariant(strv);
 		}
 		case ValueType::Dict: {
-			return ReadDict(db->dictObj.map);
+			return ReadDict(db->dictObj.vec);
 		}
 		case ValueType::Array: {
-			return ReadDict(db->arrObj.map);
+			return ReadDict(db->arrObj.vec);
 		}
 		default:
 			return JsonVariant();
@@ -52,7 +54,7 @@ void SimpleJsonLoader::Serialize(JsonVariant const& v, vstd::vector<uint8_t>& da
 		*reinterpret_cast<T*>(data.data() + lastLen) = std::forward<TT>(f);
 	};
 	auto getInstance = [&](auto&& f) {
-		func(f->instanceID);
+		func(f->jsonObj.instanceID);
 	};
 	v.visit(
 		func,

@@ -656,11 +656,6 @@ class variant {
 
 	static constexpr size_t argSize = sizeof...(AA);
 
-	template<typename T, typename Args>
-	static void GetFuncPtr_Const(void* ptr, void const* arg) {
-		(*reinterpret_cast<T*>(ptr))(*reinterpret_cast<Args const*>(arg));
-	}
-
 	template<size_t idx, size_t c, typename... Args>
 	struct Iterator {
 		template<typename... Funcs>

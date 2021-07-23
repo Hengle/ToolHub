@@ -1,14 +1,11 @@
 #pragma once
 #include <Database/SimpleJsonLoader.h>
+#include <Database/SimpleJsonObject.h>
 namespace toolhub::db {
 class SimpleJsonDict : public IJsonDict {
 public:
-	bool isDirty = false;
 	HashMap<vstd::string, JsonVariant> vars;
-	SimpleJsonLoader loader;
-	uint64 instanceID;
-	SimpleBinaryJson* db;
-	void ExecuteLoad();
+	SimpleJsonObject jsonObj;
 	//Dict Deserialize
 	void Load(std::span<uint8_t> sp);
 	JsonVariant Get(vstd::string_view key) override;
@@ -21,13 +18,11 @@ public:
 	vstd::optional<IJsonDict*> GetDict(vstd::string_view key) override;
 	vstd::optional<IJsonArray*> GetArray(vstd::string_view key) override;
 	size_t Length() override;
-	bool IsDirty() override { return isDirty; }
 	void M_GetSerData(vstd::vector<uint8_t>& data);
 	vstd::vector<uint8_t> GetSerData() override {
 		vstd::vector<uint8_t> v;
 		M_GetSerData(v);
 		return v;
 	}
-	void DeSer(std::span<uint8_t> data) override;
 };
 }// namespace toolhub::db
