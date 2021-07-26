@@ -4,12 +4,22 @@
 namespace toolhub::db {
 class SimpleJsonLoader;
 class SimpleJsonObject {
-public:
-	SimpleJsonLoader loader;
+protected:
 	uint64 instanceID = 0;
 	SimpleBinaryJson* db = nullptr;
-	uint64 version = 0;
+	bool isDirty = false;
+	SimpleJsonObject(
+		uint64 instanceID,
+		SimpleBinaryJson* db);
+	~SimpleJsonObject() {}
+
+public:
+	uint64 GetInstanceID() const { return instanceID; }
+	SimpleBinaryJson* GetDB() const { return db; }
+	
 	void Update();
-	virtual ~SimpleJsonObject();
+	void Reset();
+	virtual void M_GetSerData(vstd::vector<uint8_t>& data) = 0;
+	virtual void LoadFromData(std::span<uint8_t> data) = 0;
 };
 }// namespace toolhub::db

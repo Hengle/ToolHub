@@ -9,7 +9,6 @@
 #include <Common/MetaLib.h>
 #include <Common/vector.h>
 #include <Common/Memory.h>
-#include <Common/RandomVector.h>
 #include <Common/VAllocator.h>
 #include <Common/spin_mutex.h>
 template<typename T, VEngine_AllocType allocType = VEngine_AllocType::VEngine, bool noCheckBeforeDispose = std::is_trivially_destructible<T>::value>
@@ -118,8 +117,7 @@ public:
 		return value;
 	}
 
-	void Delete(void* pp) {
-		T* ptr = (T*)pp;
+	void Delete(T* ptr) {
 		if constexpr (!std::is_trivially_destructible_v<T>)
 			ptr->~T();
 		allPtrs.push_back(ptr);
@@ -145,8 +143,8 @@ public:
 	}
 
 	~Pool() {
-		for (size_t i = 0; i < allocatedPtrs.size(); ++i) {
-			PoolFree(allocatedPtrs[i]);
+		for (auto&& i : allocatedPtrs) {
+			PoolFree(i);
 		}
 	}
 };
@@ -156,11 +154,11 @@ class Pool<T, allocType, false> {
 private:
 	struct TypeCollector {
 		Storage<T, 1> t;
-		uint index = -1;
+		size_t index = std::numeric_limits<size_t>::max();
 	};
 	ArrayList<T*, allocType> allPtrs;
 	ArrayList<void*, allocType> allocatedPtrs;
-	RandomVector<TypeCollector*, true, allocType> allocatedObjects;
+	vstd::vector<TypeCollector*, allocType> allocatedObjects;
 	size_t capacity;
 	VAllocHandle<allocType> allocHandle;
 	void* PoolMalloc(size_t size) {
@@ -182,11 +180,18 @@ private:
 	}
 	void AddAllocatedObject(T* obj) {
 		TypeCollector* col = reinterpret_cast<TypeCollector*>(obj);
-		allocatedObjects.Add(col, &col->index);
+		col->index = allocatedObjects.size();
+		allocatedObjects.push_back(col);
 	}
 	void RemoveAllocatedObject(T* obj) {
 		TypeCollector* col = reinterpret_cast<TypeCollector*>(obj);
-		allocatedObjects.Remove(col->index);
+		if (col->index != allocatedObjects.size() - 1) {
+			auto&& v = allocatedObjects[col->index];
+			v = allocatedObjects.erase_last();
+			v->index = col->index;
+		} else {
+			allocatedObjects.erase_last();
+		}
 	}
 
 public:
@@ -273,8 +278,7 @@ public:
 		return value;
 	}
 
-	void Delete(void* pp) {
-		T* ptr = (T*)pp;
+	void Delete(T* ptr) {
 		if constexpr (!std::is_trivially_destructible_v<T>)
 			ptr->~T();
 		RemoveAllocatedObject(ptr);
@@ -304,11 +308,11 @@ public:
 	}
 
 	~Pool() {
-		for (size_t i = 0; i < allocatedObjects.Length(); ++i) {
-			(reinterpret_cast<T*>(allocatedObjects[i]))->~T();
+		for (auto&& i : allocatedObjects) {
+			(reinterpret_cast<T*>(i))->~T();
 		}
-		for (size_t i = 0; i < allocatedPtrs.size(); ++i) {
-			PoolFree(allocatedPtrs[i]);
+		for (auto&& i : allocatedPtrs) {
+			PoolFree(i);
 		}
 	}
 };

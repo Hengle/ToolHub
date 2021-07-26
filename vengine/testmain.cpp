@@ -19,32 +19,21 @@ void test() {
 	rootObj->Set("array"_sv, subArr);
 	rootObj->Set("dict"_sv, subObj);
 	auto vec = db->Serialize();
-	std::cout << vec.size() << '\n';
-
-	auto cloneDB = CreateSimpleJsonDB();
-	cloneDB->Read(std::move(vec));
-	auto cloneRoot = cloneDB->GetRootObject();
+	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
 	subArr->Set(1, 10.5);
+	auto updateV = db->Sync();
+	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
+	/////////////// Clone
+	auto cloneDB = CreateSimpleJsonDB();
+	cloneDB->Read(vec);
+	cloneDB->Read(updateV);
+	auto cloneRoot = cloneDB->GetRootObject();
 	auto rIte = cloneRoot->GetIterator();
-	LINQ_LOOP(i, *rIte) {
-		auto func = [](auto&& f) {
-			std::cout << f << '\n';
-		};
-		i->value.visit(
-			func,
-			func,
-			func,
-			func,
-			func);
-	}
 	auto cloneArr = cloneRoot->GetArray("array"_sv);
 	if (cloneArr) {
-		auto subSer = subArr->GetSerData();
-		std::cout << "yes array!\n";
 		auto ite = (*cloneArr)->GetIterator();
 		LINQ_LOOP(i, *ite) {
-			//std::cout << i->GetType() << '\n';
 			auto func = [](auto&& f) {
 				std::cout << f << '\n';
 			};
@@ -58,12 +47,12 @@ void test() {
 	}
 	auto cloneDict = cloneRoot->GetDict("dict"_sv);
 	if (cloneDict) {
-		std::cout << "yes dict!\n";
 		auto ite = (*cloneDict)->GetIterator();
 		LINQ_LOOP(i, *ite) {
 			auto func = [](auto&& f) {
 				std::cout << f << '\n';
 			};
+			std::cout << "key: " << i->key << " Value: ";
 			i->value.visit(
 				func,
 				func,

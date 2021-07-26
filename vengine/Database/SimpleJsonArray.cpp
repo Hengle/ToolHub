@@ -3,48 +3,49 @@
 #include <Database/SimpleJsonArray.h>
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
-//Array DeSerialize
-void SimpleJsonArray::Load(std::span<uint8_t> sp) {
-	uint64 arrSize = PopValue<uint64>(sp);
-	arrs.clear();
-	arrs.reserve(arrSize);
-	arrs.push_back_func(
-		[&](size_t i) {
-			return SimpleJsonLoader::DeSerialize(sp, jsonObj.db);
-		},
-		arrSize);
-}
+
 size_t SimpleJsonArray::Length() {
-	jsonObj.loader.Load(*this);
+
 	return arrs.size();
 }
 JsonVariant SimpleJsonArray::Get(size_t index) {
-	jsonObj.loader.Load(*this);
+
 	return arrs[index];
 }
+void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
+	if (!data.empty()) {
+		uint64 arrSize = PopValue<uint64>(data);
+		arrs.clear();
+		arrs.reserve(arrSize);
+		arrs.push_back_func(
+			[&]() {
+				return SimpleJsonLoader::DeSerialize(data, db);
+			},
+			arrSize);
+	}
+}
 void SimpleJsonArray::Set(size_t index, JsonVariant value) {
-	jsonObj.loader.Load(*this);
-	jsonObj.Update();
+	Update();
 	arrs[index] = std::move(value);
 }
 void SimpleJsonArray::Remove(size_t index) {
-	jsonObj.loader.Load(*this);
-	jsonObj.Update();
+
+	Update();
 	arrs.erase(arrs.begin() + index);
 }
 
 void SimpleJsonArray::Add(JsonVariant value) {
-	jsonObj.loader.Load(*this);
-	jsonObj.Update();
+
+	Update();
 	arrs.emplace_back(std::move(value));
 }
 vstd::unique_ptr<vstd::linq::Iterator<JsonVariant>> SimpleJsonArray::GetIterator() {
-	jsonObj.loader.Load(*this);
+
 	return new vstd::linq::IEnumerator(arrs);
 }
 
 vstd::optional<int64> SimpleJsonArray::GetInt(size_t index) {
-	jsonObj.loader.Load(*this);
+
 	auto&& v = arrs[index];
 	switch (v.GetType()) {
 		case 0:
@@ -57,7 +58,7 @@ vstd::optional<int64> SimpleJsonArray::GetInt(size_t index) {
 	return nullptr;
 }
 vstd::optional<double> SimpleJsonArray::GetFloat(size_t index) {
-	jsonObj.loader.Load(*this);
+
 	auto&& v = arrs[index];
 	switch (v.GetType()) {
 		case 0:
@@ -70,7 +71,7 @@ vstd::optional<double> SimpleJsonArray::GetFloat(size_t index) {
 	return nullptr;
 }
 vstd::optional<vstd::string_view> SimpleJsonArray::GetString(size_t index) {
-	jsonObj.loader.Load(*this);
+
 	auto&& v = arrs[index];
 	if (v.GetType() == 2) {
 		return *reinterpret_cast<vstd::string*>(v.GetPlaceHolder());
@@ -78,7 +79,7 @@ vstd::optional<vstd::string_view> SimpleJsonArray::GetString(size_t index) {
 	return nullptr;
 }
 vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
-	jsonObj.loader.Load(*this);
+
 	auto&& v = arrs[index];
 	if (v.GetType() == 3) {
 		return *reinterpret_cast<IJsonDict**>(v.GetPlaceHolder());
@@ -86,7 +87,7 @@ vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
 	return nullptr;
 }
 vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
-	jsonObj.loader.Load(*this);
+
 	auto&& v = arrs[index];
 	if (v.GetType() == 4) {
 		return *reinterpret_cast<IJsonArray**>(v.GetPlaceHolder());
@@ -94,10 +95,9 @@ vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
 	return nullptr;
 }
 void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
-	jsonObj.loader.Load(*this);
-	PushDataToVector<uint8_t>(0, data);
-	PushDataToVector(jsonObj.version, data);
-	PushDataToVector(jsonObj.instanceID, data);
+	auto v = ARRAY_TYPE;
+	PushDataToVector<uint8_t&>(v, data);
+	PushDataToVector(instanceID, data);
 	auto sizeOffset = data.size();
 	data.resize(sizeOffset + sizeof(uint64));
 	auto beginOffset = sizeOffset + sizeof(uint64);
@@ -107,5 +107,10 @@ void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	}
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
+}
+SimpleJsonArray::SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db)
+	: SimpleJsonObject(instanceID, db) {
+}
+SimpleJsonArray::~SimpleJsonArray() {
 }
 }// namespace toolhub::db

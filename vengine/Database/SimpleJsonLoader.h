@@ -5,6 +5,8 @@
 #include <Database/JsonObject.h>
 namespace toolhub::db {
 class SimpleBinaryJson;
+static constexpr uint8_t DICT_TYPE = 0;
+static constexpr uint8_t ARRAY_TYPE = 1;
 enum class ValueType : uint8_t {
 	Int,
 	Float,
@@ -16,7 +18,7 @@ enum class ValueType : uint8_t {
 ValueType type;
 template<typename T>
 void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
-	using TT = std::remove_cvref_t<decltype(v)>;
+	using TT = std::remove_cvref_t<T>;
 	auto lastLen = serData.size();
 	if constexpr (std::is_same_v<TT, vstd::string>) {
 		size_t sz = sizeof(uint64) + v.size();
@@ -31,23 +33,7 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 }
 
 class SimpleJsonLoader {
-	std::atomic_bool loaded;
-	std::mutex mtx;
-
 public:
-	std::span<uint8_t> dataChunk;
-	//TODO
-	SimpleJsonLoader();
-	void Reset();
-	template<typename T>
-	void Load(T&& t) {
-		if (loaded.load(std::memory_order_acquire)) return;
-		std::lock_guard lck(mtx);
-		if (loaded.load(std::memory_order_acquire)) return;
-		if (!dataChunk.empty())
-			t.Load(dataChunk);
-		loaded.store(true, std::memory_order_release);
-	}
 	static JsonVariant DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db);
 	static void Serialize(JsonVariant const& v, vstd::vector<uint8_t>& data);
 };

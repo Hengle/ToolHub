@@ -138,7 +138,7 @@ public:
 		this->~SelfType();
 		new (this) SelfType(std::move(another));
 	}
-	
+
 	void push_back_all(const T* values, size_t count) noexcept {
 		ResizeRange(count);
 		if constexpr (!(std::is_trivially_copy_constructible_v<T> || forceTrivial)) {
@@ -161,7 +161,13 @@ public:
 		auto endPtr = arr + mSize;
 		for (size_t i = 0; i < count; ++i) {
 			T* ptr = endPtr + i;
-			new (ptr) T(std::move(f(i)));
+			if constexpr (std::is_invocable_v<std::remove_cvref_t<Func>, size_t>) {
+				new (ptr) T(std::move(f(i)));
+			} else if constexpr (std::is_invocable_v<std::remove_cvref_t<Func>>) {
+				new (ptr) T(std::move(f()));
+			} else {
+				static_assert(std::_Always_false<Func>, "Invalid Function Type!");
+			}
 		}
 		mSize += count;
 	}

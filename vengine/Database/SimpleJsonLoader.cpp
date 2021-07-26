@@ -3,21 +3,15 @@
 #include <Database/SimpleJsonLoader.h>
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
-SimpleJsonLoader::SimpleJsonLoader()
-	: loaded(false) {
-}
-void SimpleJsonLoader::Reset() {
-	loaded = false;
-}
-JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db) {
+JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db)  {
 	ValueType type = PopValue<ValueType>(arr);
-	auto ReadDict = [&](auto&& map) {
+	auto ReadDict = [&](uint8_t typ) -> SimpleJsonObject* {
 		uint64 instanceID = PopValue<uint64>(arr);
-		auto ite = map[instanceID];
-		if (ite.GetType() == 0) {
-			return JsonVariant();
+		auto ite = db->jsonObjs.Find(instanceID);
+		if (ite && ite.Value().second == typ) {
+			return ite.Value().first;
 		}
-		return JsonVariant(ite.get<1>());
+		return nullptr;
 	};
 	switch (type) {
 		case ValueType::Int: {
@@ -36,10 +30,10 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 			return JsonVariant(strv);
 		}
 		case ValueType::Dict: {
-			return ReadDict(db->dictObj.vec);
+			return JsonVariant(static_cast<SimpleJsonDict*>(ReadDict(DICT_TYPE)));
 		}
 		case ValueType::Array: {
-			return ReadDict(db->arrObj.vec);
+			return JsonVariant(static_cast<SimpleJsonArray*>(ReadDict(ARRAY_TYPE)));
 		}
 		default:
 			return JsonVariant();
@@ -54,7 +48,7 @@ void SimpleJsonLoader::Serialize(JsonVariant const& v, vstd::vector<uint8_t>& da
 		*reinterpret_cast<T*>(data.data() + lastLen) = std::forward<TT>(f);
 	};
 	auto getInstance = [&](auto&& f) {
-		func(f->jsonObj.instanceID);
+		func(f->GetInstanceID());
 	};
 	v.visit(
 		func,

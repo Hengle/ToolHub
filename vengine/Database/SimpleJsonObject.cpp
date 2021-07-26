@@ -3,9 +3,18 @@
 #include <Database/SimpleJsonObject.h>
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
-void SimpleJsonObject::Update() {
-	version = db->version;
+SimpleJsonObject::SimpleJsonObject(
+	uint64 instanceID,
+	SimpleBinaryJson* db)
+	: instanceID(instanceID),
+	  db(db) {
 }
-SimpleJsonObject::~SimpleJsonObject() {
+void SimpleJsonObject::Update() {
+	if (isDirty) return;
+	isDirty = true;
+	db->MarkDirty(this);
+}
+void SimpleJsonObject::Reset() {
+	isDirty = false;
 }
 }// namespace toolhub::db
