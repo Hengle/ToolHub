@@ -9,6 +9,9 @@ VENGINE_DLL_COMMON void AddFunc(
 	string_view const& name,
 	Type funcType,
 	Runnable<void(), VEngine_AllocType::Default>&& funcPtr);
+
+VENGINE_DLL_COMMON void RemoveFunc(
+	string_view const& name);
 VENGINE_DLL_COMMON void const* GetFuncPair(
 	Type checkType,
 	string_view const& name);
@@ -20,10 +23,15 @@ void LoadFunction_T(
 }
 template<typename T>
 struct FunctionLoader {
+	string_view name;
 	FunctionLoader(
 		string_view const& name,
-		Runnable<functor_t<T>, VEngine_AllocType::Default> func) {
+		Runnable<functor_t<T>, VEngine_AllocType::Default> func)
+		: name(name) {
 		LoadFunction_T<T>(name, std::move(func));
+	}
+	~FunctionLoader() {
+		RemoveFunc(name);
 	}
 };
 template<typename T>

@@ -4,6 +4,7 @@
 #include <Common/Runnable.h>
 #include <Common/Pool.h>
 #include <Database/SimpleBinaryJson.h>
+#include <boost/asio.hpp>
 namespace toolhub::db {
 
 class SimpleBinaryJson;

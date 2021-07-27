@@ -81,5 +81,10 @@ public:
 			deleter(originPtr);
 		}
 	}
+	
 };
+template<typename T>
+unique_ptr<T> make_unique(T* ptr) {
+	return ptr;
+}
 }// namespace vstd

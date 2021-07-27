@@ -78,7 +78,6 @@
 			<CompileAs>CompileAsCpp</CompileAs>
 			<WholeProgramOptimization>false</WholeProgramOptimization>
 			<MinFilesInUnityFile>8</MinFilesInUnityFile>
-			<PrecompiledHeaderFile>pch_vengine_dll.h</PrecompiledHeaderFile>
 			<LanguageStandard_C>stdc17</LanguageStandard_C>
 			<EnableModules>true</EnableModules>
 			<AdditionalIncludeDirectories>.;</AdditionalIncludeDirectories>
@@ -123,7 +122,6 @@
 			<Optimization>MaxSpeed</Optimization>
 			<WholeProgramOptimization>true</WholeProgramOptimization>
 			<PrecompiledHeader>NotUsing</PrecompiledHeader>
-			<PrecompiledHeaderFile>pch_vengine_dll.h</PrecompiledHeaderFile>
 			<LanguageStandard_C>stdc17</LanguageStandard_C>
 			<EnableModules>false</EnableModules>
 			<DebugInformationFormat>ProgramDatabase</DebugInformationFormat>

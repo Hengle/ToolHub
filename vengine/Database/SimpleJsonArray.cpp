@@ -55,7 +55,7 @@ vstd::optional<int64> SimpleJsonArray::GetInt(size_t index) {
 		case 2:
 			return *reinterpret_cast<bool*>(v.GetPlaceHolder()) ? 1 : 0;
 	}
-	return nullptr;
+	return vstd::optional<int64>();
 }
 vstd::optional<double> SimpleJsonArray::GetFloat(size_t index) {
 
@@ -68,7 +68,7 @@ vstd::optional<double> SimpleJsonArray::GetFloat(size_t index) {
 		case 2:
 			return *reinterpret_cast<bool*>(v.GetPlaceHolder()) ? 1 : 0;
 	}
-	return nullptr;
+	return vstd::optional<double>();
 }
 vstd::optional<vstd::string_view> SimpleJsonArray::GetString(size_t index) {
 
@@ -76,7 +76,7 @@ vstd::optional<vstd::string_view> SimpleJsonArray::GetString(size_t index) {
 	if (v.GetType() == 2) {
 		return *reinterpret_cast<vstd::string*>(v.GetPlaceHolder());
 	}
-	return nullptr;
+	return vstd::optional<vstd::string_view>();
 }
 vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
 
@@ -84,7 +84,7 @@ vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
 	if (v.GetType() == 3) {
 		return *reinterpret_cast<IJsonDict**>(v.GetPlaceHolder());
 	}
-	return nullptr;
+	return vstd::optional<IJsonDict*>();
 }
 vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
 
@@ -92,7 +92,7 @@ vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
 	if (v.GetType() == 4) {
 		return *reinterpret_cast<IJsonArray**>(v.GetPlaceHolder());
 	}
-	return nullptr;
+	return vstd::optional<IJsonArray*>();
 }
 void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto v = ARRAY_TYPE;

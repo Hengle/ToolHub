@@ -48,6 +48,7 @@
 #define VENGINE_DLL_RENDERER
 #define VENGINE_DLL_FUNC
 #define VENGINE_DLL_COMPUTE
+#define VENGINE_DLL_NETWORK
 #else
 
 #ifdef COMMON_DLL_PROJECT
@@ -75,7 +76,6 @@
 #else
 #define VENGINE_DLL_TOOLKIT _declspec(dllimport)
 #endif
-
 
 #endif//DLL_DEBUG
 

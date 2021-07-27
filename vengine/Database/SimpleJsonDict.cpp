@@ -51,7 +51,7 @@ vstd::unique_ptr<vstd::linq::Iterator<JsonKeyPair>> SimpleJsonDict::GetIterator(
 vstd::optional<int64> SimpleJsonDict::GetInt(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (!ite) return nullptr;
+	if (!ite) return vstd::optional<int64>();
 	auto&& v = ite.Value();
 	switch (v.GetType()) {
 		case 0:
@@ -61,12 +61,12 @@ vstd::optional<int64> SimpleJsonDict::GetInt(vstd::string_view key) {
 		case 2:
 			return *reinterpret_cast<bool*>(v.GetPlaceHolder()) ? 1 : 0;
 	}
-	return nullptr;
+	return vstd::optional<int64>();
 };
 vstd::optional<double> SimpleJsonDict::GetFloat(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (!ite) return nullptr;
+	if (!ite) return vstd::optional<double>();
 	auto&& v = ite.Value();
 	switch (v.GetType()) {
 		case 0:
@@ -76,37 +76,37 @@ vstd::optional<double> SimpleJsonDict::GetFloat(vstd::string_view key) {
 		case 2:
 			return *reinterpret_cast<bool*>(v.GetPlaceHolder()) ? 1 : 0;
 	}
-	return nullptr;
+	return vstd::optional<double>();
 };
 vstd::optional<vstd::string_view> SimpleJsonDict::GetString(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (!ite) return nullptr;
+	if (!ite) return vstd::optional<vstd::string_view>();
 	auto&& v = ite.Value();
 	if (v.GetType() == 2) {
 		return *reinterpret_cast<vstd::string*>(v.GetPlaceHolder());
 	}
-	return nullptr;
+	return vstd::optional<vstd::string_view>();
 };
 vstd::optional<IJsonDict*> SimpleJsonDict::GetDict(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (!ite) return nullptr;
+	if (!ite) return vstd::optional<IJsonDict*>();
 	auto&& v = ite.Value();
 	if (v.GetType() == 3) {
 		return *reinterpret_cast<IJsonDict**>(v.GetPlaceHolder());
 	}
-	return nullptr;
+	return vstd::optional<IJsonDict*>();
 };
 vstd::optional<IJsonArray*> SimpleJsonDict::GetArray(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (!ite) return nullptr;
+	if (!ite) return vstd::optional<IJsonArray*>();
 	auto&& v = ite.Value();
 	if (v.GetType() == 4) {
 		return *reinterpret_cast<IJsonArray**>(v.GetPlaceHolder());
 	}
-	return nullptr;
+	return vstd::optional<IJsonArray*>();
 };
 
 size_t SimpleJsonDict::Length() {

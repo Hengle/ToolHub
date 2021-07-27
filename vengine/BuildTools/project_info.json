@@ -1,13 +1,16 @@
 {
-    "Compiler": {
-        "BuildToolSubDir": "Current/Bin/MSBuild.exe",
-        "Configuration": "Release",
-        "Platform": "x64",
-        "Projects": {
-            "VEngine_DLL": [],
-            "VEngine_Compute": [
-                "VEngine_DLL"
-            ]
-        }
+  "Compiler": {
+    "BuildToolSubDir": "Current/Bin/MSBuild.exe",
+    "Configuration": "Release",
+    "Platform": "x64",
+    "Projects": {
+      "VEngine_DLL": [],
+      "VEngine_Compute": [
+        "VEngine_DLL"
+      ],
+      "VEngine_Network": [
+        "VEngine_DLL"
+      ]
     }
+  }
 }

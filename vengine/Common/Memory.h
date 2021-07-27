@@ -21,8 +21,7 @@ VENGINE_C_FUNC_COMMON void* vengine_realloc(void* ptr, size_t size);
 template<typename T, typename... Args>
 inline T* vengine_new(Args&&... args) noexcept {
 	T* tPtr = (T*)vengine_malloc(sizeof(T));
-	if constexpr (!std::is_trivially_constructible_v<T>)
-		new (tPtr) T(std::forward<Args>(args)...);
+	new (tPtr) T(std::forward<Args>(args)...);
 	return tPtr;
 }
 

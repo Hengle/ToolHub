@@ -15,7 +15,6 @@ enum class ValueType : uint8_t {
 	Array
 };
 
-ValueType type;
 template<typename T>
 void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 	using TT = std::remove_cvref_t<T>;

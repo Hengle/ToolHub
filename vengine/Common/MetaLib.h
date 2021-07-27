@@ -277,9 +277,6 @@ public:
 	StackObject() noexcept {
 		initialized = false;
 	}
-	StackObject(std::nullptr_t) noexcept {
-		initialized = false;
-	}
 	template<typename... Args>
 	StackObject(Args&&... args)
 		: stackObj(std::forward<Args>(args)...),

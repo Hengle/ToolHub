@@ -8,8 +8,11 @@ SubProj = [
     {
         "Name": "VEngine_Compute",
         "RemoveHeader": 1
+    },
+    {
+        "Name": "VEngine_Network",
+        "RemoveHeader": 1
     }
-
 ]
 
 ContainedFiles = {
@@ -37,6 +40,7 @@ IgnoreFolders = {
 }
 IgnoreFile = {
     "VEngine_Compute.lib": 1,
+    "VEngine_Network.lib": 1,
     "program.inf": 1
 }
 
