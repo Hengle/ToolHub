@@ -2,7 +2,7 @@
 #include <Common/Common.h>
 #include <Common/Runnable.h>
 #include <Database/IJsonDatabase.h>
-#include <Database/JsonObject.h>
+#include <Database/IJsonObject.h>
 namespace toolhub::db {
 class SimpleBinaryJson;
 static constexpr uint8_t DICT_TYPE = 0;
@@ -33,6 +33,7 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 
 class SimpleJsonLoader {
 public:
+	static bool Check(SimpleBinaryJson* db, JsonVariant const& var);
 	static JsonVariant DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db);
 	static void Serialize(SimpleBinaryJson* db, JsonVariant const& v, vstd::vector<uint8_t>& data);
 };

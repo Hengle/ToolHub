@@ -171,6 +171,42 @@ public:
 		}
 		mSize += count;
 	}
+	template<typename Func>
+	void compact(Func&& f) {
+		T* curPtr = begin();
+		T* lastPtr;
+		T* ed = end();
+		while (curPtr != ed) {
+			if (f(*curPtr))
+				curPtr++;
+			else {
+				lastPtr = curPtr;
+				curPtr++;
+				while (curPtr != ed) {
+					if (f(*curPtr)) {
+						if constexpr (std::is_move_assignable_v<T>) {
+							*lastPtr = std::move(*curPtr);
+						} else if constexpr (std::is_move_constructible_v<T>) {
+							lastPtr->~T();
+							new (lastPtr) T(std::move(*curPtr));
+						} else {
+							static_assert(std::_Always_false<Func>, "Element not movable!");
+						}
+						lastPtr++;
+					}
+					curPtr++;
+				}
+				size_t newSize = lastPtr - begin();
+				if constexpr (!(std::is_trivially_destructible_v<T> || forceTrivial)) {
+					for (auto i = begin() + newSize; i != ed; ++i) {
+						i->~T();
+					}
+				}
+				mSize = newSize;
+				return;
+			}
+		}
+	}
 	operator std::span<T>() const {
 		return std::span<T>(begin(), end());
 	}

@@ -10,11 +10,6 @@ SimpleJsonObject::SimpleJsonObject(
 	  db(db) {
 }
 void SimpleJsonObject::Update() {
-	if (isDirty) return;
-	isDirty = true;
 	db->MarkDirty(this);
-}
-void SimpleJsonObject::Reset() {
-	isDirty = false;
 }
 }// namespace toolhub::db

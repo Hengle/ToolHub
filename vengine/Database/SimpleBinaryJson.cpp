@@ -32,12 +32,22 @@ void SimpleBinaryJson::Dispose(uint64 instanceID) {
 	}
 }
 
-void SimpleBinaryJson::MarkDirty(SimpleJsonObject* instanceID) {
-	updateMap.ForceEmplace(instanceID, true);
+void SimpleBinaryJson::MarkDirty(SimpleJsonObject* dict) {
+	if (dict->dirtyID >= updateVec.size()) {
+		dict->dirtyID = updateVec.size();
+		updateVec.emplace_back(dict);
+	} else {
+		updateVec[dict->dirtyID] = dict;
+	}
 }
 
-void SimpleBinaryJson::MarkDelete(SimpleJsonObject* instanceID) {
-	updateMap.ForceEmplace(instanceID, false);
+void SimpleBinaryJson::MarkDelete(SimpleJsonObject* dict) {
+	if (dict->dirtyID != std::numeric_limits<uint64>::max()) {
+		updateVec[dict->dirtyID] = dict->InstanceID();
+	} else {
+		dict->dirtyID = updateVec.size();
+		updateVec.emplace_back(dict->InstanceID());
+	}
 }
 
 SimpleBinaryJson::SimpleBinaryJson()
@@ -102,15 +112,17 @@ vstd::vector<uint8_t> SimpleBinaryJson::Sync() {
 	Push.operator()<uint8_t>(253);
 	Push(GetHeader());
 	vstd::vector<SimpleJsonObject*> addCmds;
-	addCmds.reserve(updateMap.size());
-	vstd::vector<SimpleJsonObject*> deleteCmds;
-	deleteCmds.reserve(updateMap.size());
-	for (auto&& i : updateMap) {
-		if (i.second) {
-			addCmds.push_back(i.first);
-		} else
-			deleteCmds.push_back(i.first);
-		i.first->Reset();
+	addCmds.reserve(updateVec.size());
+	vstd::vector<uint64> deleteCmds;
+	deleteCmds.reserve(updateVec.size());
+	for (auto&& i : updateVec) {
+		i.visit(
+			[&](auto o) {
+				addCmds.push_back(o);
+			},
+			[&](auto o) {
+				deleteCmds.push_back(o);
+			});
 	}
 	// Create
 	Push.operator()<uint8_t>(127);
@@ -121,12 +133,11 @@ vstd::vector<uint8_t> SimpleBinaryJson::Sync() {
 	// Delete
 	Push.operator()<uint8_t>(128);
 	for (auto&& i : deleteCmds) {
-		auto vv = i->InstanceID();
-		Push.operator()<uint64&>(vv);
+		Push.operator()<uint64&>(i);
 	}
 	Push(std::numeric_limits<uint64>::max());
 	Push.operator()<uint8_t>(0);
-	updateMap.Clear();
+	updateVec.clear();
 	return serData;
 }
 
@@ -136,18 +147,17 @@ vstd::vector<uint8_t> SimpleBinaryJson::Serialize() {
 	auto Push = [&]<typename T>(T&& v) {
 		PushDataToVector<T>(std::forward<T>(v), serData);
 	};
-
 	Push.operator()<uint8_t>(254);
 	Push(GetHeader());
 	/////////////// Root Obj
 	rootObj.M_GetSerData(serData);
-	rootObj.Reset();
+	rootObj.dirtyID = std::numeric_limits<uint64>::max();
 	for (auto&& i : jsonObjs) {
 		i.second.first->M_GetSerData(serData);
-		i.second.first->Reset();
+		i.second.first->dirtyID = std::numeric_limits<uint64>::max();
 	}
 	Push(std::numeric_limits<uint8_t>::max());
-	updateMap.Clear();
+	updateVec.clear();
 	return serData;
 }
 void SimpleBinaryJson::Read(std::span<uint8_t> sp) {

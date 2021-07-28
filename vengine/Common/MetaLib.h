@@ -637,6 +637,10 @@ decltype(auto) array_same(A&& a, B&& b) {
 }
 template<typename... AA>
 class variant {
+public:
+	static constexpr size_t argSize = sizeof...(AA);
+
+private:
 	using FuncType = funcPtr_t<void(void*, void*)>;
 	using FuncType_Const = funcPtr_t<void(void*, void const*)>;
 
@@ -650,8 +654,6 @@ class variant {
 	struct MaxSize<maxSize> {
 		static constexpr size_t MAX_SIZE = maxSize;
 	};
-
-	static constexpr size_t argSize = sizeof...(AA);
 
 	template<size_t idx, size_t c, typename... Args>
 	struct Iterator {
@@ -692,6 +694,7 @@ class variant {
 		}
 		template<typename... A>
 		static size_t AnyConst(void*, size_t idx, A&&...) {
+			static_assert(std::_Always_false<A>(), "Illegal Constructor!");
 			return idx;
 		}
 		static void Dispose(size_t, void*) {}

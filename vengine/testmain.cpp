@@ -3,7 +3,7 @@
 #include <Common/Common.h>
 #include <Common/VObject.h>
 #include <Database/IJsonDatabase.h>
-#include <Database/JsonObject.h>
+#include <Database/IJsonObject.h>
 #include <Common/unique_ptr.h>
 #include <Network/ISocket.h>
 #include <Network/NetworkInclude.h>
@@ -11,7 +11,7 @@
 #include <Common/DynamicDLL.h>
 #include <Utility/BinaryReader.h>
 #include <Network/INetworkService.h>
-/*
+
 void jsonTest() {
 	using namespace toolhub::db;
 	auto db = CreateSimpleJsonDB();
@@ -27,9 +27,10 @@ void jsonTest() {
 
 	rootObj->Set("array"_sv, subArr);
 	rootObj->Set("dict"_sv, subObj);
+
 	auto vec = db->Serialize();
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
-	db->Dispose(subArr);
+
 	auto updateV = db->Sync();
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
@@ -70,12 +71,12 @@ void jsonTest() {
 				func);
 		}
 	}
-}*/
+}
 static toolhub::net::NetWork const* network;
 void Fuck(std::span<uint8_t> v) {
 	std::cout << vstd::string_view((char const*)v.data(), v.size()) << '\n';
 }
-//#define SERVER
+#define SERVER
 
 void server() {
 #ifdef SERVER
@@ -104,15 +105,16 @@ void server() {
 		service->SendMessage("Fuck", std::span<uint8_t>((uint8_t*)s.data(), s.size()));
 	}
 }
+static int counter = 0;
 
 int main() {
 	vengine_init_malloc();
-	//jsonTest();
-	//return 0;
+	jsonTest();
+	return 0;
 	DynamicDLL dll("VEngine_Network.dll");
 	auto v = vstd::TryGetFunction<toolhub::net::NetWork const*()>("NetWork_GetFactory");
 	network = v();
-	server();
+	//server();
 	//network->Test();
 	system("pause");
 	return 0;

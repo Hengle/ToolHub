@@ -3,15 +3,34 @@
 #include <Database/SimpleJsonLoader.h>
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
+bool SimpleJsonLoader::Check(SimpleBinaryJson* db, JsonVariant const& var) {
+	bool res;
+	auto check = [&](uint64 dict) {
+		res = db->jsonObjs.Find(dict);
+	};
+	var.visit(
+		[&](auto&& integer) {
+			res = true;
+		},
+		[&](auto&& flt) {
+			res = true;
+		},
+		[&](auto&& str) {
+			res = true;
+		},
+		check,
+		check);
+	return res;
+}
 JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db) {
 	ValueType type = PopValue<ValueType>(arr);
-	auto ReadDict = [&](uint8_t typ) -> SimpleJsonObject* {
+	auto ReadDict = [&](uint8_t typ, auto&& func) -> JsonVariant {
 		uint64 instanceID = PopValue<uint64>(arr);
 		auto ite = db->jsonObjs.Find(instanceID);
 		if (ite && ite.Value().second == typ) {
-			return ite.Value().first;
+			return func(ite.Value().first);
 		}
-		return nullptr;
+		return JsonVariant();
 	};
 	switch (type) {
 		case ValueType::Int: {
@@ -30,22 +49,33 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 			return JsonVariant(strv);
 		}
 		case ValueType::Dict: {
-			return JsonVariant(static_cast<SimpleJsonDict*>(ReadDict(DICT_TYPE)));
+			return ReadDict(DICT_TYPE, [](SimpleJsonObject* obj) {
+				return JsonVariant(static_cast<SimpleJsonDict*>(obj));
+			});
 		}
 		case ValueType::Array: {
-			return JsonVariant(static_cast<SimpleJsonArray*>(ReadDict(ARRAY_TYPE)));
+			return ReadDict(ARRAY_TYPE, [](SimpleJsonObject* obj) {
+				return JsonVariant(static_cast<SimpleJsonArray*>(obj));
+			});
 		}
 		default:
 			return JsonVariant();
 	}
 }
 void SimpleJsonLoader::Serialize(SimpleBinaryJson* db, JsonVariant const& v, vstd::vector<uint8_t>& data) {
-	data.push_back(v.GetType());
 	auto func = [&]<typename TT>(TT&& f) {
+		data.push_back(v.GetType());
 		using T = std::remove_cvref_t<TT>;
 		auto lastLen = data.size();
 		data.resize(lastLen + sizeof(T));
 		*reinterpret_cast<T*>(data.data() + lastLen) = std::forward<TT>(f);
+	};
+	auto checkFunc = [&](uint64 d) {
+		if (!db->jsonObjs.Find(d)) {
+			data.push_back(v.argSize);
+		} else {
+			func(d);
+		}
 	};
 	v.visit(
 		func,
@@ -56,12 +86,8 @@ void SimpleJsonLoader::Serialize(SimpleBinaryJson* db, JsonVariant const& v, vst
 			data.resize(lastLen + str.size());
 			memcpy(data.data() + lastLen, str.data(), str.size());
 		},
-		[&](uint64 d) {
-			func(d);
-		},
-		[&](uint64 d) {
-			func(d);
-		});
+		checkFunc,
+		checkFunc);
 }
 
 }// namespace toolhub::db

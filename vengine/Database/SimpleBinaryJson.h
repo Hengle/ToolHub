@@ -11,11 +11,11 @@ public:
 	void DisposeProperty(std::pair<SimpleJsonObject*, uint8_t> const& data);
 	bool DisposeProperty(ObjMap::Index data, SimpleJsonObject* obj);
 	void Dispose(uint64 instanceID);
-	void MarkDirty(SimpleJsonObject*);
-	void MarkDelete(SimpleJsonObject*);
+	void MarkDirty(SimpleJsonObject* dict);
+	void MarkDelete(SimpleJsonObject* dict);
 
 	ObjMap jsonObjs;
-	HashMap<SimpleJsonObject*, bool> updateMap;
+	vstd::vector<vstd::variant<SimpleJsonObject*, uint64>> updateVec;
 	Pool<SimpleJsonArray> arrPool;
 	Pool<SimpleJsonDict> dictPool;
 	SimpleJsonDict rootObj;
