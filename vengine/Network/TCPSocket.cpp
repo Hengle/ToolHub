@@ -35,6 +35,8 @@ public:
 
 class TCPServer_Impl final : public ISocket {
 public:
+	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
+
 	vstd::optional<asio::ip::tcp::acceptor> acc;
 	vstd::optional<TCPIOBase> io;
 	bool successAccept;
@@ -64,6 +66,8 @@ public:
 
 class TCPClient_Impl final : public ISocket {
 public:
+	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
+
 	TCPIOBase io;
 	uint concurrent_thread;
 	bool successAccept;
@@ -89,13 +93,13 @@ public:
 	}
 };
 
-ISocket* NetWorkImpl::GenServerTCPSock(
+vstd::unique_ptr<ISocket> NetWorkImpl::GenServerTCPSock(
 	uint concurrent_thread,
 	uint16_t port) const {
 	return new TCPServer_Impl(concurrent_thread, port);
 }
 
-ISocket* NetWorkImpl::GenClientTCPSock(
+vstd::unique_ptr<ISocket> NetWorkImpl::GenClientTCPSock(
 	uint concurrent_thread,
 	uint16_t port,
 	char const* address) const {

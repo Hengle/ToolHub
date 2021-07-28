@@ -9,8 +9,9 @@
 #include <Network/NetworkInclude.h>
 #include <Common/DynamicLink.h>
 #include <Common/DynamicDLL.h>
-
-void test() {
+#include <Network/INetworkService.h>
+/*
+void jsonTest() {
 	using namespace toolhub::db;
 	auto db = CreateSimpleJsonDB();
 	auto rootObj = db->GetRootObject();
@@ -68,48 +69,48 @@ void test() {
 				func);
 		}
 	}
-}
+}*/
 static toolhub::net::NetWork const* network;
+void Fuck(std::span<uint8_t> v) {
+	std::cout << vstd::string_view((char const*)v.data(), v.size()) << '\n';
+}
+//#define SERVER
 
 void server() {
-	std::cout << "start server\n";
-	auto ser = vstd::make_unique(network->GenServerTCPSock(1, 2001));
-	vstd::string s = "fuck";
-	vstd::vector<uint8_t> data;
+#ifdef SERVER
+	std::cout << "starting server...\n";
+#else
+	std::cout << "starting client...\n";
+#endif
+	vstd::vector<std::pair<Runnable<void(std::span<uint8_t>)>, vstd::string>> funcs;
+	funcs.emplace_back(Fuck, "Fuck");
+	vstd::linq::IEnumerator ite(funcs);
+#ifdef SERVER
+	auto service = network->GetNetworkService(
+		network->GenServerTCPSock(2, 2001),
+		ite);
+#else
+	auto service = network->GetNetworkService(
+		network->GenClientTCPSock(2, 2001, "127.0.0.1"),
+		ite);
+#endif
+	std::cout << "start success!\n";
+	vstd::string s;
 	while (true) {
-		if (!ser->Write(std::span<uint8_t>((uint8_t*)s.data(), s.size() + 1))) return;
-		if (!ser->Read(data, 1024)) return;
-		std::cout << ((char const*)data.data()) << '\n';
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::cin >> s;
+		service->SendMessage("Fuck", std::span<uint8_t>((uint8_t*)s.data(), s.size()));
 	}
 }
-void client() {
-	std::cout << "start client\n";
-	auto cli = vstd::make_unique(network->GenClientTCPSock(1, 2001, "127.0.0.1"));
-	vstd::vector<uint8_t> vec;
-	vstd::string s = "shit";
-	while (true) {
-		if (!cli->Read(vec, 1024)) return;
-		if (!cli->Write(std::span<uint8_t>((uint8_t*)s.data(), s.size() + 1))) return;
-		std::cout << ((char const*)vec.data()) << '\n';
-	}
-}
-
-//#define SERVER
 
 int main() {
 	vengine_init_malloc();
-	test();
-	return 0;
+	//jsonTest();
+	//return 0;
 	DynamicDLL dll("VEngine_Network.dll");
 	auto v = vstd::TryGetFunction<toolhub::net::NetWork const*()>("NetWork_GetFactory");
 	network = v();
-#ifdef SERVER
 	server();
-#else
-	client();
-#endif
-
+	//network->Test();
 	system("pause");
 	return 0;
 }

@@ -7,8 +7,8 @@ template<typename T>
 class Iterator {
 public:
 	using SelfType = Iterator<T>;
-	virtual T const* Init() = 0;
-	virtual T const* Available() = 0;
+	virtual T* Init() = 0;
+	virtual T* Available() = 0;
 	virtual void GetNext() = 0;
 	virtual ~Iterator() {}
 	virtual SelfType* CopyNew() const = 0;
@@ -44,8 +44,8 @@ public:
 
 private:
 	StackObject<BeginIteratorType, true> curType;
-	T const* colPtr;
-	ElementType const* ptr;
+	T* colPtr;
+	ElementType* ptr;
 
 public:
 	VENGINE_LINQ_DECLARE_COPY_MOVE(BaseType, SelfType)
@@ -60,17 +60,17 @@ public:
 
 	virtual ~IEnumerator() {}
 	IEnumerator(
-		T const& collection) {
+		T& collection) {
 		colPtr = &collection;
 	}
 	IEnumerator(T&&) = delete;
-	ElementType const* Init() override {
+	ElementType* Init() override {
 		curType.Delete();
 		curType.New(colPtr->begin());
 		ptr = &(**curType);
 		return ptr;
 	}
-	ElementType const* Available() override {
+	ElementType* Available() override {
 		return (*curType == colPtr->end()) ? nullptr : ptr;
 	}
 	void GetNext() override {
@@ -89,7 +89,7 @@ public:
 private:
 	std::unique_ptr<BaseType> ite;
 	std::remove_reference_t<T> func;
-	ElementType const* ptr = nullptr;
+	ElementType* ptr = nullptr;
 
 public:
 	VENGINE_LINQ_DECLARE_COPY_MOVE(BaseType, SelfType)
@@ -122,7 +122,7 @@ public:
 		: ite(lastIte.CopyNew()),
 		  func(std::forward<T>(func)) {
 	}
-	ElementType const* Init() override {
+	ElementType* Init() override {
 		for (ptr = ite->Init(); ptr = ite->Available(); ite->GetNext()) {
 			if (func(*ptr)) {
 				return ptr;
@@ -131,7 +131,7 @@ public:
 		ptr = nullptr;
 		return nullptr;
 	}
-	ElementType const* Available() override {
+	ElementType* Available() override {
 		return ptr;
 	}
 	void GetNext() override {
@@ -195,7 +195,7 @@ public:
 		: ite(lastIte.CopyNew()),
 		  func(std::forward<T>(func)) {
 	}
-	ElementType const* Init() override {
+	ElementType* Init() override {
 		curEle.Delete();
 		OriginType const* ptr = ite->Init();
 		if (!ite->Available())
@@ -204,8 +204,11 @@ public:
 		ite->GetNext();
 		return curEle;
 	}
-	ElementType const* Available() override {
-		return curEle ? static_cast<ElementType const*>(curEle) : nullptr;
+	ElementType* Available() override {
+		if (curEle) {
+			return static_cast<ElementType*>(curEle);
+		}
+		return nullptr;
 	}
 	void GetNext() override {
 		OriginType const* ptr = ite->Available();
@@ -225,7 +228,7 @@ class CombinedIterator final
 	: public Iterator<T> {
 	vstd::vector<Iterator<T>*> iterators;
 	Iterator<T>** curIte = nullptr;
-	T const* curPtr = nullptr;
+	T* curPtr = nullptr;
 
 public:
 	using SelfType = CombinedIterator<T>;
@@ -247,12 +250,12 @@ public:
 	CombinedIterator(
 		vstd::vector<Iterator<T>*> const& iterators)
 		: iterators(iterators) {}
-	T const* Init() override {
+	T* Init() override {
 		curIte = &iterators[0];
 		curPtr = (*curIte)->Init();
 		return curPtr;
 	}
-	T const* Available() override {
+	T* Available() override {
 		return curPtr;
 	}
 	void GetNext() override {

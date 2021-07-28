@@ -8,7 +8,6 @@ protected:
 	ISocket() = default;
 
 public:
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 	virtual ~ISocket() = default;
 	virtual uint ConcurrentThread() const = 0;
 	virtual bool Read(vstd::vector<uint8_t>& data, size_t maxSize) = 0;
