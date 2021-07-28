@@ -94,7 +94,10 @@ vstd::optional<IJsonDict*> SimpleJsonDict::GetDict(vstd::string_view key) {
 	if (!ite) return vstd::optional<IJsonDict*>();
 	auto&& v = ite.Value();
 	if (v.GetType() == 3) {
-		return *reinterpret_cast<IJsonDict**>(v.GetPlaceHolder());
+		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
+		auto ptr = db->GetJsonObject(id);
+		if (ptr)
+			return vstd::optional<IJsonDict*>(ptr);
 	}
 	return vstd::optional<IJsonDict*>();
 };
@@ -104,7 +107,10 @@ vstd::optional<IJsonArray*> SimpleJsonDict::GetArray(vstd::string_view key) {
 	if (!ite) return vstd::optional<IJsonArray*>();
 	auto&& v = ite.Value();
 	if (v.GetType() == 4) {
-		return *reinterpret_cast<IJsonArray**>(v.GetPlaceHolder());
+		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
+		auto ptr = db->GetJsonArray(id);
+		if (ptr)
+			return vstd::optional<IJsonArray*>(ptr);
 	}
 	return vstd::optional<IJsonArray*>();
 };
@@ -123,7 +129,7 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	PushDataToVector(vars.size(), data);
 	for (auto&& kv : vars) {
 		PushDataToVector(kv.first, data);
-		SimpleJsonLoader::Serialize(kv.second, data);
+		SimpleJsonLoader::Serialize(db, kv.second, data);
 	}
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;

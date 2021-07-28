@@ -82,7 +82,10 @@ vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
 
 	auto&& v = arrs[index];
 	if (v.GetType() == 3) {
-		return *reinterpret_cast<IJsonDict**>(v.GetPlaceHolder());
+		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
+		auto ptr = db->GetJsonObject(id);
+		if (ptr)
+			return vstd::optional<IJsonDict*>(ptr);
 	}
 	return vstd::optional<IJsonDict*>();
 }
@@ -90,7 +93,10 @@ vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
 
 	auto&& v = arrs[index];
 	if (v.GetType() == 4) {
-		return *reinterpret_cast<IJsonArray**>(v.GetPlaceHolder());
+		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
+		auto ptr = db->GetJsonArray(id);
+		if (ptr)
+			return vstd::optional<IJsonArray*>(ptr);
 	}
 	return vstd::optional<IJsonArray*>();
 }
@@ -103,7 +109,7 @@ void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto beginOffset = sizeOffset + sizeof(uint64);
 	PushDataToVector(arrs.size(), data);
 	for (auto&& v : arrs) {
-		SimpleJsonLoader::Serialize(v, data);
+		SimpleJsonLoader::Serialize(db, v, data);
 	}
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;

@@ -14,9 +14,8 @@ protected:
 	~SimpleJsonObject() {}
 
 public:
-	uint64 GetInstanceID() const { return instanceID; }
 	SimpleBinaryJson* GetDB() const { return db; }
-	
+	uint64 InstanceID() const { return instanceID; }
 	void Update();
 	void Reset();
 	virtual void M_GetSerData(vstd::vector<uint8_t>& data) = 0;

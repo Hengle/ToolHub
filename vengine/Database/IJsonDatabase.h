@@ -9,6 +9,8 @@ public:
 	virtual IJsonDict* GetRootObject() = 0;
 	virtual IJsonDict* CreateJsonObject() = 0;
 	virtual IJsonArray* CreateJsonArray() = 0;
+	virtual IJsonDict* GetJsonObject(uint64 id) = 0;
+	virtual IJsonArray* GetJsonArray(uint64 id) = 0;
 	virtual bool Dispose(IJsonDict* jsonObj) = 0;
 	virtual bool Dispose(IJsonArray* jsonArr) = 0;
 	virtual vstd::vector<uint8_t> Serialize() = 0;

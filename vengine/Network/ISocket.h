@@ -3,13 +3,14 @@
 #include <Common/unique_ptr.h>
 namespace toolhub::net {
 
-class ITCPSocket {
+class ISocket {
 protected:
-	ITCPSocket() = default;
+	ISocket() = default;
 
 public:
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
-	virtual ~ITCPSocket() = default;
+	virtual ~ISocket() = default;
+	virtual uint ConcurrentThread() const = 0;
 	virtual bool Read(vstd::vector<uint8_t>& data, size_t maxSize) = 0;
 	virtual bool Write(std::span<uint8_t>  data) = 0;
 };

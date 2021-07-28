@@ -34,7 +34,7 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 class SimpleJsonLoader {
 public:
 	static JsonVariant DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db);
-	static void Serialize(JsonVariant const& v, vstd::vector<uint8_t>& data);
+	static void Serialize(SimpleBinaryJson* db, JsonVariant const& v, vstd::vector<uint8_t>& data);
 };
 template<typename T>
 T PopValue(std::span<uint8_t>& arr) {

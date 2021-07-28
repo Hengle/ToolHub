@@ -24,6 +24,10 @@ public:
 	IJsonDict* GetRootObject() override;
 	IJsonDict* CreateJsonObject() override;
 	IJsonArray* CreateJsonArray() override;
+
+	IJsonDict* GetJsonObject(uint64 id) override;
+	IJsonArray* GetJsonArray(uint64 id) override;
+
 	bool Dispose(IJsonDict* jsonObj) override;
 	bool Dispose(IJsonArray* jsonArr) override;
 	vstd::vector<uint8_t> Sync() override;

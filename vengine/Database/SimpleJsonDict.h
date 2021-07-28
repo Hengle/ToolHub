@@ -17,6 +17,7 @@ public:
 	vstd::optional<vstd::string_view> GetString(vstd::string_view key) override;
 	vstd::optional<IJsonDict*> GetDict(vstd::string_view key) override;
 	vstd::optional<IJsonArray*> GetArray(vstd::string_view key) override;
+	uint64 GetInstanceID() override { return instanceID; }
 	size_t Length() override;
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;
 	vstd::vector<uint8_t> GetSerData() override {

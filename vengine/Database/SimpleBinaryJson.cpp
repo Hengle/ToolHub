@@ -26,9 +26,10 @@ bool SimpleBinaryJson::DisposeProperty(ObjMap::Index data, SimpleJsonObject* obj
 
 void SimpleBinaryJson::Dispose(uint64 instanceID) {
 	auto ite = jsonObjs.Find(instanceID);
-	if (ite)
+	if (ite) {
 		DisposeProperty(ite.Value());
-	jsonObjs.Remove(ite);
+		jsonObjs.Remove(ite);
+	}
 }
 
 void SimpleBinaryJson::MarkDirty(SimpleJsonObject* instanceID) {
@@ -60,6 +61,24 @@ IJsonArray* SimpleBinaryJson::CreateJsonArray() {
 	MarkDirty(v);
 	jsonObjs.Emplace(id, v, ARRAY_TYPE);
 	return v;
+}
+IJsonDict* SimpleBinaryJson::GetJsonObject(uint64 instanceID) {
+	auto ite = jsonObjs.Find(instanceID);
+	if (!ite)
+		return nullptr;
+	auto&& v = ite.Value();
+	if (v.second != DICT_TYPE)
+		return nullptr;
+	return static_cast<SimpleJsonDict*>(v.first);
+}
+IJsonArray* SimpleBinaryJson::GetJsonArray(uint64 instanceID) {
+	auto ite = jsonObjs.Find(instanceID);
+	if (!ite)
+		return nullptr;
+	auto&& v = ite.Value();
+	if (v.second != ARRAY_TYPE)
+		return nullptr;
+	return static_cast<SimpleJsonArray*>(v.first);
 }
 bool SimpleBinaryJson::Dispose(IJsonDict* jsonObj) {
 	auto dict = static_cast<SimpleJsonDict*>(jsonObj);
@@ -98,13 +117,15 @@ vstd::vector<uint8_t> SimpleBinaryJson::Sync() {
 	for (auto&& i : addCmds) {
 		i->M_GetSerData(serData);
 	}
-	Push(std::numeric_limits<uint64>::max());
+	Push(std::numeric_limits<uint8_t>::max());
 	// Delete
 	Push.operator()<uint8_t>(128);
 	for (auto&& i : deleteCmds) {
-		Push.operator()<uint64>(i->GetInstanceID());
+		auto vv = i->InstanceID();
+		Push.operator()<uint64&>(vv);
 	}
 	Push(std::numeric_limits<uint64>::max());
+	Push.operator()<uint8_t>(0);
 	updateMap.Clear();
 	return serData;
 }
@@ -130,7 +151,7 @@ vstd::vector<uint8_t> SimpleBinaryJson::Serialize() {
 	return serData;
 }
 void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
-	size_t pp = reinterpret_cast<size_t>(sp.data());
+	//size_t pp = reinterpret_cast<size_t>(sp.data());
 	auto serType = PopValue<uint8_t>(sp);
 	std::span<uint8_t> rootChunk;
 	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
@@ -201,22 +222,28 @@ void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
 
 	switch (serType) {
 		//Sync Object
-		case 253: {
-			auto cmd = PopValue<uint8_t>(sp);
-			// Create
-			if (cmd == 127) {
-				while (PopObj()) {}
-			}
-			// Remove
-			else {
+		case 253:
+			[&]() {
 				while (true) {
-					uint64 instanceID = PopValue<uint64>(sp);
-					if (instanceID == std::numeric_limits<uint64>::max()) break;
-					Dispose(instanceID);
+					auto cmd = PopValue<uint8_t>(sp);
+					switch (cmd) {
+						case 0:
+							return;
+						case 127:
+							while (PopObj()) {}
+							break;
+						case 128:
+							while (true) {
+								uint64 instanceID = PopValue<uint64>(sp);
+								if (instanceID == std::numeric_limits<uint64>::max()) break;
+								Dispose(instanceID);
+							}
+							break;
+					}
 				}
-			}
+			}();
 			break;
-		}
+
 		//Rebuild all
 		case 254: {
 			for (auto&& i : jsonObjs) {

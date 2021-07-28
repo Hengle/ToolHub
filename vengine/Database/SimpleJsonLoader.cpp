@@ -3,7 +3,7 @@
 #include <Database/SimpleJsonLoader.h>
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
-JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db)  {
+JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db) {
 	ValueType type = PopValue<ValueType>(arr);
 	auto ReadDict = [&](uint8_t typ) -> SimpleJsonObject* {
 		uint64 instanceID = PopValue<uint64>(arr);
@@ -39,16 +39,13 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 			return JsonVariant();
 	}
 }
-void SimpleJsonLoader::Serialize(JsonVariant const& v, vstd::vector<uint8_t>& data) {
+void SimpleJsonLoader::Serialize(SimpleBinaryJson* db, JsonVariant const& v, vstd::vector<uint8_t>& data) {
 	data.push_back(v.GetType());
 	auto func = [&]<typename TT>(TT&& f) {
 		using T = std::remove_cvref_t<TT>;
 		auto lastLen = data.size();
 		data.resize(lastLen + sizeof(T));
 		*reinterpret_cast<T*>(data.data() + lastLen) = std::forward<TT>(f);
-	};
-	auto getInstance = [&](auto&& f) {
-		func(f->GetInstanceID());
 	};
 	v.visit(
 		func,
@@ -59,11 +56,11 @@ void SimpleJsonLoader::Serialize(JsonVariant const& v, vstd::vector<uint8_t>& da
 			data.resize(lastLen + str.size());
 			memcpy(data.data() + lastLen, str.data(), str.size());
 		},
-		[&](IJsonDict* d) {
-			getInstance(static_cast<SimpleJsonDict*>(d));
+		[&](uint64 d) {
+			func(d);
 		},
-		[&](IJsonArray* d) {
-			getInstance(static_cast<SimpleJsonArray*>(d));
+		[&](uint64 d) {
+			func(d);
 		});
 }
 

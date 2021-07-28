@@ -5,7 +5,7 @@
 #include <Database/IJsonDatabase.h>
 #include <Database/JsonObject.h>
 #include <Common/unique_ptr.h>
-#include <Network/TCPSocket.h>
+#include <Network/ISocket.h>
 #include <Network/NetworkInclude.h>
 #include <Common/DynamicLink.h>
 #include <Common/DynamicDLL.h>
@@ -27,7 +27,7 @@ void test() {
 	rootObj->Set("dict"_sv, subObj);
 	auto vec = db->Serialize();
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
-	subArr->Set(1, 10.5);
+	db->Dispose(subArr);
 	auto updateV = db->Sync();
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
@@ -99,6 +99,8 @@ void client() {
 
 int main() {
 	vengine_init_malloc();
+	test();
+	return 0;
 	DynamicDLL dll("VEngine_Network.dll");
 	auto v = vstd::TryGetFunction<toolhub::net::NetWork const*()>("NetWork_GetFactory");
 	network = v();
@@ -109,6 +111,7 @@ int main() {
 #endif
 
 	system("pause");
+	return 0;
 }
 
 #undef ASIO_STANDALONE

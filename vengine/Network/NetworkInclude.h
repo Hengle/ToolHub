@@ -1,23 +1,23 @@
 #pragma once
 #include <Common/Common.h>
 namespace toolhub::net {
-class ITCPSocket;
+class ISocket;
 class NetWork {
 public:
-	virtual ITCPSocket* GenServerTCPSock(
+	virtual ISocket* GenServerTCPSock(
 		uint concurrent_thread,
 		uint16_t port) const = 0;
-	virtual ITCPSocket* GenClientTCPSock(
+	virtual ISocket* GenClientTCPSock(
 		uint concurrent_thread,
 		uint16_t port, char const* address) const = 0;
 };
 #ifdef VENGINE_NETWORK_PROJECT
 class NetWorkImpl : public NetWork {
 public:
-	ITCPSocket* GenServerTCPSock(
+	ISocket* GenServerTCPSock(
 		uint concurrent_thread,
 		uint16_t port) const override;
-	ITCPSocket* GenClientTCPSock(
+	ISocket* GenClientTCPSock(
 		uint concurrent_thread,
 		uint16_t port,
 		char const* address) const override;

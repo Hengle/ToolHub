@@ -5,11 +5,23 @@ namespace toolhub::db {
 class IJsonDict;
 class IJsonArray;
 class IJsonDataBase;
+template <typename T>
+struct JsonObjID {
+	uint64 instanceID;
+	JsonObjID(T* ptr) {
+		instanceID = ptr->GetInstanceID();
+	}
+	operator uint64() const {
+		return instanceID;
+	}
+};
+
+
 using JsonVariant = vstd::variant<int64,
 								  double,
 								  vstd::string,
-								  IJsonDict*,
-								  IJsonArray*>;
+								  JsonObjID<IJsonDict>,
+								  JsonObjID<IJsonArray>>;
 
 struct JsonKeyPair {
 	vstd::string_view key;
@@ -21,6 +33,7 @@ public:
 	virtual ~IJsonObject() = default;
 	virtual size_t Length() = 0;
 	virtual vstd::vector<uint8_t> GetSerData() = 0;
+	virtual uint64 GetInstanceID() = 0;
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
 
