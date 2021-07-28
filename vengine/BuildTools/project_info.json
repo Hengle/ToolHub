@@ -1,6 +1,6 @@
 {
   "Compiler": {
-    "BuildToolSubDir": "Current/Bin/MSBuild.exe",
+    "BuildToolSubDir": "MSBuild.exe",
     "Configuration": "Release",
     "Platform": "x64",
     "Projects": {
