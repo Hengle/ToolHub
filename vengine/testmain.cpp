@@ -9,6 +9,7 @@
 #include <Network/NetworkInclude.h>
 #include <Common/DynamicLink.h>
 #include <Common/DynamicDLL.h>
+#include <Utility/BinaryReader.h>
 #include <Network/INetworkService.h>
 /*
 void jsonTest() {
@@ -90,8 +91,10 @@ void server() {
 		network->GenServerTCPSock(2, 2001),
 		ite);
 #else
+	BinaryReader reader("ip.txt");
+	auto data = reader.Read();
 	auto service = network->GetNetworkService(
-		network->GenClientTCPSock(2, 2001, "127.0.0.1"),
+		network->GenClientTCPSock(2, 2001, (char const*)data.data()),
 		ite);
 #endif
 	std::cout << "start success!\n";

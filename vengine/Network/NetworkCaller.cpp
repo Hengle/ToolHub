@@ -52,6 +52,7 @@ private:
 	};
 	Func func;
 	size_t maxBufferSize;
+	bool initialized = false;
 
 	void Read() {
 		vstd::vector<uint8_t> buffer;
@@ -76,8 +77,11 @@ private:
 	}
 	void Write() {
 		// Init Method Table
-		if (!socket->Write(WriteMessageMap()))
-			return;
+		if (!initialized) {
+			initialized = true;
+			if (!socket->Write(WriteMessageMap()))
+				return;
+		}
 		// Message
 		while (auto f = writeCmd.Pop()) {
 			if (!socket->Write(*f)) return;
@@ -85,8 +89,9 @@ private:
 	}
 	void InitMessageMap(std::span<uint8_t> sp) {
 		while (sp.size() > 0) {
-			auto name = PopValue<vstd::string>(sp);
 			auto id = PopValue<uint>(sp);
+			if (id == std::numeric_limits<uint>::max()) return;
+			auto name = PopValue<vstd::string>(sp);
 			messageMap.Emplace(std::move(name), id);
 		}
 	}
@@ -95,10 +100,11 @@ private:
 		PushValue<uint8_t>(REGIST_MESSAGE_FLAG, data);
 		uint v = 0;
 		for (auto&& i : funcMap) {
-			PushValue<vstd::string>(i.second, data);
 			PushValue<uint>(v, data);
+			PushValue<vstd::string>(i.second, data);
 			v++;
 		}
+		PushValue<uint>(std::numeric_limits<uint>::max(), data);
 		return data;
 	}
 
