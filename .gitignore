@@ -20,3 +20,4 @@ build/VEngine_Network.dll
 *.csproj
 __pycache__/
 build/VEngine_Database.dll
+build/VEngine_Unity.dll

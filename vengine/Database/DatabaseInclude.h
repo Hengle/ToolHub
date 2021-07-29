@@ -6,7 +6,7 @@ class Database {
 public:
 	virtual IJsonDataBase* CreateSimpleJsonDB() const = 0;
 };
-#ifdef VENGINE_NETWORK_PROJECT
+#ifdef VENGINE_DATABASE_PROJECT
 class Database_Impl final : public Database {
 public:
 	IJsonDataBase* CreateSimpleJsonDB() const override;

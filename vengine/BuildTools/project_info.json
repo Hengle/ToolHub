@@ -13,6 +13,9 @@
       ],
       "VEngine_Database": [
         "VEngine_DLL"
+      ],
+      "VEngine_Unity": [
+        "VEngine_DLL"
       ]
     }
   }
