@@ -107,25 +107,34 @@ private:
 		PushValue<uint>(std::numeric_limits<uint>::max(), data);
 		return data;
 	}
+	bool readFinished = true;
 
 public:
+	void Run() override {
+		if (readFinished) {
+			readFinished = false;
+			readThread.New(
+				[this]() {
+					Read();
+					readFinished = true;
+				});
+			writeThread.New();
+			writeThread->SetFunctor(func);
+			writeThread->ExecuteNext();
+		}
+	}
+	void AddFunc(
+		vstd::string&& name,
+		Runnable<void(std::span<uint8_t>)>&& func) override {
+		funcMap.emplace_back(std::move(func), std::move(name));
+	}
 	NetworkCaller(
 		vstd::unique_ptr<ISocket>&& socket,
-		vstd::vector<Function>&& funcs,
 		size_t maxBufferSize)
-		: funcMap(std::move(funcs)),
-		  maxBufferSize(maxBufferSize),
+		: maxBufferSize(maxBufferSize),
 		  socket(std::move(socket)) {
 		assert(this->socket->ConcurrentThread() >= 2);
-		readThread.New(
-			[this]() {
-				Read();
-			});
-
-		writeThread.New();
 		func.ths = this;
-		writeThread->SetFunctor(func);
-		writeThread->ExecuteNext();
 	}
 	~NetworkCaller() {
 		auto disposeThread = [&](vstd::optional<std::thread>& td) {
@@ -156,15 +165,9 @@ public:
 
 vstd::unique_ptr<INetworkService> NetWorkImpl::GetNetworkService(
 	vstd::unique_ptr<ISocket>&& socket,
-	vstd::linq::Iterator<Function>& funcs,
 	size_t maxBufferSize) const {
-	vstd::vector<Function> vec;
-	LINQ_LOOP(i, funcs) {
-		vec.push_back(std::move(*i));
-	}
 	return new NetworkCaller(
 		std::move(socket),
-		std::move(vec),
 		maxBufferSize);
 }
 }// namespace toolhub::net

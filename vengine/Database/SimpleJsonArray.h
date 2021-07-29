@@ -20,6 +20,7 @@ public:
 	vstd::optional<IJsonArray*> GetArray(size_t index) override;
 	uint64 GetInstanceID() override { return instanceID; }
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;
+	void Clean() override;
 	vstd::vector<uint8_t> GetSerData() override {
 		vstd::vector<uint8_t> v;
 		M_GetSerData(v);

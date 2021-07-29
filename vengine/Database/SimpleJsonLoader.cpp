@@ -4,7 +4,7 @@
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
 bool SimpleJsonLoader::Check(SimpleBinaryJson* db, JsonVariant const& var) {
-	bool res;
+	bool res = false;
 	auto check = [&](uint64 dict) {
 		res = db->jsonObjs.Find(dict);
 	};

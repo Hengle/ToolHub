@@ -134,6 +134,17 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
 }
+void SimpleJsonDict::Clean() {
+	vstd::vector<vstd::string const*> removeIndices;
+	for (auto&& i : vars) {
+		if (!SimpleJsonLoader::Check(db, i.second)) {
+			removeIndices.push_back(&i.first);
+		}
+	}
+	for (auto&& i : removeIndices) {
+		vars.Remove(*i);
+	}
+}
 SimpleJsonDict::SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db)
 	: SimpleJsonObject(instanceID, db) {
 	//TODO: deser data

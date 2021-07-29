@@ -25,6 +25,7 @@ public:
 		M_GetSerData(v);
 		return v;
 	}
+	void Clean() override;
 	SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db);
 	~SimpleJsonDict();
 };

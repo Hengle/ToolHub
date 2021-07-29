@@ -119,4 +119,10 @@ SimpleJsonArray::SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db)
 }
 SimpleJsonArray::~SimpleJsonArray() {
 }
+void SimpleJsonArray::Clean() {
+	arrs.compact([&](JsonVariant const& v) {
+		return SimpleJsonLoader::Check(db, v);
+	});
+}
+
 }// namespace toolhub::db
