@@ -7,7 +7,6 @@
 #include <Common/unique_ptr.h>
 #include <Network/ISocket.h>
 #include <Network/NetworkInclude.h>
-#include <Common/DynamicLink.h>
 #include <Common/DynamicDLL.h>
 #include <Utility/BinaryReader.h>
 #include <Network/INetworkService.h>
@@ -116,8 +115,8 @@ int main() {
 	vengine_init_malloc();
 	DynamicDLL dll("VEngine_Network.dll");
 	DynamicDLL dll1("VEngine_Database.dll");
-	network = vstd::TryGetFunction<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
-	database = vstd::TryGetFunction<toolhub::db::Database const*()>("Database_GetFactory")();
+	network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
+	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
 	jsonTest();
 	//server();
 	//network->Test();
