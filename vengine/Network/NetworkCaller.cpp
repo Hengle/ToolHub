@@ -158,6 +158,10 @@ public:
 			std::move(vec));
 		writeThread->ExecuteNext();
 	}
+	ISocket* GetSocket() override {
+		return socket.get();
+	}
+
 	KILL_COPY_CONSTRUCT(NetworkCaller)
 	KILL_MOVE_CONSTRUCT(NetworkCaller)
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW

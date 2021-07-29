@@ -20,16 +20,20 @@ public:
 		  ep(std::move(add), port),
 		  socket(service) {
 	}
-	bool Read(vstd::vector<uint8_t>& data, size_t maxSize) {
+	bool Read(
+		vstd::string& errorMsg,
+		vstd::vector<uint8_t>& data, size_t maxSize) {
 		data.clear();
 		data.reserve(maxSize);
-		auto size = socket.try_read_some(asio::buffer(data.data(), maxSize));
+		auto size = socket.try_read_some(errorMsg, asio::buffer(data.data(), maxSize));
 		if (!size) return false;
 		data.resize(*size);
 		return true;
 	}
-	bool Write(std::span<uint8_t> data) {
-		return socket.try_write_some(asio::buffer(data.data(), data.size()));
+	bool Write(
+		vstd::string& errorMsg,
+		std::span<uint8_t> data) {
+		return socket.try_write_some(errorMsg, asio::buffer(data.data(), data.size()));
 	}
 };
 
@@ -37,30 +41,37 @@ class TCPServer_Impl final : public ISocket {
 public:
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 
+	vstd::string errorMsg;
 	vstd::optional<asio::ip::tcp::acceptor> acc;
 	vstd::optional<TCPIOBase> io;
-	bool successAccept;
+	bool successAccept = false;
 	uint concurrent_thread;
 	//Server
 	TCPServer_Impl(uint concurrent_thread, uint16_t port)
 		: concurrent_thread(concurrent_thread) {
 		io.New(concurrent_thread, port, asio::ip::tcp::v4());
 		acc.New(io->service, io->ep);
-		successAccept = acc->try_accept(io->socket);
 	}
 	uint ConcurrentThread() const override {
 		return concurrent_thread;
 	}
-
+	bool Connect() override {
+		if (successAccept) return true;
+		successAccept = acc->try_accept(errorMsg, io->socket);
+		return successAccept;
+	}
+	vstd::string const& ErrorMessage() override {
+		return errorMsg;
+	}
 	~TCPServer_Impl() {
 	}
 	bool Read(vstd::vector<uint8_t>& data, size_t maxSize) override {
 		if (!successAccept) return false;
-		return io->Read(data, maxSize);
+		return io->Read(errorMsg, data, maxSize);
 	}
 	bool Write(std::span<uint8_t> data) override {
 		if (!successAccept) return false;
-		return io->Write(data);
+		return io->Write(errorMsg, data);
 	}
 };
 
@@ -72,10 +83,19 @@ public:
 	uint concurrent_thread;
 	bool successAccept;
 	//Server
+	vstd::string errorMsg;
+	vstd::string const& ErrorMessage() override {
+		return errorMsg;
+	}
+
 	TCPClient_Impl(uint concurrent_thread, uint16_t port, asio::ip::address&& add)
 		: io(concurrent_thread, port, std::move(add)),
 		  concurrent_thread(concurrent_thread) {
-		successAccept = io.socket.try_connect(io.ep);
+	}
+	bool Connect() override {
+		if (successAccept) return true;
+		successAccept = io.socket.try_connect(errorMsg, io.ep);
+		return successAccept;
 	}
 	uint ConcurrentThread() const override {
 		return concurrent_thread;
@@ -85,11 +105,11 @@ public:
 	}
 	bool Read(vstd::vector<uint8_t>& data, size_t maxSize) override {
 		if (!successAccept) return false;
-		return io.Read(data, maxSize);
+		return io.Read(errorMsg, data, maxSize);
 	}
 	bool Write(std::span<uint8_t> data) override {
 		if (!successAccept) return false;
-		return io.Write(data);
+		return io.Write(errorMsg, data);
 	}
 };
 

@@ -1279,7 +1279,9 @@ namespace asio {
 			asio::detail::throw_error(ec, "accept");
 		}
 		template <typename Protocol1, typename Executor1>
-		bool try_accept(basic_socket<Protocol1, Executor1>& peer,
+		bool try_accept(
+			vstd::string& msg,
+			basic_socket<Protocol1, Executor1>& peer,
 			typename constraint<
 			is_convertible<Protocol, Protocol1>::value
 			>::type = 0)
@@ -1287,7 +1289,12 @@ namespace asio {
 			asio::error_code ec;
 			impl_.get_service().accept(impl_.get_implementation(),
 				peer, static_cast<endpoint_type*>(0), ec);
-			return ec.value() == 0;
+			if (ec.value() != 0) {
+				msg = ec.message().c_str();
+				return false;
+			}
+			msg.clear();
+			return true;
 		}
 		/// Accept a new connection.
 		/**

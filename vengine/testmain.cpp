@@ -14,66 +14,6 @@
 static toolhub::net::NetWork const* network;
 static toolhub::db::Database const* database;
 
-void jsonTest() {
-	using namespace toolhub::db;
-	auto db = database->CreateSimpleJsonDB();
-	auto rootObj = db->GetRootObject();
-	auto subArr = db->CreateJsonArray();
-	subArr->Add(5);
-	subArr->Add(8.3);
-	subArr->Add("fuck"_sv);
-
-	auto subObj = db->CreateJsonObject();
-	subObj->Set("shit"_sv, 53);
-	subObj->Set("shit1"_sv, 12.5);
-
-	rootObj->Set("array"_sv, subArr);
-	rootObj->Set("dict"_sv, subObj);
-
-	auto vec = db->Serialize();
-	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
-
-	auto updateV = db->Sync();
-	std::cout << "Update Size: " << updateV.size() << " bytes\n";
-
-	/////////////// Clone
-	auto cloneDB = database->CreateSimpleJsonDB();
-	cloneDB->Read(vec);
-	cloneDB->Read(updateV);
-	auto cloneRoot = cloneDB->GetRootObject();
-	auto rIte = cloneRoot->GetIterator();
-	auto cloneArr = cloneRoot->GetArray("array"_sv);
-	if (cloneArr) {
-		auto ite = (*cloneArr)->GetIterator();
-		LINQ_LOOP(i, *ite) {
-			auto func = [](auto&& f) {
-				std::cout << f << '\n';
-			};
-			i->visit(
-				func,
-				func,
-				func,
-				func,
-				func);
-		}
-	}
-	auto cloneDict = cloneRoot->GetDict("dict"_sv);
-	if (cloneDict) {
-		auto ite = (*cloneDict)->GetIterator();
-		LINQ_LOOP(i, *ite) {
-			auto func = [](auto&& f) {
-				std::cout << f << '\n';
-			};
-			std::cout << "key: " << i->key << " Value: ";
-			i->value.visit(
-				func,
-				func,
-				func,
-				func,
-				func);
-		}
-	}
-}
 //#define SERVER
 void Fuck(vstd::string v) {
 	std::cout << v << '\n';
@@ -85,7 +25,7 @@ void server() {
 	vstd::string cmd;
 	std::cin >> cmd;
 	while (true) {
-		if (cmd.size() != 0) continue;
+		if (cmd.size() != 1) continue;
 		if (cmd[0] == 'y' || cmd[0] == 'Y') {
 			std::cout << "starting server...\n";
 
@@ -101,13 +41,17 @@ void server() {
 			break;
 		}
 	}
-	NETSERVICE_REGIST_MESSAGE(service, Fuck);
-	std::cout << "start success!\n";
+	NETSERVICE_REGIST_MESSAGE(service.get(), Fuck);
+	if (service->GetSocket()->Connect()) {
+		std::cout << "start success!\n";
+	} else {
+		std::cout << "start failed! error message: " << service->GetSocket()->ErrorMessage() << '\n';
+	}
 	service->Run();
 	vstd::string s;
 	while (true) {
 		std::cin >> s;
-		NETSERVICE_SEND_MESSAGE(service, Fuck, s);
+		NETSERVICE_SEND_MESSAGE(service.get(), Fuck, s);
 	}
 }
 
@@ -117,8 +61,8 @@ int main() {
 	DynamicDLL dll1("VEngine_Database.dll");
 	network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
 	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
-	jsonTest();
-	//server();
+	//jsonTest();
+	server();
 	//network->Test();
 	system("pause");
 	return 0;

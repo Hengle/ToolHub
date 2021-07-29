@@ -853,7 +853,9 @@ namespace asio {
 			impl_.get_service().connect(impl_.get_implementation(), peer_endpoint, ec);
 			asio::detail::throw_error(ec, "connect");
 		}
-		bool try_connect(const endpoint_type& peer_endpoint)
+		bool try_connect(
+			vstd::string& errorMsg,
+			const endpoint_type& peer_endpoint)
 		{
 			asio::error_code ec;
 			if (!is_open())
@@ -863,7 +865,12 @@ namespace asio {
 				if (ec.value() != 0) return false;
 			}
 			impl_.get_service().connect(impl_.get_implementation(), peer_endpoint, ec);
-			return ec.value() == 0;
+			if (ec.value() != 0) {
+				errorMsg = ec.message().c_str();
+				return false;
+			}
+			errorMsg.clear();
+			return true;
 		}
 
 		/// Connect the socket to the specified endpoint.

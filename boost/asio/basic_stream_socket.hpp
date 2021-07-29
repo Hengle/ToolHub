@@ -829,12 +829,19 @@ namespace asio {
 			return s;
 		}
 		template <typename ConstBufferSequence>
-		vstd::optional<std::size_t> try_write_some(const ConstBufferSequence& buffers)
+		vstd::optional<std::size_t> try_write_some(
+			vstd::string& erMsg,
+			const ConstBufferSequence& buffers)
 		{
 			asio::error_code ec;
 			std::size_t s = this->impl_.get_service().send(
 				this->impl_.get_implementation(), buffers, 0, ec);
-			if (ec.value() != 0) return vstd::optional<std::size_t>();
+			if (ec.value() != 0)
+			{
+				erMsg = ec.message().c_str();
+				return vstd::optional<std::size_t>();
+			}
+			erMsg.clear();
 			return s;
 		}
 
@@ -962,13 +969,18 @@ namespace asio {
 			return s;
 		}
 		template <typename MutableBufferSequence>
-		vstd::optional<std::size_t> try_read_some(const MutableBufferSequence& buffers)
+		vstd::optional<std::size_t> try_read_some(
+			vstd::string& erMsg,
+			const MutableBufferSequence& buffers)
 		{
 			asio::error_code ec;
 			std::size_t s = this->impl_.get_service().receive(
 				this->impl_.get_implementation(), buffers, 0, ec);
-			if (ec.value() != 0) return vstd::optional<std::size_t>();
-			//asio::detail::throw_error(ec, "read_some");
+			if (ec.value() != 0) {
+				erMsg = ec.message().c_str();
+				return vstd::optional<std::size_t>();
+			}
+			erMsg.clear();
 			return s;
 		}
 
