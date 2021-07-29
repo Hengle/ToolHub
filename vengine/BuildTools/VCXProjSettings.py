@@ -81,10 +81,10 @@ def RemoveNonExistsPath(subName: str, dll, root: ET.Element, xmlns, addFile:bool
     if addFile:
         CompileItemGroup = ET.Element("ItemGroup", {})
         root.append(CompileItemGroup)
-        dll.Py_SetPackageName(subName.encode("utf-8"))
+        dll.Py_SetPackageName(subName.encode("ascii"))
         sz = dll.Py_PathSize()
         for i in range(sz):
-            p = str(ctypes.string_at(dll.Py_GetPath(i)), "utf-8")
+            p = str(ctypes.string_at(dll.Py_GetPath(i)), "ascii")
             CompileItemGroup.append(
                 ET.Element("ClCompile", {'Include': p}))
 
@@ -157,16 +157,16 @@ def VCXProjSettingMain(readFile:bool):
     dll = None
     if readFile:
         dll = ctypes.cdll.LoadLibrary("BuildTools/VEngine_DLL.dll")
-        dll.Py_InitFileSys("BuildTools/mimalloc.dll".encode("utf-8"))
-        dll.Py_AddExtension("cpp".encode("utf-8"))
-        dll.Py_AddExtension("c".encode("utf-8"))
-        dll.Py_AddExtension("cxx".encode("utf-8"))
-        dll.Py_AddExtension("cc".encode("utf-8"))
-        dll.Py_AddIgnorePath(".vs".encode("utf-8"))
-        dll.Py_AddIgnorePath("Build".encode("utf-8"))
-        dll.Py_AddIgnorePath("BuildTools".encode("utf-8"))
-        dll.Py_AddIgnorePath("x64".encode("utf-8"))
-        dll.Py_AddIgnorePath("x86".encode("utf-8"))
+        dll.Py_InitFileSys("BuildTools/mimalloc.dll".encode("ascii"))
+        dll.Py_AddExtension("cpp".encode("ascii"))
+        dll.Py_AddExtension("c".encode("ascii"))
+        dll.Py_AddExtension("cxx".encode("ascii"))
+        dll.Py_AddExtension("cc".encode("ascii"))
+        dll.Py_AddIgnorePath(".vs".encode("ascii"))
+        dll.Py_AddIgnorePath("Build".encode("ascii"))
+        dll.Py_AddIgnorePath("BuildTools".encode("ascii"))
+        dll.Py_AddIgnorePath("x64".encode("ascii"))
+        dll.Py_AddIgnorePath("x86".encode("ascii"))
         dll.Py_ExecuteFileSys()
         dll.Py_GetPath.restype = ctypes.c_char_p
 
