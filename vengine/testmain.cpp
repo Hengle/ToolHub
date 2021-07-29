@@ -11,10 +11,13 @@
 #include <Common/DynamicDLL.h>
 #include <Utility/BinaryReader.h>
 #include <Network/INetworkService.h>
+#include <Database/DatabaseInclude.h>
+static toolhub::net::NetWork const* network;
+static toolhub::db::Database const* database;
 
 void jsonTest() {
 	using namespace toolhub::db;
-	auto db = CreateSimpleJsonDB();
+	auto db = database->CreateSimpleJsonDB();
 	auto rootObj = db->GetRootObject();
 	auto subArr = db->CreateJsonArray();
 	subArr->Add(5);
@@ -35,7 +38,7 @@ void jsonTest() {
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
 	/////////////// Clone
-	auto cloneDB = CreateSimpleJsonDB();
+	auto cloneDB = database->CreateSimpleJsonDB();
 	cloneDB->Read(vec);
 	cloneDB->Read(updateV);
 	auto cloneRoot = cloneDB->GetRootObject();
@@ -72,27 +75,33 @@ void jsonTest() {
 		}
 	}
 }
-static toolhub::net::NetWork const* network;
 //#define SERVER
+void Fuck(vstd::string v) {
+	std::cout << v << '\n';
+};
 
 void server() {
-#ifdef SERVER
-	std::cout << "starting server...\n";
-#else
-	std::cout << "starting client...\n";
-#endif
-#ifdef SERVER
-	auto service = network->GetNetworkService(
-		network->GenServerTCPSock(2, 2001));
-#else
-	BinaryReader reader("ip.txt");
-	auto data = reader.Read();
-	auto service = network->GetNetworkService(
-		network->GenClientTCPSock(2, 2001, (char const*)data.data()));
-#endif
-	auto Fuck = [](vstd::string v) {
-		std::cout << v << '\n';
-	};
+	vstd::unique_ptr<toolhub::net::INetworkService> service;
+	std::cout << "server(Y) or client(N)?" << '\n';
+	vstd::string cmd;
+	std::cin >> cmd;
+	while (true) {
+		if (cmd.size() != 0) continue;
+		if (cmd[0] == 'y' || cmd[0] == 'Y') {
+			std::cout << "starting server...\n";
+
+			service = network->GetNetworkService(
+				network->GenServerTCPSock(2, 2001));
+			break;
+		} else if (cmd[0] == 'n' || cmd[0] == 'N') {
+			std::cout << "starting client...\n";
+			BinaryReader reader("ip.txt");
+			auto data = reader.Read();
+			service = network->GetNetworkService(
+				network->GenClientTCPSock(2, 2001, (char const*)data.data()));
+			break;
+		}
+	}
 	NETSERVICE_REGIST_MESSAGE(service, Fuck);
 	std::cout << "start success!\n";
 	service->Run();
@@ -106,9 +115,11 @@ void server() {
 int main() {
 	vengine_init_malloc();
 	DynamicDLL dll("VEngine_Network.dll");
-	auto v = vstd::TryGetFunction<toolhub::net::NetWork const*()>("NetWork_GetFactory");
-	network = v();
-	server();
+	DynamicDLL dll1("VEngine_Database.dll");
+	network = vstd::TryGetFunction<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
+	database = vstd::TryGetFunction<toolhub::db::Database const*()>("Database_GetFactory")();
+	jsonTest();
+	//server();
 	//network->Test();
 	system("pause");
 	return 0;

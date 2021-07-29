@@ -1,4 +1,4 @@
-#pragma vengine_package vengine_compute
+#pragma vengine_package vengine_database
 
 #include <Database/SimpleJsonObject.h>
 #include <Database/SimpleBinaryJson.h>

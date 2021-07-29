@@ -1,10 +1,11 @@
-#pragma vengine_package vengine_compute
+#pragma vengine_package vengine_database
 
 #include <Common/Common.h>
 #include <Common/Runnable.h>
 #include <Common/Pool.h>
 #include <Database/SimpleBinaryJson.h>
 #include <boost/asio.hpp>
+#include <DatabaseInclude.h>
 namespace toolhub::db {
 
 class SimpleBinaryJson;
@@ -272,7 +273,7 @@ void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
 	}
 }
 
-IJsonDataBase* CreateSimpleJsonDB() {
+IJsonDataBase* Database_Impl::CreateSimpleJsonDB() const {
 	return new SimpleBinaryJson();
 }
 }// namespace toolhub::db

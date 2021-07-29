@@ -20,5 +20,4 @@ public:
 	virtual ~IJsonDataBase() {}
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
-IJsonDataBase* CreateSimpleJsonDB();
 }// namespace toolhub::db

@@ -12,6 +12,10 @@ SubProj = [
     {
         "Name": "VEngine_Network",
         "RemoveHeader": 1
+    }, 
+    {
+        "Name": "VEngine_Database",
+        "RemoveHeader": 1
     }
 ]
 

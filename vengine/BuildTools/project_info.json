@@ -10,6 +10,9 @@
       ],
       "VEngine_Network": [
         "VEngine_DLL"
+      ],
+      "VEngine_Database": [
+        "VEngine_DLL"
       ]
     }
   }

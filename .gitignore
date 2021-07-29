@@ -21,3 +21,4 @@ build/VEngine_Network.dll
 **/*.vcxproj
 *.csproj
 __pycache__/
+build/VEngine_Database.dll
