@@ -15,8 +15,6 @@ build/VEngine_Network.dll
 **/*.pdb
 **/*.ilk
 **/*.lib
-**/*.users
-**/*.user
 **/*.exe
 **/*.vcxproj
 *.csproj
