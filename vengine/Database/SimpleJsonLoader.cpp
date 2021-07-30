@@ -43,10 +43,7 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 		}
 
 		case ValueType::String: {
-			uint64 strSize = PopValue<uint64>(arr);
-			auto strv = vstd::string_view((char const*)arr.data(), strSize);
-			arr = std::span<uint8_t>(arr.data() + strSize, arr.size() - strSize);
-			return JsonVariant(strv);
+			return JsonVariant(PopValue<vstd::string>(arr));
 		}
 		case ValueType::Dict: {
 			return ReadDict(DICT_TYPE, [](SimpleJsonObject* obj) {
@@ -65,10 +62,7 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 void SimpleJsonLoader::Serialize(SimpleBinaryJson* db, JsonVariant const& v, vstd::vector<uint8_t>& data) {
 	auto func = [&]<typename TT>(TT&& f) {
 		data.push_back(v.GetType());
-		using T = std::remove_cvref_t<TT>;
-		auto lastLen = data.size();
-		data.resize(lastLen + sizeof(T));
-		*reinterpret_cast<T*>(data.data() + lastLen) = std::forward<TT>(f);
+		PushDataToVector(f, data);
 	};
 	auto checkFunc = [&](uint64 d) {
 		if (!db->jsonObjs.Find(d)) {
@@ -81,10 +75,7 @@ void SimpleJsonLoader::Serialize(SimpleBinaryJson* db, JsonVariant const& v, vst
 		func,
 		func,
 		[&](vstd::string const& str) {
-			func(str.size());
-			auto lastLen = data.size();
-			data.resize(lastLen + str.size());
-			memcpy(data.data() + lastLen, str.data(), str.size());
+			PushDataToVector(str, data);
 		},
 		checkFunc,
 		checkFunc);

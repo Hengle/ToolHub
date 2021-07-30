@@ -33,6 +33,7 @@ void SimpleJsonArray::Remove(size_t index) {
 	Update();
 	arrs.erase(arrs.begin() + index);
 }
+IJsonDataBase* SimpleJsonArray::GetDatabase() { return db; }
 
 void SimpleJsonArray::Add(JsonVariant value) {
 
@@ -118,6 +119,12 @@ SimpleJsonArray::SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db)
 	: SimpleJsonObject(instanceID, db) {
 }
 SimpleJsonArray::~SimpleJsonArray() {
+}
+void SimpleJsonArray::AfterAdd(IDatabaseEvtVisitor* visitor) {
+	visitor->AddArray(this);
+}
+void SimpleJsonArray::BeforeRemove(IDatabaseEvtVisitor* visitor) {
+	visitor->RemoveArray(this);
 }
 void SimpleJsonArray::Clean() {
 	arrs.compact([&](JsonVariant const& v) {

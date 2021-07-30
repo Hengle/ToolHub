@@ -14,8 +14,6 @@ public:
 	virtual vstd::unique_ptr<INetworkService> GetNetworkService(
 		vstd::unique_ptr<ISocket>&& socket,
 		size_t maxBufferSize = 0x400000) const = 0;
-	virtual vstd::unique_ptr<IFileStream> GetFileStream(
-		INetworkService* service) const = 0;
 };
 #ifdef VENGINE_NETWORK_PROJECT
 
@@ -32,8 +30,6 @@ public:
 	vstd::unique_ptr<INetworkService> GetNetworkService(
 		vstd::unique_ptr<ISocket>&& socket,
 		size_t maxBufferSize) const override;
-	vstd::unique_ptr<IFileStream> GetFileStream(
-		INetworkService* service) const override;
 };
 #endif
 }// namespace toolhub::net

@@ -19,5 +19,7 @@ public:
 	void Update();
 	virtual void M_GetSerData(vstd::vector<uint8_t>& data) = 0;
 	virtual void LoadFromData(std::span<uint8_t> data) = 0;
+	virtual void AfterAdd(IDatabaseEvtVisitor* visitor) = 0;
+	virtual void BeforeRemove(IDatabaseEvtVisitor* visitor) = 0;
 };
 }// namespace toolhub::db

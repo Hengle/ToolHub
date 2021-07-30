@@ -20,7 +20,7 @@ public:
 	uint64 GetInstanceID() override { return instanceID; }
 	size_t Length() override;
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;
-	IJsonDataBase* GetDatabase() override { return db; }
+	IJsonDataBase* GetDatabase() override;
 	vstd::vector<uint8_t> GetSerData() override {
 		vstd::vector<uint8_t> v;
 		M_GetSerData(v);
@@ -29,5 +29,7 @@ public:
 	void Clean() override;
 	SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db);
 	~SimpleJsonDict();
+	void AfterAdd(IDatabaseEvtVisitor* visitor) override;
+	void BeforeRemove(IDatabaseEvtVisitor* visitor) override;
 };
 }// namespace toolhub::db

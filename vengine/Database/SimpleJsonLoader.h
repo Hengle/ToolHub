@@ -3,6 +3,7 @@
 #include <Common/Runnable.h>
 #include <Database/IJsonDatabase.h>
 #include <Database/IJsonObject.h>
+#include <Network/FunctionSerializer.h>
 namespace toolhub::db {
 class SimpleBinaryJson;
 static constexpr uint8_t DICT_TYPE = 0;
@@ -18,17 +19,7 @@ enum class ValueType : uint8_t {
 template<typename T>
 void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 	using TT = std::remove_cvref_t<T>;
-	auto lastLen = serData.size();
-	if constexpr (std::is_same_v<TT, vstd::string>) {
-		size_t sz = sizeof(uint64) + v.size();
-		serData.resize(lastLen + sz);
-		*reinterpret_cast<uint64*>(serData.data() + lastLen) = v.size();
-		memcpy(serData.data() + lastLen + sizeof(uint64), v.data(), v.size());
-	} else {
-		constexpr size_t sz = sizeof(TT);
-		serData.resize(lastLen + sz);
-		*reinterpret_cast<TT*>(serData.data() + lastLen) = v;
-	}
+	vstd::SerDe<TT>::Set(v, serData);
 }
 
 class SimpleJsonLoader {
@@ -39,9 +30,8 @@ public:
 };
 template<typename T>
 T PopValue(std::span<uint8_t>& arr) {
-	T* ptr = reinterpret_cast<T*>(arr.data());
-	arr = std::span<uint8_t>(arr.data() + sizeof(T), arr.size() - sizeof(T));
-	return T(std::move(*ptr));
+	using TT = std::remove_cvref_t<T>;
+	return vstd::SerDe<TT>::Get(arr);
 }
 
 }// namespace toolhub::db

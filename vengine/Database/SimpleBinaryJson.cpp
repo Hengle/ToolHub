@@ -32,6 +32,14 @@ void SimpleBinaryJson::Dispose(uint64 instanceID) {
 		jsonObjs.Remove(ite);
 	}
 }
+void SimpleBinaryJson::Dispose(uint64 instanceID, IDatabaseEvtVisitor* evtVisitor) {
+	auto ite = jsonObjs.Find(instanceID);
+	if (ite) {
+		ite.Value().first->BeforeRemove(evtVisitor);
+		DisposeProperty(ite.Value());
+		jsonObjs.Remove(ite);
+	}
+}
 
 void SimpleBinaryJson::MarkDirty(SimpleJsonObject* dict) {
 	if (dict->dirtyID >= updateVec.size()) {
@@ -104,7 +112,7 @@ bool SimpleBinaryJson::Dispose(IJsonArray* jsonArr) {
 	return DisposeProperty(ite, arr);
 }
 
-vstd::vector<uint8_t> SimpleBinaryJson::Sync() {
+vstd::vector<uint8_t> SimpleBinaryJson::IncreSerialize() {
 	vstd::vector<uint8_t> serData;
 	serData.reserve(16384);
 	auto Push = [&]<typename T>(T&& v) {
@@ -161,72 +169,50 @@ vstd::vector<uint8_t> SimpleBinaryJson::Serialize() {
 	updateVec.clear();
 	return serData;
 }
-void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
-	//size_t pp = reinterpret_cast<size_t>(sp.data());
-	auto serType = PopValue<uint8_t>(sp);
-	std::span<uint8_t> rootChunk;
-	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
-	auto CreateObj = [&](uint64 instanceID, std::span<uint8_t> sp, uint8_t targetType) {
-		auto ite = jsonObjs.Find(instanceID);
-		if (ite) {
-			auto type = ite.Value().second;
-			auto&& ptr = ite.Value().first;
-			if (type != targetType) {
-				//dict
-				if (type == DICT_TYPE) {
-					dictPool.Delete(static_cast<SimpleJsonDict*>(ptr));
-					ptr = arrPool.New(instanceID, this);
-				}
-				//array
-				else {
-					arrPool.Delete(static_cast<SimpleJsonArray*>(ptr));
-					ptr = dictPool.New(instanceID, this);
-				}
-			}
-			vecs.emplace_back(ptr, sp);
-		} else {
-			ite = jsonObjs.Emplace(instanceID, nullptr, targetType);
-			auto&& ptr = ite.Value().first;
-			if (targetType == DICT_TYPE) {
-				ptr = dictPool.New(instanceID, this);
+
+void SimpleBinaryJson::Ser_CreateObj(
+	uint64 instanceID,
+	std::span<uint8_t> sp,
+	uint8_t targetType,
+	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>>& vecs) {
+	auto ite = jsonObjs.Find(instanceID);
+	if (ite) {
+		auto type = ite.Value().second;
+		auto&& ptr = ite.Value().first;
+		if (type != targetType) {
+			//dict
+			if (type == DICT_TYPE) {
+				dictPool.Delete(static_cast<SimpleJsonDict*>(ptr));
+				ptr = arrPool.New(instanceID, this);
 			}
 			//array
 			else {
-				ptr = arrPool.New(instanceID, this);
+				arrPool.Delete(static_cast<SimpleJsonArray*>(ptr));
+				ptr = dictPool.New(instanceID, this);
 			}
-			vecs.emplace_back(ptr, sp);
 		}
-	};
-	auto CreateRoot = [&](std::span<uint8_t> sp) {
-		rootChunk = sp;
-		return &rootObj;
-	};
-	auto PopObj = [&]() {
-		uint8_t type = PopValue<uint8_t>(sp);
-		if (type == std::numeric_limits<uint8_t>::max())
-			return false;
-		uint64 instanceID = PopValue<uint64>(sp);
-		uint64 spanSize = PopValue<uint64>(sp);
-		if (instanceID == 0) {
-			if (type != DICT_TYPE)
-				return false;
-			CreateRoot(std::span<uint8_t>(sp.data(), spanSize));
-		} else {
+		vecs.emplace_back(ptr, sp);
+	} else {
+		ite = jsonObjs.Emplace(instanceID, nullptr, targetType);
+		auto&& ptr = ite.Value().first;
+		if (targetType == DICT_TYPE) {
+			ptr = dictPool.New(instanceID, this);
+		}
+		//array
+		else {
+			ptr = arrPool.New(instanceID, this);
+		}
+		vecs.emplace_back(ptr, sp);
+	}
+}
 
-			switch (type) {
-				//Array
-				case ARRAY_TYPE:
-					CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), ARRAY_TYPE);
-					break;
-				//Dict
-				case DICT_TYPE:
-					CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), DICT_TYPE);
-					break;
-			}
-		}
-		sp = std::span<uint8_t>(sp.data() + spanSize, sp.size() - spanSize);
-		return true;
-	};
+void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
+	//size_t pp = reinterpret_cast<size_t>(sp.data());
+
+	auto serType = PopValue<uint8_t>(sp);
+	std::span<uint8_t> rootChunk;
+	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
+	
 	// Header
 	SerializeHeader header = PopValue<SerializeHeader>(sp);
 	instanceCount = header.instanceCount;
@@ -241,7 +227,7 @@ void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
 						case 0:
 							return;
 						case 127:
-							while (PopObj()) {}
+							while (Ser_PopValue(sp, rootChunk, vecs)) {}
 							break;
 						case 128:
 							while (true) {
@@ -262,7 +248,7 @@ void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
 			}
 			jsonObjs.Clear();
 
-			while (PopObj()) {}
+			while (Ser_PopValue(sp, rootChunk, vecs)) {}
 		} break;
 	}
 	if (!rootChunk.empty()) {
@@ -270,6 +256,99 @@ void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
 	}
 	for (auto&& i : vecs) {
 		i.first->LoadFromData(i.second);
+	}
+}
+
+bool SimpleBinaryJson::Ser_PopValue(
+	std::span<uint8_t>& sp,
+	std::span<uint8_t>& rootChunk,
+	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>>& vecs) {
+	auto CreateObj = [&](uint64 instanceID, std::span<uint8_t> sp, uint8_t targetType) {
+		Ser_CreateObj(instanceID, sp, targetType, vecs);
+	};
+	auto CreateRoot = [&](std::span<uint8_t> sp) {
+		rootChunk = sp;
+		return &rootObj;
+	};
+	uint8_t type = PopValue<uint8_t>(sp);
+	if (type == std::numeric_limits<uint8_t>::max())
+		return false;
+	uint64 instanceID = PopValue<uint64>(sp);
+	uint64 spanSize = PopValue<uint64>(sp);
+	if (instanceID == 0) {
+		if (type != DICT_TYPE)
+			return false;
+		CreateRoot(std::span<uint8_t>(sp.data(), spanSize));
+	} else {
+
+		switch (type) {
+			//Array
+			case ARRAY_TYPE:
+				CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), ARRAY_TYPE);
+				break;
+			//Dict
+			case DICT_TYPE:
+				CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), DICT_TYPE);
+				break;
+		}
+	}
+	sp = std::span<uint8_t>(sp.data() + spanSize, sp.size() - spanSize);
+	return true;
+}
+
+void SimpleBinaryJson::Read(
+	std::span<uint8_t> sp,
+	IDatabaseEvtVisitor* evtVisitor) {
+
+	auto serType = PopValue<uint8_t>(sp);
+	std::span<uint8_t> rootChunk;
+	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
+	
+	// Header
+	SerializeHeader header = PopValue<SerializeHeader>(sp);
+	instanceCount = header.instanceCount;
+
+	switch (serType) {
+		//Sync Object
+		case 253:
+			[&]() {
+				while (true) {
+					auto cmd = PopValue<uint8_t>(sp);
+					switch (cmd) {
+						case 0:
+							return;
+						case 127:
+							while (Ser_PopValue(sp, rootChunk, vecs)) {}
+							break;
+						case 128:
+							while (true) {
+								uint64 instanceID = PopValue<uint64>(sp);
+								if (instanceID == std::numeric_limits<uint64>::max()) break;
+								Dispose(instanceID, evtVisitor);
+							}
+							break;
+					}
+				}
+			}();
+			break;
+
+		//Rebuild all
+		case 254: {
+			for (auto&& i : jsonObjs) {
+				DisposeProperty(i.second);
+			}
+			jsonObjs.Clear();
+
+			while (Ser_PopValue(sp, rootChunk, vecs)) {}
+		} break;
+	}
+	if (!rootChunk.empty()) {
+		rootObj.LoadFromData(rootChunk);
+		rootObj.AfterAdd(evtVisitor);
+	}
+	for (auto&& i : vecs) {
+		i.first->LoadFromData(i.second);
+		i.first->AfterAdd(evtVisitor);
 	}
 }
 

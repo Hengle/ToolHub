@@ -1,11 +1,11 @@
 #pragma once
 #include <Common/linq.h>
 #include <Utility/VGuid.h>
+#include <Database/IJsonDatabase.h>
 namespace toolhub::db {
 class IJsonDict;
 class IJsonArray;
-class IJsonDataBase;
-template <typename T>
+template<typename T>
 struct JsonObjID {
 	uint64 instanceID;
 	JsonObjID(T* ptr) {
@@ -15,7 +15,6 @@ struct JsonObjID {
 		return instanceID;
 	}
 };
-
 
 using JsonVariant = vstd::variant<int64,
 								  double,
@@ -36,7 +35,6 @@ public:
 	virtual uint64 GetInstanceID() = 0;
 	virtual void Clean() = 0;
 	virtual IJsonDataBase* GetDatabase() = 0;
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
 
 class IJsonDict : public IJsonObject {
@@ -54,6 +52,9 @@ public:
 	virtual vstd::optional<vstd::string_view> GetString(vstd::string_view key) = 0;
 	virtual vstd::optional<IJsonDict*> GetDict(vstd::string_view key) = 0;
 	virtual vstd::optional<IJsonArray*> GetArray(vstd::string_view key) = 0;
+	void Dispose() {
+		GetDatabase()->Dispose(this);
+	}
 };
 
 class IJsonArray : public IJsonObject {
@@ -72,5 +73,8 @@ public:
 	virtual vstd::optional<vstd::string_view> GetString(size_t index) = 0;
 	virtual vstd::optional<IJsonDict*> GetDict(size_t index) = 0;
 	virtual vstd::optional<IJsonArray*> GetArray(size_t index) = 0;
+	void Dispose() {
+		GetDatabase()->Dispose(this);
+	}
 };
 }// namespace toolhub::db

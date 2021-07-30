@@ -22,10 +22,9 @@ void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
 		vars.Clear();
 		vars.reserve(arrSize);
 		auto GetNextKeyValue = [&]() {
-			uint64 strSize = PopValue<uint64>(data);
-			auto strv = vstd::string_view((char const*)data.data(), strSize);
-			data = std::span<uint8_t>(data.data() + strSize, data.size() - strSize);
-			return std::pair<vstd::string, JsonVariant>(strv, SimpleJsonLoader::DeSerialize(data, db));
+			auto str = PopValue<vstd::string>(data);
+
+			return std::pair<vstd::string, JsonVariant>(std::move(str), SimpleJsonLoader::DeSerialize(data, db));
 		};
 		for (auto i : vstd::range(arrSize)) {
 			auto kv = GetNextKeyValue();
@@ -130,6 +129,7 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	for (auto&& kv : vars) {
 		PushDataToVector(kv.first, data);
 		SimpleJsonLoader::Serialize(db, kv.second, data);
+
 	}
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
@@ -149,6 +149,13 @@ SimpleJsonDict::SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db)
 	: SimpleJsonObject(instanceID, db) {
 	//TODO: deser data
 }
+IJsonDataBase* SimpleJsonDict::GetDatabase() { return db; }
 SimpleJsonDict::~SimpleJsonDict() {
+}
+void SimpleJsonDict::AfterAdd(IDatabaseEvtVisitor* visitor) {
+	visitor->AddDict(this);
+}
+void SimpleJsonDict::BeforeRemove(IDatabaseEvtVisitor* visitor) {
+	visitor->RemoveDict(this);
 }
 }// namespace toolhub::db
