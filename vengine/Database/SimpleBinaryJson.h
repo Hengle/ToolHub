@@ -19,9 +19,8 @@ public:
 	using ObjMap = HashMap<uint64, std::pair<SimpleJsonObject*, uint8_t>>;
 
 	void DisposeProperty(std::pair<SimpleJsonObject*, uint8_t> const& data);
-	bool DisposeProperty(ObjMap::Index data, SimpleJsonObject* obj);
-	void Dispose(uint64 instanceID);
-	void Dispose(uint64 instanceID, IDatabaseEvtVisitor* evtVisitor);
+	void Dispose(ObjMap::Index id);
+	void Dispose(ObjMap::Index id, IDatabaseEvtVisitor* evtVisitor);
 	void MarkDirty(SimpleJsonObject* dict);
 	void MarkDelete(SimpleJsonObject* dict);
 
@@ -39,8 +38,8 @@ public:
 	IJsonDict* GetJsonObject(uint64 id) override;
 	IJsonArray* GetJsonArray(uint64 id) override;
 
-	bool Dispose(IJsonDict* jsonObj) override;
-	bool Dispose(IJsonArray* jsonArr) override;
+	void Dispose(IJsonDict* jsonObj);
+	void Dispose(IJsonArray* jsonArr);
 	vstd::vector<uint8_t> IncreSerialize() override;
 
 	struct SerializeHeader {

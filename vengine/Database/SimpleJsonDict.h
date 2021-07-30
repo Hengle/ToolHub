@@ -29,6 +29,7 @@ public:
 	void Clean() override;
 	SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db);
 	~SimpleJsonDict();
+	void Dispose() override;
 	void AfterAdd(IDatabaseEvtVisitor* visitor) override;
 	void BeforeRemove(IDatabaseEvtVisitor* visitor) override;
 };

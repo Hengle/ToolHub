@@ -18,8 +18,6 @@ public:
 	virtual IJsonArray* CreateJsonArray() = 0;
 	virtual IJsonDict* GetJsonObject(uint64 id) = 0;
 	virtual IJsonArray* GetJsonArray(uint64 id) = 0;
-	virtual bool Dispose(IJsonDict* jsonObj) = 0;
-	virtual bool Dispose(IJsonArray* jsonArr) = 0;
 	virtual vstd::vector<uint8_t> Serialize() = 0;
 	virtual vstd::vector<uint8_t> IncreSerialize() = 0;
 	virtual void Read(std::span<uint8_t> data) = 0;

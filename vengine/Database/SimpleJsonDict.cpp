@@ -152,6 +152,9 @@ SimpleJsonDict::SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db)
 IJsonDataBase* SimpleJsonDict::GetDatabase() { return db; }
 SimpleJsonDict::~SimpleJsonDict() {
 }
+void SimpleJsonDict::Dispose() {
+	db->Dispose(this);
+}
 void SimpleJsonDict::AfterAdd(IDatabaseEvtVisitor* visitor) {
 	visitor->AddDict(this);
 }

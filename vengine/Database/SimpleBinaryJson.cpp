@@ -16,24 +16,14 @@ void SimpleBinaryJson::DisposeProperty(std::pair<SimpleJsonObject*, uint8_t> con
 		dictPool.Delete(static_cast<SimpleJsonDict*>(v.first));
 	}
 }
-bool SimpleBinaryJson::DisposeProperty(ObjMap::Index data, SimpleJsonObject* obj) {
-	if (!data || data.Value().first != obj) {
-		return false;
-	}
-	DisposeProperty(data.Value());
-	jsonObjs.Remove(data);
-	return true;
-}
 
-void SimpleBinaryJson::Dispose(uint64 instanceID) {
-	auto ite = jsonObjs.Find(instanceID);
+void SimpleBinaryJson::Dispose(ObjMap::Index ite) {
 	if (ite) {
 		DisposeProperty(ite.Value());
 		jsonObjs.Remove(ite);
 	}
 }
-void SimpleBinaryJson::Dispose(uint64 instanceID, IDatabaseEvtVisitor* evtVisitor) {
-	auto ite = jsonObjs.Find(instanceID);
+void SimpleBinaryJson::Dispose(ObjMap::Index ite, IDatabaseEvtVisitor* evtVisitor) {
 	if (ite) {
 		ite.Value().first->BeforeRemove(evtVisitor);
 		DisposeProperty(ite.Value());
@@ -71,14 +61,14 @@ IJsonDict* SimpleBinaryJson::CreateJsonObject() {
 	auto id = ++instanceCount;
 	auto v = dictPool.New(id, this);
 	MarkDirty(v);
-	jsonObjs.Emplace(id, v, DICT_TYPE);
+	v->dbIndexer = jsonObjs.Emplace(id, v, DICT_TYPE);
 	return v;
 }
 IJsonArray* SimpleBinaryJson::CreateJsonArray() {
 	auto id = ++instanceCount;
 	auto v = arrPool.New(id, this);
 	MarkDirty(v);
-	jsonObjs.Emplace(id, v, ARRAY_TYPE);
+	v->dbIndexer = jsonObjs.Emplace(id, v, ARRAY_TYPE);
 	return v;
 }
 IJsonDict* SimpleBinaryJson::GetJsonObject(uint64 instanceID) {
@@ -99,17 +89,17 @@ IJsonArray* SimpleBinaryJson::GetJsonArray(uint64 instanceID) {
 		return nullptr;
 	return static_cast<SimpleJsonArray*>(v.first);
 }
-bool SimpleBinaryJson::Dispose(IJsonDict* jsonObj) {
+void SimpleBinaryJson::Dispose(IJsonDict* jsonObj) {
 	auto dict = static_cast<SimpleJsonDict*>(jsonObj);
 	MarkDelete(dict);
-	auto ite = jsonObjs.Find(dict->GetInstanceID());
-	return DisposeProperty(ite, dict);
+	jsonObjs.Remove(dict->dbIndexer);
+	dictPool.Delete(dict);
 }
-bool SimpleBinaryJson::Dispose(IJsonArray* jsonArr) {
+void SimpleBinaryJson::Dispose(IJsonArray* jsonArr) {
 	auto arr = static_cast<SimpleJsonArray*>(jsonArr);
 	MarkDelete(arr);
-	auto ite = jsonObjs.Find(arr->GetInstanceID());
-	return DisposeProperty(ite, arr);
+	jsonObjs.Remove(arr->dbIndexer);
+	arrPool.Delete(arr);
 }
 
 vstd::vector<uint8_t> SimpleBinaryJson::IncreSerialize() {
@@ -191,6 +181,7 @@ void SimpleBinaryJson::Ser_CreateObj(
 				ptr = dictPool.New(instanceID, this);
 			}
 		}
+		ptr->dbIndexer = ite;
 		vecs.emplace_back(ptr, sp);
 	} else {
 		ite = jsonObjs.Emplace(instanceID, nullptr, targetType);
@@ -202,6 +193,7 @@ void SimpleBinaryJson::Ser_CreateObj(
 		else {
 			ptr = arrPool.New(instanceID, this);
 		}
+		ptr->dbIndexer = ite;
 		vecs.emplace_back(ptr, sp);
 	}
 }
@@ -212,7 +204,7 @@ void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
 	auto serType = PopValue<uint8_t>(sp);
 	std::span<uint8_t> rootChunk;
 	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
-	
+
 	// Header
 	SerializeHeader header = PopValue<SerializeHeader>(sp);
 	instanceCount = header.instanceCount;
@@ -233,7 +225,7 @@ void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
 							while (true) {
 								uint64 instanceID = PopValue<uint64>(sp);
 								if (instanceID == std::numeric_limits<uint64>::max()) break;
-								Dispose(instanceID);
+								Dispose(jsonObjs.Find(instanceID));
 							}
 							break;
 					}
@@ -303,7 +295,7 @@ void SimpleBinaryJson::Read(
 	auto serType = PopValue<uint8_t>(sp);
 	std::span<uint8_t> rootChunk;
 	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
-	
+
 	// Header
 	SerializeHeader header = PopValue<SerializeHeader>(sp);
 	instanceCount = header.instanceCount;
@@ -324,7 +316,7 @@ void SimpleBinaryJson::Read(
 							while (true) {
 								uint64 instanceID = PopValue<uint64>(sp);
 								if (instanceID == std::numeric_limits<uint64>::max()) break;
-								Dispose(instanceID, evtVisitor);
+								Dispose(jsonObjs.Find(instanceID), evtVisitor);
 							}
 							break;
 					}

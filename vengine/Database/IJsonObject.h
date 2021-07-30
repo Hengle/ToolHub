@@ -28,13 +28,16 @@ struct JsonKeyPair {
 };
 
 class IJsonObject {
-public:
+protected:
 	virtual ~IJsonObject() = default;
+
+public:
 	virtual size_t Length() = 0;
 	virtual vstd::vector<uint8_t> GetSerData() = 0;
 	virtual uint64 GetInstanceID() = 0;
 	virtual void Clean() = 0;
 	virtual IJsonDataBase* GetDatabase() = 0;
+	virtual void Dispose() = 0;
 };
 
 class IJsonDict : public IJsonObject {
@@ -52,9 +55,6 @@ public:
 	virtual vstd::optional<vstd::string_view> GetString(vstd::string_view key) = 0;
 	virtual vstd::optional<IJsonDict*> GetDict(vstd::string_view key) = 0;
 	virtual vstd::optional<IJsonArray*> GetArray(vstd::string_view key) = 0;
-	void Dispose() {
-		GetDatabase()->Dispose(this);
-	}
 };
 
 class IJsonArray : public IJsonObject {
@@ -73,8 +73,5 @@ public:
 	virtual vstd::optional<vstd::string_view> GetString(size_t index) = 0;
 	virtual vstd::optional<IJsonDict*> GetDict(size_t index) = 0;
 	virtual vstd::optional<IJsonArray*> GetArray(size_t index) = 0;
-	void Dispose() {
-		GetDatabase()->Dispose(this);
-	}
 };
 }// namespace toolhub::db

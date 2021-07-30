@@ -126,6 +126,9 @@ void SimpleJsonArray::AfterAdd(IDatabaseEvtVisitor* visitor) {
 void SimpleJsonArray::BeforeRemove(IDatabaseEvtVisitor* visitor) {
 	visitor->RemoveArray(this);
 }
+void SimpleJsonArray::Dispose() {
+	db->Dispose(this);
+}
 void SimpleJsonArray::Clean() {
 	arrs.compact([&](JsonVariant const& v) {
 		return SimpleJsonLoader::Check(db, v);

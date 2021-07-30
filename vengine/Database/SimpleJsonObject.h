@@ -13,6 +13,7 @@ protected:
 	~SimpleJsonObject() {}
 
 public:
+	HashMap<uint64, std::pair<SimpleJsonObject*, uint8_t>>::Index dbIndexer;
 	uint64 dirtyID = std::numeric_limits<uint64>::max();
 	SimpleBinaryJson* GetDB() const { return db; }
 	uint64 InstanceID() const { return instanceID; }

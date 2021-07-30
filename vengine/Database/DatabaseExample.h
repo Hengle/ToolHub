@@ -33,7 +33,7 @@ void jsonTest(
 	auto vec = db->Serialize();
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
     //Incremental Serialize Data
-	subArr->Dispose();
+
 	auto updateV = db->IncreSerialize();
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
@@ -74,6 +74,7 @@ void jsonTest(
 				func,
 				func);
 		}
+		(*cloneArr)->Dispose();
 	}
 	auto cloneDict = cloneRoot->GetDict("dict"_sv);
 	if (cloneDict) {
