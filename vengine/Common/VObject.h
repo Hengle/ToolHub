@@ -13,7 +13,7 @@
 
 class PtrLink;
 class VObject;
-class VENGINE_DLL_COMMON VObjectClass {
+class VENGINE_DLL_COMMON VObjectClass : public vstd::IOperatorNewBase {
 protected:
 	template<typename OT, typename T>
 	void AddType() {
@@ -64,7 +64,7 @@ public:
 
 #define SET_VOBJ_CLASS(CLSNAME) originClassDesc = CLSNAME##Cls_->SetBase(originClassDesc)
 
-class VENGINE_DLL_COMMON VObject {
+class VENGINE_DLL_COMMON VObject : public vstd::IOperatorNewBase {
 	friend class PtrLink;
 
 private:
@@ -96,7 +96,6 @@ public:
 	void AddEventBeforeDispose(Runnable<void(VObject*)>&& func) noexcept;
 	size_t GetInstanceID() const noexcept { return instanceID; }
 	virtual ~VObject() noexcept;
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 	KILL_COPY_CONSTRUCT(VObject)
 		VObject(VObject&& v) = delete;
 };

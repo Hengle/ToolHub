@@ -3,7 +3,7 @@
 #include <Common/unique_ptr.h>
 namespace toolhub::net {
 
-class ISocket {
+class ISocket : public vstd::IOperatorNewBase {
 protected:
 	ISocket() = default;
 
@@ -13,5 +13,6 @@ public:
 	virtual bool Write(std::span<uint8_t> data) = 0;
 	virtual bool Connect() = 0;
 	virtual vstd::string const& ErrorMessage() = 0;
+
 };
 }// namespace toolhub::net

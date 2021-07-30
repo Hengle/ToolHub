@@ -97,11 +97,10 @@ public:
 	inline ~BinaryJson() {
 		DisposeSelf();
 	}
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 	KILL_COPY_CONSTRUCT(BinaryJson)
 };
 namespace SerializeStruct {
-class VENGINE_DLL_COMMON SerializedData {
+class VENGINE_DLL_COMMON SerializedData  : public vstd::IOperatorNewBase{
 public:
 	SerializeStruct::ObjectType type;
 	union {
@@ -121,7 +120,6 @@ public:
 	SerializedData(char const*& ptr, bool isArray);
 	~SerializedData();
 	void Dispose();
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 	KILL_COPY_CONSTRUCT(SerializedData)
 };
 }// namespace SerializeStruct

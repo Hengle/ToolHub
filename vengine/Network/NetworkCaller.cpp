@@ -166,7 +166,7 @@ public:
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
 
-vstd::unique_ptr<INetworkService> NetWorkImpl::GetNetworkService(
+INetworkService* NetWorkImpl::GetNetworkService(
 	vstd::unique_ptr<ISocket>&& socket,
 	size_t maxBufferSize) const {
 	return new NetworkCaller(

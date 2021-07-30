@@ -11,6 +11,7 @@
 #include <Utility/BinaryReader.h>
 #include <Network/INetworkService.h>
 #include <Database/DatabaseInclude.h>
+#include <Database/DatabaseExample.h>
 static toolhub::net::NetWork const* network;
 static toolhub::db::Database const* database;
 
@@ -61,8 +62,8 @@ int main() {
 	DynamicDLL dll1("VEngine_Database.dll");
 	network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
 	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
-	//jsonTest();
-	server();
+	jsonTest(database);
+	//server();
 	//network->Test();
 	system("pause");
 	return 0;

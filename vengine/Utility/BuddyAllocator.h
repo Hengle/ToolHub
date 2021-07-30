@@ -58,7 +58,7 @@ public:
 	static void TryCombine(BuddyNode* currentNode, BuddyLinkedList* links, Pool<BuddyNode>* nodePool)noexcept;
 };
 
-class VENGINE_DLL_COMMON BuddyAllocator
+class VENGINE_DLL_COMMON BuddyAllocator : public vstd::IOperatorNewBase
 {
 	Pool<BuddyNode> nodePool;
 	Pool<BuddyBinaryTree> treePool;
@@ -82,5 +82,4 @@ public:
 	void Free(BuddyNode* node);
 	BuddyNode* Allocate(uint targetLayer);
 	~BuddyAllocator();
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };

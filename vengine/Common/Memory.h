@@ -48,6 +48,13 @@ inline void vengine_delete(T* ptr) noexcept {
 		vengine_free(pdead);                                                  \
 	}
 
+namespace vstd {
+class IOperatorNewBase {
+public:
+	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
+};
+}// namespace vstd
+
 using OperatorNewFunctor = typename funcPtr_t<void*(size_t)>;
 
 template<typename T>

@@ -11,7 +11,7 @@ public:
 	virtual void AddArray(IJsonArray* newDict) = 0;
 	virtual void RemoveArray(IJsonArray* newDict) = 0;
 };
-class IJsonDataBase {
+class IJsonDataBase : public vstd::IOperatorNewBase{
 public:
 	virtual IJsonDict* GetRootObject() = 0;
 	virtual IJsonDict* CreateJsonObject() = 0;
@@ -24,10 +24,7 @@ public:
 	virtual void Read(
 		std::span<uint8_t> data,
 		IDatabaseEvtVisitor* evtVisitor) = 0;
-
-	virtual ~IJsonDataBase() {}
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
+	virtual ~IJsonDataBase() = default;
 };
-
 
 }// namespace toolhub::db

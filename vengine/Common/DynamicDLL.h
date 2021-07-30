@@ -3,7 +3,7 @@
 #include <Common/vstring.h>
 #include <Common/Memory.h>
 #include <Common/Log.h>
-class VENGINE_DLL_COMMON DynamicDLL final {
+class VENGINE_DLL_COMMON DynamicDLL final : public vstd::IOperatorNewBase {
 	size_t inst;
 	template<typename T>
 	struct IsFuncPtr {
@@ -47,6 +47,5 @@ public:
 		}
 		return reinterpret_cast<funcPtr_t<T>>(ptr);
 	}
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 	KILL_COPY_CONSTRUCT(DynamicDLL)
 };

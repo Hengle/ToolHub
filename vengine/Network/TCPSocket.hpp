@@ -41,8 +41,6 @@ public:
 
 class TCPServer_Impl final : public ISocket {
 public:
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
-
 	vstd::string errorMsg;
 	vstd::optional<asio::ip::tcp::acceptor> acc;
 	vstd::optional<TCPIOBase> io;
@@ -75,8 +73,6 @@ public:
 
 class TCPClient_Impl final : public ISocket {
 public:
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
-
 	TCPIOBase io;
 	bool successAccept;
 	//Server
@@ -106,14 +102,14 @@ public:
 	}
 };
 
-vstd::unique_ptr<ISocket> NetWorkImpl::GenServerTCPSock(
+ISocket* NetWorkImpl::GenServerTCPSock(
 	uint16_t port) const {
 	return new TCPServer_Impl(
 		reinterpret_cast<asio::io_service*>(service),
 		port);
 }
 
-vstd::unique_ptr<ISocket> NetWorkImpl::GenClientTCPSock(
+ISocket* NetWorkImpl::GenClientTCPSock(
 	uint16_t port,
 	char const* address) const {
 	return new TCPClient_Impl(

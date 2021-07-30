@@ -6,7 +6,7 @@
 #include <Network/FunctionSerializer.h>
 namespace toolhub::net {
 class ISocket;
-class INetworkService {
+class INetworkService  : public vstd::IOperatorNewBase{
 protected:
 	virtual void AddFunc(
 		vstd::string&& name,

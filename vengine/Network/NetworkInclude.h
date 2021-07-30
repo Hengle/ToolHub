@@ -7,11 +7,11 @@ class INetworkService;
 class IFileStream;
 class NetWork {
 public:
-	virtual vstd::unique_ptr<ISocket> GenServerTCPSock(
+	virtual ISocket* GenServerTCPSock(
 		uint16_t port) const = 0;
-	virtual vstd::unique_ptr<ISocket> GenClientTCPSock(
+	virtual ISocket* GenClientTCPSock(
 		uint16_t port, char const* address) const = 0;
-	virtual vstd::unique_ptr<INetworkService> GetNetworkService(
+	virtual INetworkService* GetNetworkService(
 		vstd::unique_ptr<ISocket>&& socket,
 		size_t maxBufferSize = 0x400000) const = 0;
 };
@@ -22,12 +22,12 @@ public:
 	void* service;
 	NetWorkImpl();
 	~NetWorkImpl();
-	vstd::unique_ptr<ISocket> GenServerTCPSock(
+	ISocket* GenServerTCPSock(
 		uint16_t port) const override;
-	vstd::unique_ptr<ISocket> GenClientTCPSock(
+	ISocket* GenClientTCPSock(
 		uint16_t port,
 		char const* address) const override;
-	vstd::unique_ptr<INetworkService> GetNetworkService(
+	INetworkService* GetNetworkService(
 		vstd::unique_ptr<ISocket>&& socket,
 		size_t maxBufferSize) const override;
 };

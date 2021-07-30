@@ -11,7 +11,7 @@ struct ActorPointer {
 		void* ptr,
 		void (*disposer)(void*)) : ptr(ptr), disposer(disposer) {}
 };
-class VENGINE_DLL_COMMON Actor final
+class VENGINE_DLL_COMMON Actor final : public vstd::IOperatorNewBase
 {
 private:
 	
@@ -48,10 +48,9 @@ public:
 		);
 	}
 	KILL_COPY_CONSTRUCT(Actor)
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
 
-class VENGINE_DLL_COMMON ActorSingleThread final {
+class VENGINE_DLL_COMMON ActorSingleThread final : public vstd::IOperatorNewBase {
 private:
 	HashMap<Type, ActorPointer> hash;
 	void* GetComponent(Type t) const;
@@ -80,5 +79,4 @@ public:
 			});
 	}
 	KILL_COPY_CONSTRUCT(ActorSingleThread)
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
