@@ -2,7 +2,9 @@
 .vs/
 x64/
 Library/
+UserSettings/
 Debug/
+Logs/
 Release/
 Temp/
 build/VEngine_DLL.dll
