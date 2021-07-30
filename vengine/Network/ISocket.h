@@ -9,7 +9,6 @@ protected:
 
 public:
 	virtual ~ISocket() = default;
-	virtual uint ConcurrentThread() const = 0;
 	virtual bool Read(vstd::vector<uint8_t>& data, size_t maxSize) = 0;
 	virtual bool Write(std::span<uint8_t> data) = 0;
 	virtual bool Connect() = 0;

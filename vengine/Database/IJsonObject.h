@@ -35,6 +35,7 @@ public:
 	virtual vstd::vector<uint8_t> GetSerData() = 0;
 	virtual uint64 GetInstanceID() = 0;
 	virtual void Clean() = 0;
+	virtual IJsonDataBase* GetDatabase() = 0;
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
 

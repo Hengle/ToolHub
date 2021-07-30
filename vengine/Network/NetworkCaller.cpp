@@ -133,7 +133,6 @@ public:
 		size_t maxBufferSize)
 		: maxBufferSize(maxBufferSize),
 		  socket(std::move(socket)) {
-		assert(this->socket->ConcurrentThread() >= 2);
 		func.ths = this;
 	}
 	~NetworkCaller() {

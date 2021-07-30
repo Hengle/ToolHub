@@ -1,4 +1,4 @@
-#pragma vengine_package vengine_network
+#pragma once
 
 #include <ISocket.h>
 #include <NetworkInclude.h>
@@ -7,18 +7,20 @@ namespace toolhub::net {
 
 class TCPIOBase {
 public:
-	asio::io_service service;
+	asio::io_service* service;
 	asio::ip::tcp::endpoint ep;
 	asio::ip::tcp::socket socket;
-	TCPIOBase(uint concurrent_thread, uint16_t port, asio::ip::tcp&& tcp)
-		: service(concurrent_thread),
+	TCPIOBase(
+		asio::io_service* service, uint16_t port, asio::ip::tcp&& tcp)
+		: service(service),
 		  ep(std::move(tcp), port),
-		  socket(service) {
+		  socket(*service) {
 	}
-	TCPIOBase(uint concurrent_thread, uint16_t port, asio::ip::address&& add)
-		: service(concurrent_thread),
+	TCPIOBase(
+		asio::io_service* service, uint16_t port, asio::ip::address&& add)
+		: service(service),
 		  ep(std::move(add), port),
-		  socket(service) {
+		  socket(*service) {
 	}
 	bool Read(
 		vstd::string& errorMsg,
@@ -45,16 +47,12 @@ public:
 	vstd::optional<asio::ip::tcp::acceptor> acc;
 	vstd::optional<TCPIOBase> io;
 	bool successAccept = false;
-	uint concurrent_thread;
 	//Server
-	TCPServer_Impl(uint concurrent_thread, uint16_t port)
-		: concurrent_thread(concurrent_thread) {
-		io.New(concurrent_thread, port, asio::ip::tcp::v4());
-		acc.New(io->service, io->ep);
+	TCPServer_Impl(asio::io_service* service, uint16_t port) {
+		io.New(service, port, asio::ip::tcp::v4());
+		acc.New(*io->service, io->ep);
 	}
-	uint ConcurrentThread() const override {
-		return concurrent_thread;
-	}
+
 	bool Connect() override {
 		if (successAccept) return true;
 		successAccept = acc->try_accept(errorMsg, io->socket);
@@ -80,7 +78,6 @@ public:
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 
 	TCPIOBase io;
-	uint concurrent_thread;
 	bool successAccept;
 	//Server
 	vstd::string errorMsg;
@@ -88,17 +85,13 @@ public:
 		return errorMsg;
 	}
 
-	TCPClient_Impl(uint concurrent_thread, uint16_t port, asio::ip::address&& add)
-		: io(concurrent_thread, port, std::move(add)),
-		  concurrent_thread(concurrent_thread) {
+	TCPClient_Impl(asio::io_service* service, uint16_t port, asio::ip::address&& add)
+		: io(service, port, std::move(add)) {
 	}
 	bool Connect() override {
 		if (successAccept) return true;
 		successAccept = io.socket.try_connect(errorMsg, io.ep);
 		return successAccept;
-	}
-	uint ConcurrentThread() const override {
-		return concurrent_thread;
 	}
 
 	~TCPClient_Impl() {
@@ -114,17 +107,17 @@ public:
 };
 
 vstd::unique_ptr<ISocket> NetWorkImpl::GenServerTCPSock(
-	uint concurrent_thread,
 	uint16_t port) const {
-	return new TCPServer_Impl(concurrent_thread, port);
+	return new TCPServer_Impl(
+		reinterpret_cast<asio::io_service*>(service),
+		port);
 }
 
 vstd::unique_ptr<ISocket> NetWorkImpl::GenClientTCPSock(
-	uint concurrent_thread,
 	uint16_t port,
 	char const* address) const {
 	return new TCPClient_Impl(
-		concurrent_thread,
+		reinterpret_cast<asio::io_service*>(service),
 		port,
 		asio::ip::address::from_string(address));
 }

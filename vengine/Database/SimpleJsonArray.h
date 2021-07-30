@@ -19,6 +19,7 @@ public:
 	vstd::optional<IJsonDict*> GetDict(size_t index) override;
 	vstd::optional<IJsonArray*> GetArray(size_t index) override;
 	uint64 GetInstanceID() override { return instanceID; }
+	IJsonDataBase* GetDatabase() override { return db; }
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;
 	void Clean() override;
 	vstd::vector<uint8_t> GetSerData() override {

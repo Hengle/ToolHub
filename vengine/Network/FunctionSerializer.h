@@ -50,15 +50,17 @@ struct SerDe<vstd::vector<T, alloc, tri>> {
 	using Value = vstd::vector<T, alloc, tri>;
 	static Value Get(std::span<uint8_t>& sp) {
 		Value sz;
-		sz.reserve(SerDe<uint>::Get(sp));
-		sz.push_back_func([&]() {
-			return SerDe<T>::Get(sp);
-		});
+		auto s = SerDe<uint>::Get(sp);
+		sz.push_back_func(
+			[&]() {
+				return SerDe<T>::Get(sp);
+			},
+			s);
 		return sz;
 	}
 	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {
 		SerDe<uint>::Set(data.size(), arr);
-		for (auto&& i : arr) {
+		for (auto&& i : data) {
 			SerDe<T>::Set(i, arr);
 		}
 	}
@@ -88,6 +90,60 @@ struct SerDe<HashMap<K, V, Hash, Equal, alloc>> {
 		}
 	}
 };
+template<typename... Args>
+struct SerDe<vstd::variant<Args...>> {
+	using Value = vstd::variant<Args...>;
+	template<typename T>
+	static void ExecuteGet(Value* placePtr, std::span<uint8_t>& sp) {
+		new (placePtr) Value(SerDe<T>::Get(sp));
+	}
+	template<typename T>
+	static void ExecuteSet(void const* placePtr, vstd::vector<uint8_t>& sp) {
+		SerDe<T>::Set(*reinterpret_cast<T const*>(placePtr), sp);
+	}
+	static Value Get(std::span<uint8_t>& sp) {
+		auto type = SerDe<uint8_t>::Get(sp);
+		funcPtr_t<void(Value*, std::span<uint8_t>&)> ptrs[sizeof...(Args)] = {
+			ExecuteGet<Args>...};
+		StackObject<Value> value;
+		ptrs[type](value, sp);
+		return *value;
+	}
+	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {
+		SerDe<uint8_t>::Set(data.GetType(), arr);
+		funcPtr_t<void(void const*, vstd::vector<uint8_t>&)> ptrs[sizeof...(Args)] = {
+			ExecuteSet<Args>...};
+		ptrs[data.GetType()](&data, arr);
+	}
+};
+
+template<typename A, typename B>
+struct SerDe<std::pair<A, B>> {
+	using Value = std::pair<A, B>;
+	static Value Get(std::span<uint8_t>& sp) {
+		return Value{SerDe<A>::Get(sp), SerDe<B>::Get(sp)};
+	}
+	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {
+		SerDe<A>::Set(data.first, arr);
+		SerDe<B>::Set(data.second, arr);
+	}
+};
+
+template<>
+struct SerDe<std::span<uint8_t>> {
+	using Value = std::span<uint8_t>;
+	static Value Get(Value& sp) {
+		auto sz = SerDe<uint>::Get(sp);
+		Value v(sp.data(), sz);
+		sp = Value(sp.data() + sz, sp.size() - sz);
+		return v;
+	}
+	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {
+		SerDe<uint>::Set(data.size(), arr);
+		arr.push_back_all(data);
+	}
+};
+
 template<typename Func>
 struct SerDeAll_Impl;
 
@@ -108,6 +164,7 @@ struct SerDeAll_Impl<Ret(Args...)> {
 		return vec;
 	}
 };
+
 template<typename Func>
 using SerDeAll = SerDeAll_Impl<FuncType<std::remove_cvref_t<Func>>>;
 
