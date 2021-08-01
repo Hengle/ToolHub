@@ -40,6 +40,7 @@ public:
 
 	void Dispose(IJsonDict* jsonObj);
 	void Dispose(IJsonArray* jsonArr);
+	void Dispose() override;
 	vstd::vector<uint8_t> IncreSerialize() override;
 
 	struct SerializeHeader {

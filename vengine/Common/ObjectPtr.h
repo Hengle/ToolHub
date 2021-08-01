@@ -1,7 +1,8 @@
 #pragma once
-
+#include <Common/Memory.h>
 class PtrLink;
 class PtrWeakLink;
+class VObject;
 struct VENGINE_DLL_COMMON LinkHeap {
 	friend class PtrLink;
 	friend class PtrWeakLink;
@@ -187,7 +188,11 @@ public:
 	inline ObjectPtr(ObjWeakPtr<T>&& ptr) noexcept;
 	static ObjectPtr<T> MakePtr(T* ptr) noexcept {
 		return ObjectPtr<T>(ptr, [](void* ptr) -> void {
-			delete (reinterpret_cast<T*>(ptr));
+			if constexpr (std::is_base_of_v<vstd::IDisposable, T>) {
+				reinterpret_cast<T*>(ptr)->Dispose();
+			} else {
+				delete (reinterpret_cast<T*>(ptr));
+			}
 		});
 	}
 	static ObjectPtr<T> MakePtr(T* ptr, funcPtr_t<void(void*)> disposer) noexcept {
@@ -327,7 +332,11 @@ public:
 	inline ObjectPtr(const ObjWeakPtr<T[]>& ptr) noexcept;
 	static ObjectPtr<T[]> MakePtr(T* ptr) noexcept {
 		return ObjectPtr<T[]>(ptr, [](void* ptr) -> void {
-			delete[](reinterpret_cast<T*>(ptr));
+			if constexpr (std::is_base_of_v<vstd::IDisposable, T>) {
+				reinterpret_cast<T*>(ptr)->Dispose();
+			} else {
+				delete[](reinterpret_cast<T*>(ptr));
+			}
 		});
 	}
 	static ObjectPtr<T[]> MakePtr(T* ptr, funcPtr_t<void(void*)> disposer) noexcept {

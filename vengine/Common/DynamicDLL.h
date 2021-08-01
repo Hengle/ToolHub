@@ -23,6 +23,8 @@ class VENGINE_DLL_COMMON DynamicDLL final : public vstd::IOperatorNewBase {
 public:
 	DynamicDLL(char const* fileName);
 	~DynamicDLL();
+	DynamicDLL(DynamicDLL const&) = delete;
+	DynamicDLL(DynamicDLL&&);
 	template<typename T>
 	void GetDLLFunc(T& funcPtr, char const* name) {
 		static_assert(IsFuncPtr<std::remove_cvref_t<T>>::value, "DLL Only Support Function Pointer!"_sv);
@@ -47,5 +49,4 @@ public:
 		}
 		return reinterpret_cast<funcPtr_t<T>>(ptr);
 	}
-	KILL_COPY_CONSTRUCT(DynamicDLL)
 };

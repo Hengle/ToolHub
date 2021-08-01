@@ -1,5 +1,7 @@
 #pragma once
 #include <Common/Common.h>
+// Entry: 
+// toolhub::db::Database const* Database_GetFactory()
 namespace toolhub::db {
 class IJsonDataBase;
 class Database {

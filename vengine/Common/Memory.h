@@ -53,6 +53,14 @@ class IOperatorNewBase {
 public:
 	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
+class IDisposable {
+protected:
+	IDisposable() = default;
+	~IDisposable() = default;
+
+public:
+	virtual void Dispose() = 0;
+};
 }// namespace vstd
 
 using OperatorNewFunctor = typename funcPtr_t<void*(size_t)>;

@@ -33,7 +33,7 @@ void PushValue(T const& data, vstd::vector<uint8_t>& arr) {
 		arr.push_back_all(reinterpret_cast<uint8_t const*>(&data), sizeof(data));
 	}
 }
-class NetworkCaller final : public INetworkService {
+class NetworkCaller final : public INetworkService, public vstd::IOperatorNewBase {
 public:
 	using Function = std::pair<Runnable<void(std::span<uint8_t>)>, vstd::string>;
 
@@ -74,6 +74,9 @@ private:
 				} break;
 			}
 		}
+	}
+	void Dispose() override {
+		delete this;
 	}
 	void Write() {
 		// Init Method Table

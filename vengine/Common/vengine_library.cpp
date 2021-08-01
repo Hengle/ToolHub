@@ -680,7 +680,13 @@ DynamicDLL::DynamicDLL(char const* name) {
 	}
 }
 DynamicDLL::~DynamicDLL() {
-	FreeLibrary(reinterpret_cast<HINSTANCE>(inst));
+	if (inst != 0)
+		FreeLibrary(reinterpret_cast<HINSTANCE>(inst));
+}
+
+DynamicDLL::DynamicDLL(DynamicDLL&& d) {
+	inst = d.inst;
+	d.inst = 0;
 }
 
 size_t DynamicDLL::GetFuncPtr(char const* name) {

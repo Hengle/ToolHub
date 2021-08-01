@@ -102,6 +102,10 @@ void SimpleBinaryJson::Dispose(IJsonArray* jsonArr) {
 	arrPool.Delete(arr);
 }
 
+void SimpleBinaryJson::Dispose() {
+	delete this;
+}
+
 vstd::vector<uint8_t> SimpleBinaryJson::IncreSerialize() {
 	vstd::vector<uint8_t> serData;
 	serData.reserve(16384);

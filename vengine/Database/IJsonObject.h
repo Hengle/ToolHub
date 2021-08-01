@@ -27,9 +27,9 @@ struct JsonKeyPair {
 	JsonVariant value;
 };
 
-class IJsonObject {
+class IJsonObject : public vstd::IDisposable {
 protected:
-	virtual ~IJsonObject() = default;
+	~IJsonObject() = default;
 
 public:
 	virtual size_t Length() = 0;
@@ -37,12 +37,11 @@ public:
 	virtual uint64 GetInstanceID() = 0;
 	virtual void Clean() = 0;
 	virtual IJsonDataBase* GetDatabase() = 0;
-	virtual void Dispose() = 0;
 };
 
 class IJsonDict : public IJsonObject {
 protected:
-	virtual ~IJsonDict() {}
+	~IJsonDict() {}
 
 public:
 	virtual JsonVariant Get(vstd::string_view key) = 0;
@@ -59,7 +58,7 @@ public:
 
 class IJsonArray : public IJsonObject {
 protected:
-	virtual ~IJsonArray(){};
+	~IJsonArray(){};
 
 public:
 	virtual JsonVariant Get(size_t index) = 0;

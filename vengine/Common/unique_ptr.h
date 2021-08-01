@@ -1,5 +1,6 @@
 #pragma once
 #include <Common/MetaLib.h>
+#include <Common/Memory.h>
 namespace vstd {
 template<typename T>
 class unique_ptr {
@@ -30,7 +31,11 @@ public:
 	unique_ptr(T* ptr) noexcept
 		: ptr(ptr), originPtr(ptr),
 		  deleter([](void* ptr) {
-			  delete reinterpret_cast<T*>(ptr);
+			  if constexpr (std::is_base_of_v<vstd::IDisposable, T>) {
+				  reinterpret_cast<T*>(ptr)->Dispose();
+			  } else {
+				  delete reinterpret_cast<T*>(ptr);
+			  }
 		  }) {}
 	unique_ptr(SelfT const&) = delete;
 	unique_ptr(SelfT&) = delete;
@@ -81,7 +86,6 @@ public:
 			deleter(originPtr);
 		}
 	}
-	
 };
 template<typename T>
 unique_ptr<T> make_unique(T* ptr) {

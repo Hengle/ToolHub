@@ -1,6 +1,8 @@
 #pragma once
 #include <Common/Common.h>
 #include <Common/Runnable.h>
+// Entry:
+// toolhub::net::NetWork const* NetWork_GetFactory()
 namespace toolhub::net {
 class ISocket;
 class INetworkService;
@@ -33,6 +35,3 @@ public:
 };
 #endif
 }// namespace toolhub::net
-
-//toolhub::net::NetWork const* NetWork_GetFactory()
-//toolhub::db::Database const* Database_GetFactory()

@@ -8,11 +8,12 @@ A simple example of interface
 #include <Database/DatabaseInclude.h>
 #include <Database/IJsonDatabase.h>
 #include <Database/IJsonObject.h>
+#include <Common/VObject.h>
 void jsonTest(
 	toolhub::db::Database const* database) {
 	using namespace toolhub::db;
 	// Generate a database
-	auto db = vstd::unique_ptr(database->CreateSimpleJsonDB());
+	auto db = MakeObjectPtr(database->CreateSimpleJsonDB());
 	// Get Root Json Object
 	auto rootObj = db->GetRootObject();
 	// Create a json array
@@ -37,7 +38,7 @@ void jsonTest(
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
 	/////////////// Clone Database by serialize binary
-	auto cloneDB = vstd::unique_ptr(database->CreateSimpleJsonDB());
+	auto cloneDB = MakeObjectPtr(database->CreateSimpleJsonDB());
 	struct EventTrigger : public IDatabaseEvtVisitor {
 		void AddDict(IJsonDict* newDict) override {
 			std::cout << "Add Dict!" << '\n';

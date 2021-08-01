@@ -39,7 +39,7 @@ public:
 	}
 };
 
-class TCPServer_Impl final : public ISocket {
+class TCPServer_Impl final : public ISocket , public vstd::IOperatorNewBase{
 public:
 	vstd::string errorMsg;
 	vstd::optional<asio::ip::tcp::acceptor> acc;
@@ -69,9 +69,12 @@ public:
 		if (!successAccept) return false;
 		return io->Write(errorMsg, data);
 	}
+	void Dispose() override {
+		delete this;
+	}
 };
 
-class TCPClient_Impl final : public ISocket {
+class TCPClient_Impl final : public ISocket, public vstd::IOperatorNewBase {
 public:
 	TCPIOBase io;
 	bool successAccept;
@@ -99,6 +102,9 @@ public:
 	bool Write(std::span<uint8_t> data) override {
 		if (!successAccept) return false;
 		return io.Write(errorMsg, data);
+	}
+	void Dispose() override {
+		delete this;
 	}
 };
 

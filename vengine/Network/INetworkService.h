@@ -6,12 +6,13 @@
 #include <Network/FunctionSerializer.h>
 namespace toolhub::net {
 class ISocket;
-class INetworkService  : public vstd::IOperatorNewBase{
+class INetworkService  : public vstd::IDisposable{
 protected:
 	virtual void AddFunc(
 		vstd::string&& name,
 		Runnable<void(std::span<uint8_t>)>&& func) = 0;
 	virtual void SendMessage(vstd::string const& messageName, std::span<uint8_t> const& data) = 0;
+	virtual ~INetworkService() = default;
 
 public:
 	template<typename Func>
@@ -35,7 +36,6 @@ public:
 		}
 	};
 
-	virtual ~INetworkService() = default;
 	virtual void Run() = 0;
 	virtual ISocket* GetSocket() = 0;
 };
