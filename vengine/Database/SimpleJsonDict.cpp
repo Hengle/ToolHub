@@ -37,11 +37,11 @@ void SimpleJsonDict::Remove(vstd::string const& key) {
 	Update();
 	vars.Remove(key);
 }
-vstd::unique_ptr<vstd::linq::Iterator<JsonKeyPair>> SimpleJsonDict::GetIterator() {
+vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonDict::GetIterator() {
 
-	return vstd::linq::IEnumerator(vars)
+	return vstd::linq::ConstIEnumerator(vars)
 		.make_transformer(
-			[](auto&& kv) {
+			[](auto&& kv) -> const JsonKeyPair {
 				return JsonKeyPair{kv.first, kv.second};
 			})
 		.MoveNew();

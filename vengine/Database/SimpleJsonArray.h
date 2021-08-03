@@ -12,7 +12,7 @@ public:
 	void Set(size_t index, JsonVariant value) override;
 	void Remove(size_t index) override;
 	void Add(JsonVariant value) override;
-	vstd::unique_ptr<vstd::linq::Iterator<JsonVariant>> GetIterator() override;
+	vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> GetIterator() override;
 	vstd::optional<int64> GetInt(size_t index) override;
 	vstd::optional<double> GetFloat(size_t index) override;
 	vstd::optional<vstd::string_view> GetString(size_t index) override;

@@ -47,7 +47,7 @@ public:
 	virtual JsonVariant Get(vstd::string_view key) = 0;
 	virtual void Set(vstd::string key, JsonVariant value) = 0;
 	virtual void Remove(vstd::string const& key) = 0;
-	virtual vstd::unique_ptr<vstd::linq::Iterator<JsonKeyPair>> GetIterator() = 0;
+	virtual vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> GetIterator() = 0;
 
 	virtual vstd::optional<int64> GetInt(vstd::string_view key) = 0;
 	virtual vstd::optional<double> GetFloat(vstd::string_view key) = 0;
@@ -65,7 +65,7 @@ public:
 	virtual void Set(size_t index, JsonVariant value) = 0;
 	virtual void Remove(size_t index) = 0;
 	virtual void Add(JsonVariant value) = 0;
-	virtual vstd::unique_ptr<vstd::linq::Iterator<JsonVariant>> GetIterator() = 0;
+	virtual vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> GetIterator() = 0;
 
 	virtual vstd::optional<int64> GetInt(size_t index) = 0;
 	virtual vstd::optional<double> GetFloat(size_t index) = 0;

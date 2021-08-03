@@ -11,7 +11,7 @@ public:
 	void LoadFromData(std::span<uint8_t> data) override;
 
 	void Remove(vstd::string const& key) override;
-	vstd::unique_ptr<vstd::linq::Iterator<JsonKeyPair>> GetIterator() override;
+	vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> GetIterator() override;
 	vstd::optional<int64> GetInt(vstd::string_view key) override;
 	vstd::optional<double> GetFloat(vstd::string_view key) override;
 	vstd::optional<vstd::string_view> GetString(vstd::string_view key) override;

@@ -5,6 +5,7 @@ Library/
 UserSettings/
 Debug/
 Logs/
+bin/
 Release/
 Temp/
 build/VEngine_DLL.dll
@@ -20,6 +21,7 @@ build/VEngine_Network.dll
 **/*.exe
 **/*.vcxproj
 *.csproj
+*.cache
 __pycache__/
 build/VEngine_Database.dll
 build/VEngine_Unity.dll

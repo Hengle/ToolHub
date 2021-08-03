@@ -4,13 +4,13 @@
 namespace vstd::linq {
 
 template<typename T>
-class Iterator {
+class Iterator : public vstd::IOperatorNewBase {
 public:
+	virtual ~Iterator() {}
 	using SelfType = Iterator<T>;
 	virtual T* Init() = 0;
 	virtual T* Available() = 0;
 	virtual void GetNext() = 0;
-	virtual ~Iterator() {}
 	virtual SelfType* CopyNew() const = 0;
 	virtual SelfType* MoveNew() = 0;
 	template<typename Func>
@@ -22,8 +22,6 @@ public:
 	decltype(auto) make_transformer(Func&& f) const&;
 	template<typename Func>
 	decltype(auto) make_transformer(Func&& f) &&;
-
-	DECLARE_VENGINE_OVERRIDE_OPERATOR_NEW
 };
 #define VENGINE_LINQ_DECLARE_COPY_MOVE(BType, SType) \
 	BType* CopyNew() const override {                \
@@ -40,7 +38,7 @@ public:
 	using BeginIteratorType = std::remove_reference_t<decltype(std::declval<T>().begin())>;
 	using ElementType = Linq_ElementType<T>;
 	using SelfType = IEnumerator<T>;
-	using BaseType = Iterator<Linq_ElementType<T>>;
+	using BaseType = Iterator<ElementType>;
 
 private:
 	StackObject<BeginIteratorType, true> curType;
@@ -49,6 +47,7 @@ private:
 
 public:
 	VENGINE_LINQ_DECLARE_COPY_MOVE(BaseType, SelfType)
+	virtual ~IEnumerator() {}
 	IEnumerator(
 		IEnumerator const& ie)
 		: colPtr(ie.colPtr) {
@@ -57,13 +56,57 @@ public:
 		IEnumerator&& ie)
 		: colPtr(ie.colPtr) {
 	}
-
-	virtual ~IEnumerator() {}
+	
 	IEnumerator(
 		T& collection) {
 		colPtr = &collection;
 	}
 	IEnumerator(T&&) = delete;
+	ElementType* Init() override {
+		curType.Delete();
+		curType.New(colPtr->begin());
+		ptr = &(**curType);
+		return ptr;
+	}
+	ElementType* Available() override {
+		return (*curType == colPtr->end()) ? nullptr : ptr;
+	}
+	void GetNext() override {
+		++(*curType);
+		ptr = &(**curType);
+	}
+};
+template<typename T>
+class ConstIEnumerator : public Iterator<const Linq_ElementType<T>> {
+public:
+	using BeginIteratorType = std::remove_reference_t<decltype(std::declval<T>().begin())>;
+	using ElementType = const Linq_ElementType<T>;
+	using SelfType = ConstIEnumerator<T>;
+	using BaseType = Iterator<ElementType>;
+
+private:
+	StackObject<BeginIteratorType, true> curType;
+	T* colPtr;
+	ElementType* ptr;
+
+public:
+	VENGINE_LINQ_DECLARE_COPY_MOVE(BaseType, SelfType)
+	ConstIEnumerator(
+		ConstIEnumerator const& ie)
+		: colPtr(ie.colPtr) {
+	}
+	
+	ConstIEnumerator(
+		ConstIEnumerator&& ie)
+		: colPtr(ie.colPtr) {
+	}
+
+	virtual ~ConstIEnumerator() {}
+	ConstIEnumerator(
+		T& collection) {
+		colPtr = &collection;
+	}
+	ConstIEnumerator(T&&) = delete;
 	ElementType* Init() override {
 		curType.Delete();
 		curType.New(colPtr->begin());
@@ -103,6 +146,7 @@ public:
 		: ite(std::move(v.ite)),
 		  func(std::move(v.func)) {}
 
+	
 	virtual ~FilterIterator() {}
 	FilterIterator(
 		BaseType&& lastIte,
@@ -163,7 +207,7 @@ public:
 private:
 	std::unique_ptr<Iterator<IteType>> ite;
 	std::remove_cvref_t<T> func;
-	StackObject<ElementType, true> curEle;
+	StackObject<std::remove_const_t<ElementType>, true> curEle;
 
 public:
 	VENGINE_LINQ_DECLARE_COPY_MOVE(BaseType, SelfType)
@@ -195,12 +239,13 @@ public:
 		: ite(lastIte.CopyNew()),
 		  func(std::forward<T>(func)) {
 	}
+	
 	ElementType* Init() override {
 		curEle.Delete();
 		OriginType const* ptr = ite->Init();
 		if (!ite->Available())
 			return nullptr;
-		curEle.New(std::move(func(*ptr)));
+		curEle.New(func(*ptr));
 		ite->GetNext();
 		return curEle;
 	}
@@ -216,7 +261,7 @@ public:
 			curEle.Delete();
 			return;
 		}
-		*curEle = std::move(func(*ptr));
+		curEle = std::move(func(*ptr));
 
 		ite->GetNext();
 	}
@@ -236,13 +281,13 @@ public:
 	VENGINE_LINQ_DECLARE_COPY_MOVE(BaseType, SelfType)
 	CombinedIterator(
 		SelfType const& t)
-		: iterators (t.iterators){
-
+		: iterators(t.iterators) {
 	}
 	CombinedIterator(
 		SelfType&& t)
 		: iterators(std::move(t.iterators)) {
 	}
+	
 
 	CombinedIterator(
 		vstd::vector<Iterator<T>*>&& iterators)

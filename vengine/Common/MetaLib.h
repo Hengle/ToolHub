@@ -158,6 +158,9 @@ public:
 		}
 		return **this;
 	}
+	T& operator=(T const&& value) {
+		operator=(value);
+	}
 	T& operator=(T&& value) {
 		if constexpr (std::is_move_assignable_v<T>) {
 			operator*() = std::move(value);

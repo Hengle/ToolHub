@@ -40,9 +40,9 @@ void SimpleJsonArray::Add(JsonVariant value) {
 	Update();
 	arrs.emplace_back(std::move(value));
 }
-vstd::unique_ptr<vstd::linq::Iterator<JsonVariant>> SimpleJsonArray::GetIterator() {
+vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonArray::GetIterator() {
 
-	return new vstd::linq::IEnumerator(arrs);
+	return new vstd::linq::ConstIEnumerator(arrs);
 }
 
 vstd::optional<int64> SimpleJsonArray::GetInt(size_t index) {
