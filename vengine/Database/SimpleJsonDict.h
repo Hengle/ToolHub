@@ -4,7 +4,7 @@
 namespace toolhub::db {
 class SimpleJsonDict final : public SimpleJsonObject, public IJsonDict {
 public:
-	HashMap<vstd::string, JsonVariant> vars;
+	HashMap<vstd::string, SimpleJsonVariant> vars;
 	//Dict Deserialize
 	JsonVariant Get(vstd::string_view key) override;
 	void Set(vstd::string key, JsonVariant value) override;

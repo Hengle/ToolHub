@@ -3,32 +3,16 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 
-[AttributeUsage(AttributeTargets.Class)]
-public class GenerateCPP : Attribute
-{
-    public string cppPath { get; private set; }
-    public string csharpPath { get; private set; }
-    public string dllName { get; private set; }
-
-    public GenerateCPP(
-        string dllName,
-        string cppPath,
-        string csharpPath)
-    {
-        this.cppPath = cppPath;
-        this.dllName = dllName;
-        this.csharpPath = csharpPath;
-    }
-}
-[GenerateCPP("VEngine_Unity.dll", "Test.hpp", "Test.cs")]
+/*
+ * [GenerateCPP("VEngine_Unity.dll", "Test.hpp", "Test.cs", "toolhub")]
 class TestClass
 {
     public TestClass() { }
     public void RunData(int a, double b) { }
     public int Run1(int a, double b) { return new int(); }
 }
-
-class Program
+*/
+unsafe class Program
 {
     struct RefType
     {
@@ -50,23 +34,49 @@ class Program
             }
         }
     }
-
-    static void Main(string[] args)
+    static readonly string csharpStr = "D:/ToolHub/UnityProject/Assets/";
+    static readonly string cppStr = "D:/ToolHub/vengine/Unity/";
+    static void GenerateAll()
     {
         var allTypes = GetTypesWithCPPAttri(Assembly.GetExecutingAssembly());
         {
             CPPPrinter printer = new CPPPrinter(false);
             foreach (var i in allTypes)
             {
-                printer.Print("D:/ToolHub/UnityProject/Assets/", i.t, i.cpp);
+                printer.Print(csharpStr, i.t, i.cpp);
             }
         }
         {
             CPPPrinter printer = new CPPPrinter(true);
             foreach (var i in allTypes)
             {
-                printer.Print("D:/ToolHub/vengine/Unity/", i.t, i.cpp);
+                printer.Print(cppStr, i.t, i.cpp);
             }
         }
+    }
+
+    static void GenerateOne(Type t)
+    {
+        var ass = t.GetCustomAttribute(typeof(GenerateCPP), true);
+        var rt = new RefType
+        {
+            t = t,
+            cpp = ass as GenerateCPP
+        };
+        {
+            CPPPrinter printer = new CPPPrinter(false);
+            printer.Print(csharpStr, rt.t, rt.cpp);
+
+        }
+        {
+            CPPPrinter printer = new CPPPrinter(true);
+            printer.Print(cppStr, rt.t, rt.cpp);
+
+        }
+    }
+    static void Main(string[] args)
+    {
+        GenerateAll();
+     //   GenerateOne(typeof(Component));
     }
 }

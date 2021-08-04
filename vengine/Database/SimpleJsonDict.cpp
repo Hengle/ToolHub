@@ -9,7 +9,7 @@ namespace toolhub::db {
 JsonVariant SimpleJsonDict::Get(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (ite) return ite.Value();
+	if (ite) return ite.Value().operator toolhub::db::JsonVariant();
 	return JsonVariant();
 }
 void SimpleJsonDict::Set(vstd::string key, JsonVariant value) {
@@ -42,7 +42,7 @@ vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonDict::GetIte
 	return vstd::linq::ConstIEnumerator(vars)
 		.make_transformer(
 			[](auto&& kv) -> const JsonKeyPair {
-				return JsonKeyPair{kv.first, kv.second};
+				return JsonKeyPair{kv.first, kv.second.operator JsonVariant()};
 			})
 		.MoveNew();
 }
@@ -51,7 +51,7 @@ vstd::optional<int64> SimpleJsonDict::GetInt(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
 	if (!ite) return vstd::optional<int64>();
-	auto&& v = ite.Value();
+	auto&& v = ite.Value().value;
 	switch (v.GetType()) {
 		case 0:
 			return *reinterpret_cast<int64*>(v.GetPlaceHolder());
@@ -66,7 +66,7 @@ vstd::optional<double> SimpleJsonDict::GetFloat(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
 	if (!ite) return vstd::optional<double>();
-	auto&& v = ite.Value();
+	auto&& v = ite.Value().value;
 	switch (v.GetType()) {
 		case 0:
 			return *reinterpret_cast<int64*>(v.GetPlaceHolder());
@@ -81,7 +81,7 @@ vstd::optional<vstd::string_view> SimpleJsonDict::GetString(vstd::string_view ke
 
 	auto ite = vars.Find(key);
 	if (!ite) return vstd::optional<vstd::string_view>();
-	auto&& v = ite.Value();
+	auto&& v = ite.Value().value;
 	if (v.GetType() == 2) {
 		return *reinterpret_cast<vstd::string*>(v.GetPlaceHolder());
 	}
@@ -91,7 +91,7 @@ vstd::optional<IJsonDict*> SimpleJsonDict::GetDict(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
 	if (!ite) return vstd::optional<IJsonDict*>();
-	auto&& v = ite.Value();
+	auto&& v = ite.Value().value;
 	if (v.GetType() == 3) {
 		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
 		auto ptr = db->GetJsonObject(id);
@@ -104,7 +104,7 @@ vstd::optional<IJsonArray*> SimpleJsonDict::GetArray(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
 	if (!ite) return vstd::optional<IJsonArray*>();
-	auto&& v = ite.Value();
+	auto&& v = ite.Value().value;
 	if (v.GetType() == 4) {
 		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
 		auto ptr = db->GetJsonArray(id);

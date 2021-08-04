@@ -5,7 +5,7 @@ namespace toolhub::db {
 
 class SimpleJsonArray final : public SimpleJsonObject, public IJsonArray {
 public:
-	vstd::vector<JsonVariant> arrs;
+	vstd::vector<SimpleJsonVariant> arrs;
 	size_t Length() override;
 	JsonVariant Get(size_t index) override;
 	void LoadFromData(std::span<uint8_t> data) override;

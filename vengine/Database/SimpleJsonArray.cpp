@@ -9,8 +9,7 @@ size_t SimpleJsonArray::Length() {
 	return arrs.size();
 }
 JsonVariant SimpleJsonArray::Get(size_t index) {
-
-	return arrs[index];
+	return arrs[index].operator toolhub::db::JsonVariant();
 }
 void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
 	if (!data.empty()) {
@@ -42,12 +41,16 @@ void SimpleJsonArray::Add(JsonVariant value) {
 }
 vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonArray::GetIterator() {
 
-	return new vstd::linq::ConstIEnumerator(arrs);
+	return vstd::linq::ConstIEnumerator(arrs)
+		.make_transformer([](auto&& func) ->JsonVariant const {
+			return func.operator JsonVariant();
+		})
+		.MoveNew();
 }
 
 vstd::optional<int64> SimpleJsonArray::GetInt(size_t index) {
 
-	auto&& v = arrs[index];
+	auto&& v = arrs[index].value;
 	switch (v.GetType()) {
 		case 0:
 			return *reinterpret_cast<int64*>(v.GetPlaceHolder());
@@ -60,7 +63,7 @@ vstd::optional<int64> SimpleJsonArray::GetInt(size_t index) {
 }
 vstd::optional<double> SimpleJsonArray::GetFloat(size_t index) {
 
-	auto&& v = arrs[index];
+	auto&& v = arrs[index].value;
 	switch (v.GetType()) {
 		case 0:
 			return *reinterpret_cast<int64*>(v.GetPlaceHolder());
@@ -73,7 +76,7 @@ vstd::optional<double> SimpleJsonArray::GetFloat(size_t index) {
 }
 vstd::optional<vstd::string_view> SimpleJsonArray::GetString(size_t index) {
 
-	auto&& v = arrs[index];
+	auto&& v = arrs[index].value;
 	if (v.GetType() == 2) {
 		return *reinterpret_cast<vstd::string*>(v.GetPlaceHolder());
 	}
@@ -81,7 +84,7 @@ vstd::optional<vstd::string_view> SimpleJsonArray::GetString(size_t index) {
 }
 vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
 
-	auto&& v = arrs[index];
+	auto&& v = arrs[index].value;
 	if (v.GetType() == 3) {
 		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
 		auto ptr = db->GetJsonObject(id);
@@ -92,7 +95,7 @@ vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
 }
 vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
 
-	auto&& v = arrs[index];
+	auto&& v = arrs[index].value;
 	if (v.GetType() == 4) {
 		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
 		auto ptr = db->GetJsonArray(id);
@@ -130,7 +133,7 @@ void SimpleJsonArray::Dispose() {
 	db->Dispose(this);
 }
 void SimpleJsonArray::Clean() {
-	arrs.compact([&](JsonVariant const& v) {
+	arrs.compact([&](SimpleJsonVariant const& v) {
 		return SimpleJsonLoader::Check(db, v);
 	});
 }

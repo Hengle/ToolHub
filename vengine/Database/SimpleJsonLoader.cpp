@@ -3,12 +3,12 @@
 #include <Database/SimpleJsonLoader.h>
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
-bool SimpleJsonLoader::Check(SimpleBinaryJson* db, JsonVariant const& var) {
+bool SimpleJsonLoader::Check(SimpleBinaryJson* db, SimpleJsonVariant const& var) {
 	bool res = false;
 	auto check = [&](uint64 dict) {
 		res = db->jsonObjs.Find(dict);
 	};
-	var.visit(
+	var.value.visit(
 		[&](auto&& integer) {
 			res = true;
 		},
@@ -59,19 +59,19 @@ JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJ
 			return JsonVariant();
 	}
 }
-void SimpleJsonLoader::Serialize(SimpleBinaryJson* db, JsonVariant const& v, vstd::vector<uint8_t>& data) {
+void SimpleJsonLoader::Serialize(SimpleBinaryJson* db, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data) {
 	auto func = [&]<typename TT>(TT&& f) {
-		data.push_back(v.GetType());
+		data.push_back(v.value.GetType());
 		PushDataToVector(f, data);
 	};
 	auto checkFunc = [&](uint64 d) {
 		if (!db->jsonObjs.Find(d)) {
-			data.push_back(v.argSize);
+			data.push_back(v.value.argSize);
 		} else {
 			func(d);
 		}
 	};
-	v.visit(
+	v.value.visit(
 		func,
 		func,
 		[&](vstd::string const& str) {

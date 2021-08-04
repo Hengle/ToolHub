@@ -3,11 +3,38 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Text;
 using System.Runtime.InteropServices;
+using MPipeline;
+using System;
+unsafe struct CSharpString
+{
+    char* ptr;
+    ulong size;
+    public CSharpString(string s)
+    {
+        ptr = s.Ptr();
+        size = (ulong)s.Length;
+    }
+}
+
+struct BinaryArray
+{
+    public IntPtr ptr;
+    public int count;
+    public int stride;
+}
+
+enum ComponentType
+{
+    Assets,
+    Component,
+    Value
+}
+
 [ExecuteAlways]
 public unsafe class DllImport : MonoBehaviour
 {
-    [DllImport("VEngine_DLL.dll")]
-    static extern void vengine_init_malloc_path(
+    [DllImport("VEngine_Unity.dll")]
+    static extern void DllImport_Init(
     byte* path);
 
     static byte[] GetPath(string pathStr)
@@ -18,15 +45,11 @@ public unsafe class DllImport : MonoBehaviour
     void OnEnable()
     {
         string pluginPath = "Assets/Plugins/";
-        var mimallocPath = GetPath(pluginPath + "mimalloc.dll");
+        var mimallocPath = GetPath(pluginPath);
         fixed (byte* b = mimallocPath)
         {
-            vengine_init_malloc_path(b);
+            DllImport_Init(b);
         }
-        TestClass t = new TestClass();
-        Debug.Log(t.Run1(5, 3));
-        t.Dispose();
-        Debug.Log("Success!");
     }
 
 }

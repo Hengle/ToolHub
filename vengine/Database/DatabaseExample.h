@@ -33,7 +33,6 @@ void jsonTest(
 	auto vec = db->Serialize();
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
 	//Incremental Serialize Data
-
 	auto updateV = db->IncreSerialize();
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 

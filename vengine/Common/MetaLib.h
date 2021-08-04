@@ -697,7 +697,7 @@ private:
 		}
 		template<typename... A>
 		static size_t AnyConst(void*, size_t idx, A&&...) {
-			static_assert(std::_Always_false<A>(), "Illegal Constructor!");
+			static_assert(std::_Always_false<int>, "Illegal Constructor!");
 			return idx;
 		}
 		static void Dispose(size_t, void*) {}
