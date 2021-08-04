@@ -2,14 +2,17 @@
 using System.Collections.Generic;
 using System.Collections;
 using System.Reflection;
+using System.IO;
 
 
 class CPPPrinter
 {
     Dictionary<Type, string> typeName;
     Dictionary<string, bool> ignoreInfos;
+    bool isCPP;
     public CPPPrinter(bool isCPP)
     {
+        this.isCPP = isCPP;
         typeName = new Dictionary<Type, string>();
         if (isCPP)
         {
@@ -165,7 +168,7 @@ class CPPPrinter
         var clsName = GetName(clsType);
         string result = "#pragma once\n" +
             "#include <Common/Common.h>\n" +
-            "class " + clsName + " : vstd::IOperatorNewBase {\npublic:\n";
+            "class " + clsName + " : public vstd::IOperatorNewBase {\npublic:\n";
         var cons = clsType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
         foreach (var i in cons)
         {
@@ -179,6 +182,7 @@ class CPPPrinter
              + ";\n";
         }
         result += "};\n";
+        //Extern Func
         foreach (var i in mtds)
         {
             bool isRet;
@@ -231,31 +235,66 @@ class CPPPrinter
              + "using System;\n"
              + "using System.Collections.Generic;\n"
              + "using System.Collections;\n"
-             + "class " + clsType.Name + "{\n";
+             + "using MPipeline;\n"
+             + "unsafe class " + clsType.Name + ": IDisposable{\n";
         var mtds = GetMethods(clsType.GetMethods(BindingFlags.Public | BindingFlags.Instance));
+        //Internal Methods
         foreach (var i in mtds)
         {
 
             result += "public " + GetClassFunc(i) + "{\n";
             if (i.ReturnType == typeof(void))
             {
-                result += clsName + '_' + i.Name + '(' + GetTypelessParameters(i.GetParameters()) + ");";
+                result += clsName + '_' + i.Name + "(instHandle," + GetTypelessParameters(i.GetParameters()) + ");";
             }
             else
             {
-                result += GetName(i.ReturnType) + " v;\n";
-                result += clsName + '_' + i.Name + "(ref v," + GetTypelessParameters(i.GetParameters()) + ");\n";
+                result += GetName(i.ReturnType) + " v=default;\n";
+                result += clsName + '_' + i.Name + "(ref v,instHandle," + GetTypelessParameters(i.GetParameters()) + ");\n";
                 result += "return v;";
             }
             result += "\n}\n";
         }
+        //Extern Methods
         foreach (var i in mtds)
         {
-            result += "[DllImport(\"" + attri.dllName + "\")]\npublic static extern void " + clsName + '_' + i.Name + "(ref " + GetName(i.ReturnType) + ' ' + retValue + ',' + GetParameters(i.GetParameters()) + ");\n";
+            result += "[DllImport(\"" + attri.dllName + "\")]\nstatic extern void " + clsName + '_' + i.Name + '(';
+            if (i.ReturnType != typeof(void))
+            {
+                result +="ref " + GetName(i.ReturnType) + ' '+ retValue + ',';
+            }
+            result += "IntPtr " + thsValue + ',' + GetParameters(i.GetParameters()) + ");\n";
         }
+        var cons = clsType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+        result += "private IntPtr instHandle;\n";
+        //Internal Constructor
+        int index = 0;
+        foreach (var i in cons)
+        {
+            result += "public " + clsName + '(' + GetParameters(i.GetParameters()) + "){\n"
+                + "instHandle=Create_" + clsName + index.ToString() + '(' + GetTypelessParameters(i.GetParameters()) + ");\n}\n";
+            index++;
+        }
+        //Extern Constructor
+        index = 0;
+        foreach (var i in cons)
+        {
+            result += "[DllImport(\"" + attri.dllName + "\")]\nstatic extern IntPtr Create_" + clsName + index.ToString() + '(' + GetParameters(i.GetParameters()) + ");\n";
+            index++;
+        }
+        //Internal Disposer:
+        result += "public void Dispose(){\nDispose_" + clsName + "(instHandle);\n}\n";
+        //Extern Disposer:
+        result += "[DllImport(\"" + attri.dllName + "\")]\nstatic extern void Dispose_" + clsName + "(IntPtr h);\n";
         result += "}\n";
-
         return result;
+    }
+    public void Print(string path, Type t, GenerateCPP attri)
+    {
+        if (isCPP)
+            File.WriteAllText(path + attri.cppPath, PrintCPPClass(t));
+        else
+            File.WriteAllText(path + attri.csharpPath, PrintCSharpClass(t, attri));
     }
 }
 

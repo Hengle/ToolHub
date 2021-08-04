@@ -7,20 +7,24 @@ using System.Collections.Generic;
 public class GenerateCPP : Attribute
 {
     public string cppPath { get; private set; }
+    public string csharpPath { get; private set; }
     public string dllName { get; private set; }
+
     public GenerateCPP(
         string dllName,
-        string cppPath)
+        string cppPath,
+        string csharpPath)
     {
         this.cppPath = cppPath;
         this.dllName = dllName;
+        this.csharpPath = csharpPath;
     }
 }
-[GenerateCPP("VEngineDLL.dll", "Test.cpp")]
+[GenerateCPP("VEngine_Unity.dll", "Test.hpp", "Test.cs")]
 class TestClass
 {
     public TestClass() { }
-    public void RunData(int a , double b) { }
+    public void RunData(int a, double b) { }
     public int Run1(int a, double b) { return new int(); }
 }
 
@@ -46,26 +50,22 @@ class Program
             }
         }
     }
-    
-
 
     static void Main(string[] args)
     {
         var allTypes = GetTypesWithCPPAttri(Assembly.GetExecutingAssembly());
-        Console.Write("Print C#:");
         {
             CPPPrinter printer = new CPPPrinter(false);
             foreach (var i in allTypes)
             {
-                Console.Write(printer.PrintCSharpClass(i.t, i.cpp));
+                printer.Print("D:/ToolHub/UnityProject/Assets/", i.t, i.cpp);
             }
         }
-        Console.Write("\n\n\n");
         {
             CPPPrinter printer = new CPPPrinter(true);
             foreach (var i in allTypes)
             {
-                Console.Write(printer.PrintCPPClass(i.t));
+                printer.Print("D:/ToolHub/vengine/Unity/", i.t, i.cpp);
             }
         }
     }
