@@ -55,12 +55,11 @@ void server() {
 		NETSERVICE_SEND_MESSAGE(service.get(), Fuck, s);
 	}
 }
-
 int main() {
 	vengine_init_malloc();
 	DynamicDLL dll("VEngine_Network.dll");
 	DynamicDLL dll1("VEngine_Database.dll");
-	network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
+	//network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
 	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
 	jsonTest(database);
 	//server();

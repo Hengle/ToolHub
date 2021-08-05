@@ -313,7 +313,8 @@ class CPPPrinter
                 result += "IntPtr " + thsValue + GetParameters(i.GetParameters(), true) + ");\n";
             }
             var cons = clsType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
-            result += "private IntPtr instHandle;\n";
+            result += "public IntPtr instHandle{get; private set;}\n";
+            result += "public " + clsName + "(IntPtr newHandle){\ninstHandle = newHandle;\n}\n";
             //Internal Constructor
             int index = 0;
             foreach (var i in cons)

@@ -15,7 +15,6 @@ unsafe struct CSharpString
         size = (ulong)s.Length;
     }
 }
-
 struct BinaryArray
 {
     public IntPtr ptr;

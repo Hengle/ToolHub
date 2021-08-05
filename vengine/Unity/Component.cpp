@@ -4,6 +4,7 @@
 #include <Common/DynamicDLL.h>
 
 #include <Database/IJsonObject.h>
+#include <Database/IJsonDatabase.h>
 StackObject<DynamicDLL> database_dll;
 VENGINE_UNITY_EXTERN void DllImport_Init(char const* dllPath) {
 	char const* mallocPath = "mimalloc.dll";
@@ -17,31 +18,50 @@ VENGINE_UNITY_EXTERN void DllImport_Init(char const* dllPath) {
 	database_dll.New((vstd::string(dllPath) + "VEngine_Database.dll").c_str());
 }
 namespace toolhub {
-Component::Component(CSharpString& typeName, bool& isValue) {
+Component::Component(CSharpString& typeName, void*& parentDatabase) {
+	// Value Type
+	if (parentDatabase == nullptr) {
+		data.update(data.IndexOf<ValueMap>, [](void* hashMap) {
+			new (hashMap) ValueMap();
+		});
+	}
+	// Ref Type
+	else {
+		auto subDB = reinterpret_cast<db::IJsonSubDatabase*>(parentDatabase);
+		data = subDB->CreateJsonObject();
+	}
 }
-Component::Component(CSharpString& typeName, CSharpString& guid) {
-}
-Component::Component(void*& handle) {
+Component::Component(vstd::unique_ptr<db::IJsonDict>&& ptr)
+	: data(std::move(ptr)) {
 }
 Component::~Component() {
 }
 bool Component::GetBool(CSharpString& name) {
+	return 0;
 }
 int64 Component::GetInt(CSharpString& name) {
+	return 0;
 }
 double Component::GetFloat(CSharpString& name) {
+	return 0;
 }
 CSharpString Component::GetString(CSharpString& name) {
+	return CSharpString();
 }
 void* Component::GetComponent(CSharpString& name) {
+	return nullptr;
 }
 BinaryArray Component::GetBoolArray(CSharpString& name) {
+	return BinaryArray();
 }
 BinaryArray Component::GetIntArray(CSharpString& name) {
+	return BinaryArray();
 }
 BinaryArray Component::GetFloatArray(CSharpString& name) {
+	return BinaryArray();
 }
 BinaryArray Component::GetComponentArray(CSharpString& name) {
+	return BinaryArray();
 }
 void Component::SetInt(CSharpString& name, int64& value) {
 }
@@ -59,23 +79,22 @@ void Component::SetFloatArray(CSharpString& name, BinaryArray& value) {
 }
 void Component::SetComponentArray(CSharpString& name, BinaryArray& value) {
 }
+void Component::SetBoolArray(CSharpString& name, BinaryArray& value) {
+}
 void Component::Reset() {
 	data.visit(
 		[](auto&& v) {
-			v.guid.clear();
+			v.Clear();
 		},
 		[](auto&& v) {
-			v.db.reset();
-		},
-		[](auto&& v) {
-			v.keyValues.Clear();
+			v = nullptr;
 		});
 }
 void* Component::GetHandle() {
 	return this;
 }
-ComponentType Component::GetCompType() {
-	return static_cast<ComponentType>(data.GetType());
+bool Component::IsValueType() {
+	return data.GetType() == data.IndexOf<ValueMap>;
 }
 vstd::string CSharpString::ToString() {
 	vstd::string str;

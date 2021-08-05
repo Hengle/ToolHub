@@ -665,6 +665,7 @@ private:
 
 		template<typename... Funcs>
 		static void Set_Const(FuncType_Const* funcPtr, void** funcP, Funcs&&... fs) {}
+		using Type = void;
 	};
 
 	template<size_t idx, size_t c, typename T, typename... Args>
@@ -687,6 +688,15 @@ private:
 			*funcP = &f;
 			Iterator<idx + 1, c, Args...>::template Set_Const<Funcs...>(funcPtr + 1, funcP + 1, std::forward<Funcs>(fs)...);
 		}
+		template<bool isTrue>
+		struct Typer {
+			using Type = T;
+		};
+		template<>
+		struct Typer<false> {
+			using Type = typename Iterator<idx + 1, c, Args...>::Type;
+		};
+		using Type = typename Typer<(idx == c)>::Type;
 	};
 
 	template<typename... Args>
@@ -770,9 +780,23 @@ private:
 	};
 	size_t switcher = 0;
 
+	template<size_t i, typename Dest, typename... Args>
+	struct IndexOfStruct {
+		static constexpr size_t Index = i;
+	};
+
+	template<size_t i, typename Dest, typename T, typename... Args>
+	struct IndexOfStruct<i, Dest, T, Args...> {
+		static constexpr size_t Index = std::is_same_v<Dest, T> ? i : IndexOfStruct<i + 1, Dest, Args...>::Index;
+	};
+
 public:
+	template<size_t i>
+	using TypeOf = typename Iterator<0, i, AA...>::Type;
+	template <typename TarT>
+	static constexpr size_t IndexOf = IndexOfStruct<0, TarT, AA...>::Index;
 	variant() {
-		switcher = sizeof...(AA);
+		switcher = argSize;
 	}
 	template<typename T, typename... Arg>
 	variant(T&& t, Arg&&... arg) {
@@ -797,7 +821,25 @@ public:
 	variant(variant const&& v)
 		: variant(v) {
 	}
+	template<typename... Args>
+	void reset(Args&&... args) {
+		this->~variant();
+		new (this) variant(std::forward<Args>(args)...);
+	}
+
+	template<typename Func>
+	void update(size_t typeIndex, Func&& setFunc) {
+		this->~variant();
+		if (typeIndex >= argSize) {
+			switcher = argSize;
+			return;
+		}
+		switcher = typeIndex;
+		setFunc(placeHolder);
+	}
+
 	~variant() {
+		if (switcher >= argSize) return;
 		Constructor<AA...>::Dispose(switcher, placeHolder);
 	}
 	void* GetPlaceHolder() { return placeHolder; }

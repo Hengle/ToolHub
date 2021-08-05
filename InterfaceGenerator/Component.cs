@@ -7,9 +7,7 @@ using System.Runtime.InteropServices;
 [GenerateCPP("VEngine_Unity.dll", "Component_codegen.hpp", "Component_codegen.cs", "toolhub", csharpPreDefine: "using Unity.Mathematics;\n")]
 class Component
 {
-    public Component(CSharpString typeName, bool isValue) { }
-    public Component(CSharpString typeName, CSharpString guid) { }
-    public Component(IntPtr handle) { }
+    public Component(CSharpString typeName, IntPtr parentDatabase) { }
     public bool GetBool(CSharpString name) { return default; }
     public long GetInt(CSharpString name) { return default; }
     public double GetFloat(CSharpString name) { return default; }
@@ -30,8 +28,9 @@ class Component
     public void SetIntArray(CSharpString name, BinaryArray value) { }
     public void SetFloatArray(CSharpString name, BinaryArray value) { }
     public void SetComponentArray(CSharpString name, BinaryArray value) { }
+    public void SetBoolArray(CSharpString name, BinaryArray value) { }
     public void Reset() { }
     public IntPtr GetHandle() { return default; }
-    public ComponentType GetCompType() { return default; }
+    public bool IsValueType() { return default; }
 }
 
