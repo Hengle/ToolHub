@@ -49,11 +49,14 @@ void SimpleBinaryJson::MarkDelete(SimpleJsonObject* dict) {
 	}
 }
 
-SimpleBinaryJson::SimpleBinaryJson()
+SimpleBinaryJson::SimpleBinaryJson(uint64 index, IJsonDatabase* parent)
 	: arrPool(256),
 	  dictPool(256),
+	  parent(parent),
+	  index(index),
 	  rootObj(0, this) {
 }
+
 IJsonDict* SimpleBinaryJson::GetRootObject() {
 	return &rootObj;
 }
@@ -348,7 +351,52 @@ void SimpleBinaryJson::Read(
 	}
 }
 
-IJsonDataBase* Database_Impl::CreateSimpleJsonDB() const {
-	return new SimpleBinaryJson();
+class SimpleDatabaseParent : public IJsonDatabase, public vstd::IOperatorNewBase {
+public:
+	vstd::vector<IJsonSubDatabase*> subDatabases;
+	~SimpleDatabaseParent() {
+		for (auto i : subDatabases) {
+			i->Dispose();
+		}
+	}
+	void Dispose() override {
+		delete this;
+	}
+	IJsonSubDatabase* CreateDatabase(std::span<uint8_t> command) override {
+		auto js = new SimpleBinaryJson(subDatabases.size(), this);
+		subDatabases.push_back(js);
+		return js;
+	}
+	IJsonSubDatabase* CreateOrGetDatabase(uint64 targetIndex, std::span<uint8_t> command) override {
+		auto lastSize = subDatabases.size();
+		subDatabases.resize(targetIndex + 1);
+		if (subDatabases.size() > lastSize) {
+			memset(
+				subDatabases.data() + lastSize,
+				0,
+				(subDatabases.size() - lastSize) * sizeof(IJsonSubDatabase*));
+		}
+		auto&& v = subDatabases[targetIndex];
+		if (!v) {
+			v = new SimpleBinaryJson(targetIndex, this);
+		}
+		return v;
+	}
+	void DisposeDatabase(uint64 index) override {
+		if (index < subDatabases.size()) {
+			auto&& v = subDatabases[index];
+			v->Dispose();
+			v = nullptr;
+		}
+	}
+	IJsonSubDatabase* GetDatabase(uint64 index) override {
+		if (index < subDatabases.size()) {
+			return subDatabases[index];
+		}
+		return nullptr;
+	}
+};
+IJsonDatabase* Database_Impl::CreateDatabase() const {
+	return new SimpleDatabaseParent();
 }
 }// namespace toolhub::db

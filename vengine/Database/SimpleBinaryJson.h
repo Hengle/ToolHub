@@ -3,7 +3,7 @@
 #include <Database/SimpleJsonArray.h>
 namespace toolhub::db {
 
-class SimpleBinaryJson final : public IJsonDataBase {
+class SimpleBinaryJson final : public IJsonSubDatabase, public vstd::IOperatorNewBase {
 private:
 	void Ser_CreateObj(
 		uint64 instanceID,
@@ -14,6 +14,8 @@ private:
 		std::span<uint8_t>& sp,
 		std::span<uint8_t>& rootChunk,
 		vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>>& vecs);
+	uint64 index;
+	IJsonDatabase* parent;
 
 public:
 	using ObjMap = HashMap<uint64, std::pair<SimpleJsonObject*, uint8_t>>;
@@ -30,11 +32,12 @@ public:
 	Pool<SimpleJsonDict> dictPool;
 	SimpleJsonDict rootObj;
 	uint64 instanceCount = 0;
-	SimpleBinaryJson();
+	SimpleBinaryJson(uint64 index, IJsonDatabase* parent);
+	IJsonDatabase* GetParent() override { return parent; }
 	IJsonDict* GetRootObject() override;
 	IJsonDict* CreateJsonObject() override;
 	IJsonArray* CreateJsonArray() override;
-
+	uint64 GetIndex() override { return index; }
 	IJsonDict* GetJsonObject(uint64 id) override;
 	IJsonArray* GetJsonArray(uint64 id) override;
 

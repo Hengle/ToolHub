@@ -20,13 +20,14 @@ public:
 	uint64 GetInstanceID() override { return instanceID; }
 	size_t Length() override;
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;
-	IJsonDataBase* GetDatabase() override;
+	IJsonSubDatabase* GetDatabase() override;
 	vstd::vector<uint8_t> GetSerData() override {
 		vstd::vector<uint8_t> v;
 		M_GetSerData(v);
 		return v;
 	}
 	void Clean() override;
+	void Reset() override;
 	SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db);
 	~SimpleJsonDict();
 	void Dispose() override;

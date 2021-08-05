@@ -3,6 +3,7 @@
 #include <Component.hpp>
 #include <Common/DynamicDLL.h>
 
+#include <Database/IJsonObject.h>
 StackObject<DynamicDLL> database_dll;
 VENGINE_UNITY_EXTERN void DllImport_Init(char const* dllPath) {
 	char const* mallocPath = "mimalloc.dll";
@@ -21,6 +22,8 @@ Component::Component(CSharpString& typeName, bool& isValue) {
 Component::Component(CSharpString& typeName, CSharpString& guid) {
 }
 Component::Component(void*& handle) {
+}
+Component::~Component() {
 }
 bool Component::GetBool(CSharpString& name) {
 }
@@ -57,10 +60,22 @@ void Component::SetFloatArray(CSharpString& name, BinaryArray& value) {
 void Component::SetComponentArray(CSharpString& name, BinaryArray& value) {
 }
 void Component::Reset() {
+	data.visit(
+		[](auto&& v) {
+			v.guid.clear();
+		},
+		[](auto&& v) {
+			v.db.reset();
+		},
+		[](auto&& v) {
+			v.keyValues.Clear();
+		});
 }
 void* Component::GetHandle() {
+	return this;
 }
 ComponentType Component::GetCompType() {
+	return static_cast<ComponentType>(data.GetType());
 }
 vstd::string CSharpString::ToString() {
 	vstd::string str;

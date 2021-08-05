@@ -1,12 +1,40 @@
 #pragma once
 #include <Unity/UnityInclude.h>
-#include <Database/IJsonObject.h>
 namespace toolhub {
+namespace db {
+class IJsonDict;
+class IJsonDatabase;
+}
 class Component final : public vstd::IOperatorNewBase {
+private:
+	using ComponentVariant = vstd::variant<
+		int64,
+		double,
+		vstd::string,
+		Component*>;
+	struct ValueType {
+		HashMap<vstd::string, ComponentVariant> keyValues;
+	};
+	struct RefType {
+		vstd::unique_ptr<db::IJsonDict> db;
+	};
+	struct AssetType {
+		vstd::string guid;
+	};
+
+	vstd::variant<
+		AssetType,
+		RefType,
+		ValueType
+		>
+		data;
+
 public:
+
 	Component(CSharpString& typeName, bool& isValue);
 	Component(CSharpString& typeName, CSharpString& guid);
 	Component(void*& handle);
+	~Component();
 	bool GetBool(CSharpString& name);
 	int64 GetInt(CSharpString& name);
 	double GetFloat(CSharpString& name);
@@ -27,10 +55,6 @@ public:
 	void Reset();
 	void* GetHandle();
 	ComponentType GetCompType();
-
-private:
-	vstd::unique_ptr<db::IJsonDict> db;
-	vstd::string guid;
 };
 VENGINE_UNITY_EXTERN void toolhub_Component_GetBool(bool& F32D2BF6260A4FBD, Component* AFD920F282E74FF8, CSharpString name) {
 	F32D2BF6260A4FBD = AFD920F282E74FF8->GetBool(name);

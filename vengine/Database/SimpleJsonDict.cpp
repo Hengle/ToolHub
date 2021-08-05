@@ -24,7 +24,7 @@ void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
 		auto GetNextKeyValue = [&]() {
 			auto str = PopValue<vstd::string>(data);
 
-			return std::pair<vstd::string, JsonVariant>(std::move(str), SimpleJsonLoader::DeSerialize(data, db));
+			return std::pair<vstd::string, JsonVariant>(std::move(str), SimpleJsonLoader::DeSerialize(data, db->GetParent()));
 		};
 		for (auto i : vstd::range(arrSize)) {
 			auto kv = GetNextKeyValue();
@@ -93,8 +93,9 @@ vstd::optional<IJsonDict*> SimpleJsonDict::GetDict(vstd::string_view key) {
 	if (!ite) return vstd::optional<IJsonDict*>();
 	auto&& v = ite.Value().value;
 	if (v.GetType() == 3) {
-		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
-		auto ptr = db->GetJsonObject(id);
+		auto&& id = *reinterpret_cast<JsonObjID<IJsonDict>*>(v.GetPlaceHolder());
+		auto localDB = db->GetParent()->GetDatabase(id.dbIndex);
+		auto ptr = localDB->GetJsonObject(id.instanceID);
 		if (ptr)
 			return vstd::optional<IJsonDict*>(ptr);
 	}
@@ -106,8 +107,9 @@ vstd::optional<IJsonArray*> SimpleJsonDict::GetArray(vstd::string_view key) {
 	if (!ite) return vstd::optional<IJsonArray*>();
 	auto&& v = ite.Value().value;
 	if (v.GetType() == 4) {
-		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
-		auto ptr = db->GetJsonArray(id);
+		auto&& id = *reinterpret_cast<JsonObjID<IJsonArray>*>(v.GetPlaceHolder());
+		auto localDB = db->GetParent()->GetDatabase(id.dbIndex);
+		auto ptr = localDB->GetJsonArray(id.instanceID);
 		if (ptr)
 			return vstd::optional<IJsonArray*>(ptr);
 	}
@@ -128,8 +130,7 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	PushDataToVector(vars.size(), data);
 	for (auto&& kv : vars) {
 		PushDataToVector(kv.first, data);
-		SimpleJsonLoader::Serialize(db, kv.second, data);
-
+		SimpleJsonLoader::Serialize(db->GetParent(), kv.second, data);
 	}
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
@@ -137,7 +138,7 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 void SimpleJsonDict::Clean() {
 	vstd::vector<vstd::string const*> removeIndices;
 	for (auto&& i : vars) {
-		if (!SimpleJsonLoader::Check(db, i.second)) {
+		if (!SimpleJsonLoader::Check(db->GetParent(), i.second)) {
 			removeIndices.push_back(&i.first);
 		}
 	}
@@ -145,11 +146,14 @@ void SimpleJsonDict::Clean() {
 		vars.Remove(*i);
 	}
 }
+void SimpleJsonDict::Reset() {
+	vars.Clear();
+}
 SimpleJsonDict::SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db)
 	: SimpleJsonObject(instanceID, db) {
 	//TODO: deser data
 }
-IJsonDataBase* SimpleJsonDict::GetDatabase() { return db; }
+IJsonSubDatabase* SimpleJsonDict::GetDatabase() { return db; }
 SimpleJsonDict::~SimpleJsonDict() {
 }
 void SimpleJsonDict::Dispose() {

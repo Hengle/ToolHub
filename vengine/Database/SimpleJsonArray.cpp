@@ -18,7 +18,7 @@ void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
 		arrs.reserve(arrSize);
 		arrs.push_back_func(
 			[&]() {
-				return SimpleJsonLoader::DeSerialize(data, db);
+				return SimpleJsonLoader::DeSerialize(data, db->GetParent());
 			},
 			arrSize);
 	}
@@ -32,7 +32,7 @@ void SimpleJsonArray::Remove(size_t index) {
 	Update();
 	arrs.erase(arrs.begin() + index);
 }
-IJsonDataBase* SimpleJsonArray::GetDatabase() { return db; }
+IJsonSubDatabase* SimpleJsonArray::GetDatabase() { return db; }
 
 void SimpleJsonArray::Add(JsonVariant value) {
 
@@ -86,8 +86,9 @@ vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
 
 	auto&& v = arrs[index].value;
 	if (v.GetType() == 3) {
-		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
-		auto ptr = db->GetJsonObject(id);
+		auto&& id = *reinterpret_cast<JsonObjID<IJsonDict>*>(v.GetPlaceHolder());
+		auto localDB = db->GetParent()->GetDatabase(id.dbIndex);
+		auto ptr = localDB->GetJsonObject(id.instanceID);
 		if (ptr)
 			return vstd::optional<IJsonDict*>(ptr);
 	}
@@ -97,8 +98,9 @@ vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
 
 	auto&& v = arrs[index].value;
 	if (v.GetType() == 4) {
-		auto id = *reinterpret_cast<uint64*>(v.GetPlaceHolder());
-		auto ptr = db->GetJsonArray(id);
+		auto&& id = *reinterpret_cast<JsonObjID<IJsonArray>*>(v.GetPlaceHolder());
+		auto localDB = db->GetParent()->GetDatabase(id.dbIndex);
+		auto ptr = localDB->GetJsonArray(id.instanceID);
 		if (ptr)
 			return vstd::optional<IJsonArray*>(ptr);
 	}
@@ -113,10 +115,13 @@ void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto beginOffset = sizeOffset + sizeof(uint64);
 	PushDataToVector(arrs.size(), data);
 	for (auto&& v : arrs) {
-		SimpleJsonLoader::Serialize(db, v, data);
+		SimpleJsonLoader::Serialize(db->GetParent(), v, data);
 	}
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
+}
+void SimpleJsonArray::Reset() {
+	arrs.clear();
 }
 SimpleJsonArray::SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db)
 	: SimpleJsonObject(instanceID, db) {
@@ -134,7 +139,7 @@ void SimpleJsonArray::Dispose() {
 }
 void SimpleJsonArray::Clean() {
 	arrs.compact([&](SimpleJsonVariant const& v) {
-		return SimpleJsonLoader::Check(db, v);
+		return SimpleJsonLoader::Check(db->GetParent(), v);
 	});
 }
 

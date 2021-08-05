@@ -4,8 +4,8 @@
 namespace vstd {
 template<typename T>
 struct SerDe {
+	static_assert(std::is_trivial_v<T>, "only trivial type can be serialized!");
 	static T Get(std::span<uint8_t>& data) {
-		static_assert(std::is_trivial_v<T>, "only trivial type can be serialized!");
 		T const* ptr = reinterpret_cast<T const*>(data.data());
 		data = std::span<uint8_t>(data.data() + sizeof(T), data.size() - sizeof(T));
 		return *ptr;

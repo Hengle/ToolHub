@@ -1,17 +1,17 @@
 #pragma once
 #include <Common/Common.h>
-// Entry: 
+// Entry:
 // toolhub::db::Database const* Database_GetFactory()
 namespace toolhub::db {
-class IJsonDataBase;
+class IJsonDatabase;
 class Database {
 public:
-	virtual IJsonDataBase* CreateSimpleJsonDB() const = 0;
+	virtual IJsonDatabase* CreateDatabase() const = 0;
 };
 #ifdef VENGINE_DATABASE_PROJECT
 class Database_Impl final : public Database {
 public:
-	IJsonDataBase* CreateSimpleJsonDB() const override;
+	IJsonDatabase* CreateDatabase() const override;
 };
 #endif
 }// namespace toolhub::db

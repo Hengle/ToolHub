@@ -13,7 +13,8 @@ void jsonTest(
 	toolhub::db::Database const* database) {
 	using namespace toolhub::db;
 	// Generate a database
-	auto db = MakeObjectPtr(database->CreateSimpleJsonDB());
+	auto dbParent = MakeObjectPtr(database->CreateDatabase());
+	auto db = dbParent->CreateOrGetDatabase(0, {});
 	// Get Root Json Object
 	auto rootObj = db->GetRootObject();
 	// Create a json array
@@ -37,7 +38,7 @@ void jsonTest(
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
 	/////////////// Clone Database by serialize binary
-	auto cloneDB = MakeObjectPtr(database->CreateSimpleJsonDB());
+	auto cloneDB = dbParent->CreateOrGetDatabase(1, {});
 	struct EventTrigger : public IDatabaseEvtVisitor {
 		void AddDict(IJsonDict* newDict) override {
 			std::cout << "Add Dict!" << '\n';
@@ -54,12 +55,12 @@ void jsonTest(
 	};
 	EventTrigger evtTrigger;
 	cloneDB->Read(vec, &evtTrigger);
-	std::cout << "Incremental!\n";
-	cloneDB->Read(updateV, &evtTrigger);
 	auto cloneRoot = cloneDB->GetRootObject();
 	auto rIte = cloneRoot->GetIterator();
+	// cross database link
+	// cloneArr == subArr 
 	auto cloneArr = cloneRoot->GetArray("array"_sv);
-	if (cloneArr) {
+	if (cloneArr && (*cloneArr == subArr)) {
 		auto ite = (*cloneArr)->GetIterator();
 		//Iterate and print all elements
 		LINQ_LOOP(i, *ite) {
@@ -70,13 +71,17 @@ void jsonTest(
 				func,
 				func,
 				func,
-				func,
-				func);
+				[](auto&& f) {
+					std::cout << f.instanceID << '\n';
+				},
+				[](auto&& f) {
+					std::cout << f.instanceID << '\n';
+				});
 		}
 		(*cloneArr)->Dispose();
 	}
 	auto cloneDict = cloneRoot->GetDict("dict"_sv);
-	if (cloneDict) {
+	if (cloneDict && (*cloneDict == subObj)) {
 		auto ite = (*cloneDict)->GetIterator();
 		//Iterate and print all elements
 		LINQ_LOOP(i, *ite) {
@@ -88,8 +93,38 @@ void jsonTest(
 				func,
 				func,
 				func,
-				func,
-				func);
+				[](auto&& f) {
+					std::cout << f.instanceID << '\n';
+				},
+				[](auto&& f) {
+					std::cout << f.instanceID << '\n';
+				});
 		}
+		(*cloneDict)->Dispose();
 	}
+	/*
+	cloneRoot->Set("array1", subArr);
+	auto cloneArr1 = cloneRoot->GetArray("array1"_sv);
+	IJsonSubDatabase* bb = db;
+	if (cloneArr1) {
+		auto ite = (*cloneArr1)->GetIterator();
+		//Iterate and print all elements
+		LINQ_LOOP(i, *ite) {
+			auto func = [](auto&& f) {
+				std::cout << f << '\n';
+			};
+			i->visit(
+				func,
+				func,
+				func,
+				[](auto&& f) {
+					std::cout << f.instanceID << '\n';
+				},
+				[](auto&& f) {
+					std::cout << f.instanceID << '\n';
+				});
+		}
+		(*cloneArr)->Dispose();
+	}
+	*/
 }
