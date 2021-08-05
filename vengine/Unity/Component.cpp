@@ -37,19 +37,123 @@ Component::Component(vstd::unique_ptr<db::IJsonDict>&& ptr)
 Component::~Component() {
 }
 bool Component::GetBool(CSharpString& name) {
-	return 0;
+	return data.visit(
+		[&](ValueMap& v) -> bool {
+			auto str = name.ToString();
+			auto ite = v.Find(str);
+			if (!ite) return false;
+			auto&& value = ite.Value();
+			if (value.GetType() != value.IndexOf<bool>) return false;
+			return value.get<value.IndexOf<bool>>();
+		},
+		[&](vstd::unique_ptr<db::IJsonDict>& v) {
+			auto value = v->GetInt(name.ToSV());
+			return value ? *value : false;
+		});
 }
 int64 Component::GetInt(CSharpString& name) {
-	return 0;
+	auto retZero = [](auto&&) -> int64 { return 0; };
+	auto retValue = [](auto&& v) -> int64 {
+		return v;
+	};
+
+	return data.visit(
+		[&](ValueMap& v) -> int64 {
+			auto str = name.ToString();
+			auto ite = v.Find(str);
+			if (!ite) return 0;
+
+			return ite.Value().visit(
+				retValue,
+				retValue,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero);
+		},
+		[&](vstd::unique_ptr<db::IJsonDict>& v) {
+			auto value = v->Get(name.ToSV());
+			return value.visit(
+				retValue,
+				retValue,
+				retZero,
+				retZero,
+				retZero);
+		});
 }
 double Component::GetFloat(CSharpString& name) {
-	return 0;
+	auto retZero = [](auto&&) -> double { return 0; };
+	auto retValue = [](auto&& v) -> double {
+		return v;
+	};
+	return data.visit(
+		[&](ValueMap& v) -> double {
+			auto str = name.ToString();
+			auto ite = v.Find(str);
+			if (!ite) return 0;
+
+			return ite.Value().visit(
+				retValue,
+				retValue,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero);
+		},
+		[&](vstd::unique_ptr<db::IJsonDict>& v) {
+			auto value = v->Get(name.ToSV());
+			return value.visit(
+				retValue,
+				retValue,
+				retZero,
+				retZero,
+				retZero);
+		});
 }
 CSharpString Component::GetString(CSharpString& name) {
-	return CSharpString();
+	auto retZero = [](auto&&) -> CSharpString { return CSharpString(); };
+	return data.visit(
+		[&](ValueMap& v) -> CSharpString {
+			auto str = name.ToString();
+			auto ite = v.Find(str);
+			if (!ite) return CSharpString();
+			if (ite.Value().IsTypeOf<vstd::string>()) {
+				return CSharpString(ite.Value().get<ValueStructType::IndexOf<vstd::string>>());
+			}
+			return CSharpString();
+		},
+		[&](vstd::unique_ptr<db::IJsonDict>& v) {
+			auto value = v->Get(name.ToSV());
+			if (value.IsTypeOf<vstd::string_view>()) {
+				return CSharpString(value.get<db::JsonVariant::IndexOf<vstd::string_view>>());
+			}
+			return CSharpString();
+		});
 }
 void* Component::GetComponent(CSharpString& name) {
-	return nullptr;
+	return data.visit(
+		[&](ValueMap& v) -> void* {
+			auto str = name.ToString();
+			auto ite = v.Find(str);
+			if (!ite) return nullptr;
+			auto&& value = ite.Value();
+			if (value.IsTypeOf<vstd::unique_ptr<Component>>()) {
+				return value.get<value.IndexOf<vstd::unique_ptr<Component>>>().get();
+			}
+			return nullptr;
+		},
+		[&](vstd::unique_ptr<db::IJsonDict>& v) {
+			auto value = v->Get(name.ToSV());
+			if (value.IsTypeOf<db::IJsonDict*>()) {
+				return value.get<db::JsonVariant::IndexOf<db::IJsonDict*>>();
+			}
+		});
 }
 BinaryArray Component::GetBoolArray(CSharpString& name) {
 	return BinaryArray();
@@ -96,7 +200,7 @@ void* Component::GetHandle() {
 bool Component::IsValueType() {
 	return data.GetType() == data.IndexOf<ValueMap>;
 }
-vstd::string CSharpString::ToString() {
+vstd::string CSharpString::ToString() const {
 	vstd::string str;
 	str.resize(size);
 	auto ptr = str.data();
@@ -104,5 +208,8 @@ vstd::string CSharpString::ToString() {
 		*ptr = i;
 	}
 	return str;
+}
+vstd::string_view CSharpString::ToSV() const {
+	return vstd::string_view(ptr, size);
 }
 }// namespace toolhub

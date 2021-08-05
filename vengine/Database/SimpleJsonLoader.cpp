@@ -27,43 +27,41 @@ bool SimpleJsonLoader::Check(IJsonDatabase* parent, SimpleJsonVariant const& var
 		});
 	return res;
 }
-JsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, IJsonDatabase* parent) {
+SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, IJsonDatabase* parent) {
 	ValueType type = PopValue<ValueType>(arr);
 	switch (type) {
 		case ValueType::Int: {
 			int64 v = PopValue<int64>(arr);
-			return JsonVariant(v);
+			return SimpleJsonVariant(v);
 		}
 		case ValueType::Float: {
 			double d = PopValue<double>(arr);
-			return JsonVariant(d);
+			return SimpleJsonVariant(d);
 		}
 
 		case ValueType::String: {
-			return JsonVariant(PopValue<vstd::string>(arr));
+			return SimpleJsonVariant(PopValue<vstd::string>(arr));
 		}
 		case ValueType::Dict: {
-			;
-
 			JsonObjIDBase obj = PopValue<JsonObjIDBase>(arr);
 			auto db = parent->GetDatabase(obj.dbIndex);
 			auto ite = db->GetJsonObject(obj.instanceID);
 			if (ite) {
-				return JsonVariant(static_cast<SimpleJsonDict*>(ite));
+				return SimpleJsonVariant(static_cast<SimpleJsonDict*>(ite));
 			}
-			return JsonVariant();
+			return SimpleJsonVariant();
 		}
 		case ValueType::Array: {
 			JsonObjIDBase obj = PopValue<JsonObjIDBase>(arr);
 			auto db = parent->GetDatabase(obj.dbIndex);
 			auto ite = db->GetJsonArray(obj.instanceID);
 			if (ite) {
-				return JsonVariant(static_cast<SimpleJsonArray*>(ite));
+				return SimpleJsonVariant(static_cast<SimpleJsonArray*>(ite));
 			}
-			return JsonVariant();
+			return SimpleJsonVariant();
 		}
 		default:
-			return JsonVariant();
+			return SimpleJsonVariant();
 	}
 }
 void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data) {
@@ -97,4 +95,50 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 		});
 }
 
+IJsonDict* SimpleJsonLoader::GetDictFromID(IJsonDatabase* db, JsonObjID<IJsonDict> const& id) {
+	auto subDB = db->GetDatabase(id.dbIndex);
+	return subDB->GetJsonObject(id.instanceID);
+}
+IJsonArray* SimpleJsonLoader::GetArrayFromID(IJsonDatabase* db, JsonObjID<IJsonArray> const& id) {
+	auto subDB = db->GetDatabase(id.dbIndex);
+	return subDB->GetJsonArray(id.instanceID);
+}
+SimpleJsonVariant::SimpleJsonVariant(JsonVariant const& v) {
+	auto func = [&](auto&& v) {
+		value = v;
+	};
+	v.visit(
+		func,
+		func,
+		func,
+		func,
+		func);
+}
+
+JsonVariant SimpleJsonVariant::GetVariant(IJsonDatabase* db) const {
+	auto func = [&](auto&& v) -> JsonVariant {
+		return v;
+	};
+	return value.visit(
+		func,
+		func,
+		func,
+		[db](JsonObjID<IJsonDict> const& dict) -> JsonVariant {
+			return SimpleJsonLoader::GetDictFromID(db, dict);
+		},
+		[db](JsonObjID<IJsonArray> const& arr) -> JsonVariant {
+			return SimpleJsonLoader::GetArrayFromID(db, arr);
+		});
+}
+SimpleJsonVariant::SimpleJsonVariant(JsonVariant&& v) {
+	auto func = [&](auto&& v) {
+		value = std::move(v);
+	};
+	v.visit(
+		func,
+		func,
+		func,
+		func,
+		func);
+}
 }// namespace toolhub::db

@@ -72,10 +72,10 @@ void jsonTest(
 				func,
 				func,
 				[](auto&& f) {
-					std::cout << f.instanceID << '\n';
+					std::cout << f << '\n';
 				},
 				[](auto&& f) {
-					std::cout << f.instanceID << '\n';
+					std::cout << f << '\n';
 				});
 		}
 		(*cloneArr)->Dispose();
@@ -94,10 +94,10 @@ void jsonTest(
 				func,
 				func,
 				[](auto&& f) {
-					std::cout << f.instanceID << '\n';
+					std::cout << f << '\n';
 				},
 				[](auto&& f) {
-					std::cout << f.instanceID << '\n';
+					std::cout << f << '\n';
 				});
 		}
 		(*cloneDict)->Dispose();

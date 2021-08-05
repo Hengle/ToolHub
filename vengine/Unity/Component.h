@@ -8,10 +8,11 @@ class IJsonDict;
 class Component final : public vstd::IOperatorNewBase {
 private:
 	using ValueStructType = vstd::variant<
-		int64,						// 0: integer
-		double,						// 1: float
-		vstd::string,				// 2: string
-		vstd::unique_ptr<Component>,// 3: ref type,
+		int64, 
+		double,
+		bool,
+		vstd::string,				
+		vstd::unique_ptr<Component>,
 		vstd::vector<bool>,
 		vstd::vector<int64>,
 		vstd::vector<double>,

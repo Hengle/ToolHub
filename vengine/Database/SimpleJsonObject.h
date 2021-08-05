@@ -2,6 +2,7 @@
 #include <Common/Common.h>
 #include <Database/SimpleJsonLoader.h>
 namespace toolhub::db {
+
 class SimpleJsonLoader;
 class SimpleJsonObject {
 protected:

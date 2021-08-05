@@ -9,7 +9,7 @@ size_t SimpleJsonArray::Length() {
 	return arrs.size();
 }
 JsonVariant SimpleJsonArray::Get(size_t index) {
-	return arrs[index].operator toolhub::db::JsonVariant();
+	return arrs[index].GetVariant(db->GetParent());
 }
 void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
 	if (!data.empty()) {
@@ -42,8 +42,8 @@ void SimpleJsonArray::Add(JsonVariant value) {
 vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonArray::GetIterator() {
 
 	return vstd::linq::ConstIEnumerator(arrs)
-		.make_transformer([](auto&& func) ->JsonVariant const {
-			return func.operator JsonVariant();
+		.make_transformer([this](auto&& func) ->JsonVariant const {
+			return func.GetVariant(db->GetParent());
 		})
 		.MoveNew();
 }

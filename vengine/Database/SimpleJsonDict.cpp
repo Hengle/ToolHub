@@ -9,7 +9,7 @@ namespace toolhub::db {
 JsonVariant SimpleJsonDict::Get(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (ite) return ite.Value().operator toolhub::db::JsonVariant();
+	if (ite) return ite.Value().GetVariant(db->GetParent());
 	return JsonVariant();
 }
 void SimpleJsonDict::Set(vstd::string key, JsonVariant value) {
@@ -24,7 +24,7 @@ void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
 		auto GetNextKeyValue = [&]() {
 			auto str = PopValue<vstd::string>(data);
 
-			return std::pair<vstd::string, JsonVariant>(std::move(str), SimpleJsonLoader::DeSerialize(data, db->GetParent()));
+			return std::pair<vstd::string, SimpleJsonVariant>(std::move(str), SimpleJsonLoader::DeSerialize(data, db->GetParent()));
 		};
 		for (auto i : vstd::range(arrSize)) {
 			auto kv = GetNextKeyValue();
@@ -41,8 +41,8 @@ vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonDict::GetIte
 
 	return vstd::linq::ConstIEnumerator(vars)
 		.make_transformer(
-			[](auto&& kv) -> const JsonKeyPair {
-				return JsonKeyPair{kv.first, kv.second.operator JsonVariant()};
+			[this](auto&& kv) -> const JsonKeyPair {
+				return JsonKeyPair{kv.first, kv.second.GetVariant(db->GetParent())};
 			})
 		.MoveNew();
 }

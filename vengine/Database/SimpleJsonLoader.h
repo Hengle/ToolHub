@@ -5,6 +5,19 @@
 #include <Database/IJsonObject.h>
 #include <Network/FunctionSerializer.h>
 namespace toolhub::db {
+struct JsonObjIDBase {
+	uint64 instanceID;
+	uint64 dbIndex;
+};
+template<typename T>
+struct JsonObjID : public JsonObjIDBase {
+
+	JsonObjID(T* ptr)
+		: JsonObjIDBase{
+			ptr->GetInstanceID(),
+			ptr->GetDatabase()->GetIndex()} {
+	}
+};
 class SimpleBinaryJson;
 static constexpr uint8_t DICT_TYPE = 0;
 static constexpr uint8_t ARRAY_TYPE = 1;
@@ -23,43 +36,17 @@ struct SimpleJsonVariant {
 				  JsonObjID<IJsonDict>,
 				  JsonObjID<IJsonArray>>
 		value;
-	SimpleJsonVariant(JsonVariant const& v) {
-		auto func = [&](auto&& v) {
-			value = v;
-		};
-		v.visit(
-			func,
-			func,
-			func,
-			func,
-			func);
+	template<typename... Args>
+	SimpleJsonVariant(Args&&... args)
+		: value(std::forward<Args>(args)...) {
 	}
-	SimpleJsonVariant(JsonVariant&& v) {
-		auto func = [&](auto&& v) {
-			value = std::move(v);
-		};
-		v.visit(
-			func,
-			func,
-			func,
-			func,
-			func);
-	}
-	operator JsonVariant() const {
-		switch (value.GetType()) {
-			case 0:
-				return *reinterpret_cast<int64 const*>(value.GetPlaceHolder());
-			case 1:
-				return *reinterpret_cast<double const*>(value.GetPlaceHolder());
-			case 2:
-				return *reinterpret_cast<vstd::string const*>(value.GetPlaceHolder());
-			case 3:
-				return *reinterpret_cast<JsonObjID<IJsonDict> const*>(value.GetPlaceHolder());
-			case 4:
-				return *reinterpret_cast<JsonObjID<IJsonArray> const*>(value.GetPlaceHolder());
-		}
-		return JsonVariant();
-	}
+	SimpleJsonVariant(JsonVariant const& v);
+	SimpleJsonVariant(JsonVariant const&& v)
+		: SimpleJsonVariant(v) {}
+	SimpleJsonVariant(JsonVariant& v)
+		: SimpleJsonVariant((JsonVariant const&)v) {}
+	SimpleJsonVariant(JsonVariant&& v);
+	JsonVariant GetVariant(IJsonDatabase* db) const;
 };
 
 template<typename T>
@@ -70,10 +57,12 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 
 class SimpleJsonLoader {
 public:
+	static IJsonDict* GetDictFromID(IJsonDatabase* db, JsonObjID<IJsonDict> const& id);
+	static IJsonArray* GetArrayFromID(IJsonDatabase* db, JsonObjID<IJsonArray> const& id);
 	static bool Check(IJsonDatabase* db, SimpleJsonVariant const& var);
-	static JsonVariant DeSerialize(std::span<uint8_t>& arr, IJsonDatabase* db);
+	static SimpleJsonVariant DeSerialize(std::span<uint8_t>& arr, IJsonDatabase* db);
 	static void Serialize(IJsonDatabase* db, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data);
-};
+}; 
 template<typename T>
 T PopValue(std::span<uint8_t>& arr) {
 	using TT = std::remove_cvref_t<T>;
