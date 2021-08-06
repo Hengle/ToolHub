@@ -57,24 +57,24 @@ SimpleBinaryJson::SimpleBinaryJson(uint64 index, IJsonDatabase* parent)
 	  rootObj(0, this) {
 }
 
-IJsonDict* SimpleBinaryJson::GetRootObject() {
+IJsonRefDict* SimpleBinaryJson::GetRootObject() {
 	return &rootObj;
 }
-IJsonDict* SimpleBinaryJson::CreateJsonObject() {
+IJsonRefDict* SimpleBinaryJson::CreateJsonObject() {
 	auto id = ++instanceCount;
 	auto v = dictPool.New(id, this);
 	MarkDirty(v);
 	v->dbIndexer = jsonObjs.Emplace(id, v, DICT_TYPE);
 	return v;
 }
-IJsonArray* SimpleBinaryJson::CreateJsonArray() {
+IJsonRefArray* SimpleBinaryJson::CreateJsonArray() {
 	auto id = ++instanceCount;
 	auto v = arrPool.New(id, this);
 	MarkDirty(v);
 	v->dbIndexer = jsonObjs.Emplace(id, v, ARRAY_TYPE);
 	return v;
 }
-IJsonDict* SimpleBinaryJson::GetJsonObject(uint64 instanceID) {
+IJsonRefDict* SimpleBinaryJson::GetJsonObject(uint64 instanceID) {
 	auto ite = jsonObjs.Find(instanceID);
 	if (!ite)
 		return nullptr;
@@ -83,7 +83,7 @@ IJsonDict* SimpleBinaryJson::GetJsonObject(uint64 instanceID) {
 		return nullptr;
 	return static_cast<SimpleJsonDict*>(v.first);
 }
-IJsonArray* SimpleBinaryJson::GetJsonArray(uint64 instanceID) {
+IJsonRefArray* SimpleBinaryJson::GetJsonArray(uint64 instanceID) {
 	auto ite = jsonObjs.Find(instanceID);
 	if (!ite)
 		return nullptr;
@@ -92,13 +92,13 @@ IJsonArray* SimpleBinaryJson::GetJsonArray(uint64 instanceID) {
 		return nullptr;
 	return static_cast<SimpleJsonArray*>(v.first);
 }
-void SimpleBinaryJson::Dispose(IJsonDict* jsonObj) {
+void SimpleBinaryJson::Dispose(IJsonRefDict* jsonObj) {
 	auto dict = static_cast<SimpleJsonDict*>(jsonObj);
 	MarkDelete(dict);
 	jsonObjs.Remove(dict->dbIndexer);
 	dictPool.Delete(dict);
 }
-void SimpleBinaryJson::Dispose(IJsonArray* jsonArr) {
+void SimpleBinaryJson::Dispose(IJsonRefArray* jsonArr) {
 	auto arr = static_cast<SimpleJsonArray*>(jsonArr);
 	MarkDelete(arr);
 	jsonObjs.Remove(arr->dbIndexer);

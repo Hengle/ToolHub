@@ -11,7 +11,7 @@ template<class T, VEngine_AllocType allocType = VEngine_AllocType::VEngine>
 class Runnable;
 template<class Ret,
 		 class... TypeArgs, VEngine_AllocType allocType>
-class Runnable<Ret(TypeArgs...), allocType> {
+class Runnable<Ret(TypeArgs...), allocType> : public vstd::IOperatorNewBase {
 	/////////////////////Define
 	static constexpr size_t PLACEHOLDERSIZE = 32;
 	using PlaceHolderType = std::aligned_storage_t<PLACEHOLDERSIZE, alignof(size_t)>;

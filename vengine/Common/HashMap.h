@@ -11,7 +11,7 @@
 #include <Common/VAllocator.h>
 
 template<typename K, typename V, typename Hash = vstd::hash<K>, typename Equal = std::equal_to<K>, VEngine_AllocType allocType = VEngine_AllocType::VEngine>
-class HashMap {
+class HashMap : public vstd::IOperatorNewBase{
 public:
 	static_assert(allocType != VEngine_AllocType::Stack, "Hashmap do not support stack!");
 	using KeyType = K;

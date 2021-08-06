@@ -40,16 +40,16 @@ void jsonTest(
 	/////////////// Clone Database by serialize binary
 	auto cloneDB = dbParent->CreateOrGetDatabase(1, {});
 	struct EventTrigger : public IDatabaseEvtVisitor {
-		void AddDict(IJsonDict* newDict) override {
+		void AddDict(IJsonRefDict* newDict) override {
 			std::cout << "Add Dict!" << '\n';
 		}
-		void RemoveDict(IJsonDict* removedDict) override {
+		void RemoveDict(IJsonRefDict* removedDict) override {
 			std::cout << "Remove Dict!" << '\n';
 		}
-		void AddArray(IJsonArray* newDict) override {
+		void AddArray(IJsonRefArray* newDict) override {
 			std::cout << "Add Array!" << '\n';
 		}
-		void RemoveArray(IJsonArray* newDict) override {
+		void RemoveArray(IJsonRefArray* newDict) override {
 			std::cout << "Remove Array!" << '\n';
 		}
 	};
@@ -58,8 +58,9 @@ void jsonTest(
 	auto cloneRoot = cloneDB->GetRootObject();
 	auto rIte = cloneRoot->GetIterator();
 	// cross database link
-	// cloneArr == subArr 
-	auto cloneArr = cloneRoot->GetArray("array"_sv);
+	// cloneArr == subArr
+	auto cloneArrVariant = cloneRoot->Get("array"_sv);
+	auto&& cloneArr = cloneArrVariant.try_get<IJsonRefArray*>();
 	if (cloneArr && (*cloneArr == subArr)) {
 		auto ite = (*cloneArr)->GetIterator();
 		//Iterate and print all elements
@@ -76,11 +77,13 @@ void jsonTest(
 				},
 				[](auto&& f) {
 					std::cout << f << '\n';
-				});
+				},[](auto&& f) {},
+				[](auto&& f) {});
 		}
 		(*cloneArr)->Dispose();
 	}
-	auto cloneDict = cloneRoot->GetDict("dict"_sv);
+
+	auto cloneDict = cloneRoot->Get("dict"_sv).try_get<IJsonRefDict*>();
 	if (cloneDict && (*cloneDict == subObj)) {
 		auto ite = (*cloneDict)->GetIterator();
 		//Iterate and print all elements
@@ -98,7 +101,9 @@ void jsonTest(
 				},
 				[](auto&& f) {
 					std::cout << f << '\n';
-				});
+				},
+				[](auto&& f) {},
+				[](auto&& f) {});
 		}
 		(*cloneDict)->Dispose();
 	}

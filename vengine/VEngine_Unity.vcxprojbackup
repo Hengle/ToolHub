@@ -9,9 +9,6 @@
 			<Platform>x64</Platform>
 		</ProjectConfiguration>
 	</ItemGroup>
-	<ItemGroup>
-		<Library Include="../UnityProject/Assets/Plugins/VEngine_DLL.lib" />
-	</ItemGroup>
 	<PropertyGroup Label="Globals">
 		<VCProjectVersion>16.0</VCProjectVersion>
 		<Keyword>Win32Proj</Keyword>
@@ -57,11 +54,11 @@
 	<PropertyGroup Label="UserMacros" />
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
 		<LinkIncremental>true</LinkIncremental>
-		<OutDir>../UnityProject/Assets/Plugins</OutDir>
+		<OutDir>../build</OutDir>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
 		<LinkIncremental>false</LinkIncremental>
-		<OutDir>../UnityProject/Assets/Plugins</OutDir>
+		<OutDir>../build</OutDir>
 	</PropertyGroup>
 	<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
 		<ClCompile>
@@ -148,4 +145,7 @@
 	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 	<ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+	<ItemGroup>
+		<Library Include="..\build\VEngine_DLL.lib" />
+	</ItemGroup>
 </Project>

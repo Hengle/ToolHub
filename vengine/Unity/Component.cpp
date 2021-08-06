@@ -5,6 +5,7 @@
 
 #include <Database/IJsonObject.h>
 #include <Database/IJsonDatabase.h>
+#include <Network/FunctionSerializer.h>
 StackObject<DynamicDLL> database_dll;
 VENGINE_UNITY_EXTERN void DllImport_Init(char const* dllPath) {
 	char const* mallocPath = "mimalloc.dll";
@@ -31,6 +32,7 @@ Component::Component(CSharpString& typeName, void*& parentDatabase) {
 		data = subDB->CreateJsonObject();
 	}
 }
+
 Component::Component(vstd::unique_ptr<db::IJsonDict>&& ptr)
 	: data(std::move(ptr)) {
 }
@@ -69,9 +71,6 @@ int64 Component::GetInt(CSharpString& name) {
 				retZero,
 				retZero,
 				retZero,
-				retZero,
-				retZero,
-				retZero,
 				retZero);
 		},
 		[&](vstd::unique_ptr<db::IJsonDict>& v) {
@@ -98,9 +97,6 @@ double Component::GetFloat(CSharpString& name) {
 			return ite.Value().visit(
 				retValue,
 				retValue,
-				retZero,
-				retZero,
-				retZero,
 				retZero,
 				retZero,
 				retZero,
@@ -155,14 +151,47 @@ void* Component::GetComponent(CSharpString& name) {
 			}
 		});
 }
+BinaryArray Component::GetArray(CSharpString& name, BinaryType tarType, size_t stride) {
+	auto retZero = [](auto&&) { return BinaryArray(); };
+	auto getSP = [&](std::span<uint8_t> sp) {
+		BinaryType type = vstd::SerDe<BinaryType>::Get(sp);
+		if (type != tarType) return BinaryArray();
+		return BinaryArray(
+			sp.data(), sp.size() / stride, stride);
+	};
+	return data.visit(
+		[&](ValueMap& v) -> BinaryArray {
+			auto str = name.ToString();
+			auto ite = v.Find(str);
+			if (!ite) return BinaryArray();
+			return ite.Value().visit(
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				getSP,
+				retZero);
+		},
+		[&](vstd::unique_ptr<db::IJsonDict>& v) {
+			auto value = v->Get(name.ToSV());
+			return value.visit(
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				retZero,
+				getSP);
+		});
+}
 BinaryArray Component::GetBoolArray(CSharpString& name) {
-	return BinaryArray();
+	return GetArray(name, BinaryType::Bool, sizeof(bool));
 }
 BinaryArray Component::GetIntArray(CSharpString& name) {
-	return BinaryArray();
+	return GetArray(name, BinaryType::Int, sizeof(int64));
 }
 BinaryArray Component::GetFloatArray(CSharpString& name) {
-	return BinaryArray();
+	return GetArray(name, BinaryType::Float, sizeof(double));
 }
 BinaryArray Component::GetComponentArray(CSharpString& name) {
 	return BinaryArray();

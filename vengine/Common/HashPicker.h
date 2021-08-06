@@ -9,7 +9,7 @@
 #include <Common/VAllocator.h>
 
 template<typename K, typename Hash = vstd::hash<K>, typename Equal = std::equal_to<K>, VEngine_AllocType allocType = VEngine_AllocType::VEngine>
-class HashPicker {
+class HashPicker : public vstd::IOperatorNewBase {
 public:
 	using KeyType = K;
 	using HashType = Hash;

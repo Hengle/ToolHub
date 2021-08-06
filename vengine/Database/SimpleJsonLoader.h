@@ -26,15 +26,19 @@ enum class ValueType : uint8_t {
 	Float,
 	String,
 	Dict,
-	Array
+	Array,
+	ValueDict,
+	ValueArray
 };
 
 struct SimpleJsonVariant {
 	vstd::variant<int64,
 				  double,
 				  vstd::string,
-				  JsonObjID<IJsonDict>,
-				  JsonObjID<IJsonArray>>
+				  JsonObjID<IJsonRefDict>,
+				  JsonObjID<IJsonRefArray>,
+				  vstd::unique_ptr<IJsonValueDict>,
+				  vstd::unique_ptr<IJsonValueArray>>
 		value;
 	template<typename... Args>
 	SimpleJsonVariant(Args&&... args)
@@ -47,6 +51,8 @@ struct SimpleJsonVariant {
 		: SimpleJsonVariant((JsonVariant const&)v) {}
 	SimpleJsonVariant(JsonVariant&& v);
 	JsonVariant GetVariant(IJsonDatabase* db) const;
+	static vstd::unique_ptr<IJsonValueDict> CopyValueDict(IJsonValueDict* valueDict);
+	static vstd::unique_ptr<IJsonValueArray> CopyValueArray(IJsonValueArray* valueDict);
 };
 
 template<typename T>
@@ -57,12 +63,12 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 
 class SimpleJsonLoader {
 public:
-	static IJsonDict* GetDictFromID(IJsonDatabase* db, JsonObjID<IJsonDict> const& id);
-	static IJsonArray* GetArrayFromID(IJsonDatabase* db, JsonObjID<IJsonArray> const& id);
+	static IJsonRefDict* GetDictFromID(IJsonDatabase* db, JsonObjID<IJsonRefDict> const& id);
+	static IJsonRefArray* GetArrayFromID(IJsonDatabase* db, JsonObjID<IJsonRefArray> const& id);
 	static bool Check(IJsonDatabase* db, SimpleJsonVariant const& var);
 	static SimpleJsonVariant DeSerialize(std::span<uint8_t>& arr, IJsonDatabase* db);
 	static void Serialize(IJsonDatabase* db, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data);
-}; 
+};
 template<typename T>
 T PopValue(std::span<uint8_t>& arr) {
 	using TT = std::remove_cvref_t<T>;

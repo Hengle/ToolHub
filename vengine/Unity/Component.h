@@ -8,14 +8,12 @@ class IJsonDict;
 class Component final : public vstd::IOperatorNewBase {
 private:
 	using ValueStructType = vstd::variant<
-		int64, 
+		int64,
 		double,
 		bool,
-		vstd::string,				
+		vstd::string,
 		vstd::unique_ptr<Component>,
-		vstd::vector<bool>,
-		vstd::vector<int64>,
-		vstd::vector<double>,
+		vstd::vector<uint8_t>,
 		vstd::vector<Component*>>;
 	using ValueMap = HashMap<vstd::string, ValueStructType>;
 
@@ -23,6 +21,13 @@ private:
 		ValueMap,
 		vstd::unique_ptr<db::IJsonDict>>
 		data;
+	enum class BinaryType : uint8_t {
+		Bool,
+		Int,
+		Float
+	};
+	BinaryArray GetArray(CSharpString& str, BinaryType tarType, size_t stride);
+
 
 public:
 	//CPP Only

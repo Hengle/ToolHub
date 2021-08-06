@@ -7,7 +7,7 @@
 #include <Common/Memory.h>
 #include <Common/string_view.h>
 namespace vstd {
-class VENGINE_DLL_COMMON string {
+class VENGINE_DLL_COMMON string : public vstd::IOperatorNewBase {
 	friend VENGINE_DLL_COMMON std::ostream& operator<<(std::ostream& out, const string& obj) noexcept;
 	friend VENGINE_DLL_COMMON std::istream& operator>>(std::istream& in, string& obj) noexcept;
 
@@ -131,7 +131,7 @@ public:
 	void erase(size_t index) noexcept;
 	~string() noexcept;
 };
-class VENGINE_DLL_COMMON wstring {
+class VENGINE_DLL_COMMON wstring : public vstd::IOperatorNewBase {
 private:
 	wchar_t* ptr = nullptr;
 	size_t lenSize = 0;

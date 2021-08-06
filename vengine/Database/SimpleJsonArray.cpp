@@ -42,69 +42,10 @@ void SimpleJsonArray::Add(JsonVariant value) {
 vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonArray::GetIterator() {
 
 	return vstd::linq::ConstIEnumerator(arrs)
-		.make_transformer([this](auto&& func) ->JsonVariant const {
+		.make_transformer([this](auto&& func) -> JsonVariant const {
 			return func.GetVariant(db->GetParent());
 		})
 		.MoveNew();
-}
-
-vstd::optional<int64> SimpleJsonArray::GetInt(size_t index) {
-
-	auto&& v = arrs[index].value;
-	switch (v.GetType()) {
-		case 0:
-			return *reinterpret_cast<int64*>(v.GetPlaceHolder());
-		case 1:
-			return *reinterpret_cast<double*>(v.GetPlaceHolder());
-		case 2:
-			return *reinterpret_cast<bool*>(v.GetPlaceHolder()) ? 1 : 0;
-	}
-	return vstd::optional<int64>();
-}
-vstd::optional<double> SimpleJsonArray::GetFloat(size_t index) {
-
-	auto&& v = arrs[index].value;
-	switch (v.GetType()) {
-		case 0:
-			return *reinterpret_cast<int64*>(v.GetPlaceHolder());
-		case 1:
-			return *reinterpret_cast<double*>(v.GetPlaceHolder());
-		case 2:
-			return *reinterpret_cast<bool*>(v.GetPlaceHolder()) ? 1 : 0;
-	}
-	return vstd::optional<double>();
-}
-vstd::optional<vstd::string_view> SimpleJsonArray::GetString(size_t index) {
-
-	auto&& v = arrs[index].value;
-	if (v.GetType() == 2) {
-		return *reinterpret_cast<vstd::string*>(v.GetPlaceHolder());
-	}
-	return vstd::optional<vstd::string_view>();
-}
-vstd::optional<IJsonDict*> SimpleJsonArray::GetDict(size_t index) {
-
-	auto&& v = arrs[index].value;
-	if (v.GetType() == 3) {
-		auto&& id = *reinterpret_cast<JsonObjID<IJsonDict>*>(v.GetPlaceHolder());
-		auto localDB = db->GetParent()->GetDatabase(id.dbIndex);
-		auto ptr = localDB->GetJsonObject(id.instanceID);
-		if (ptr)
-			return vstd::optional<IJsonDict*>(ptr);
-	}
-	return vstd::optional<IJsonDict*>();
-}
-vstd::optional<IJsonArray*> SimpleJsonArray::GetArray(size_t index) {
-
-	auto&& v = arrs[index].value;
-	if (v.GetType() == 4) {
-		auto&& id = *reinterpret_cast<JsonObjID<IJsonArray>*>(v.GetPlaceHolder());
-		auto localDB = db->GetParent()->GetDatabase(id.dbIndex);
-		auto ptr = localDB->GetJsonArray(id.instanceID);
-		if (ptr)
-			return vstd::optional<IJsonArray*>(ptr);
-	}
-	return vstd::optional<IJsonArray*>();
 }
 void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto v = ARRAY_TYPE;
@@ -121,6 +62,7 @@ void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
 }
 void SimpleJsonArray::Reset() {
+	Update();
 	arrs.clear();
 }
 SimpleJsonArray::SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db)
@@ -138,6 +80,7 @@ void SimpleJsonArray::Dispose() {
 	db->Dispose(this);
 }
 void SimpleJsonArray::Clean() {
+	Update();
 	arrs.compact([&](SimpleJsonVariant const& v) {
 		return SimpleJsonLoader::Check(db->GetParent(), v);
 	});

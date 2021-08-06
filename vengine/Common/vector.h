@@ -11,7 +11,7 @@
 namespace vstd {
 
 template<typename T, VEngine_AllocType allocType = VEngine_AllocType::VEngine, bool forceTrivial = false>
-class vector {
+class vector : public vstd::IOperatorNewBase {
 private:
 	using SelfType = vector<T, allocType, forceTrivial>;
 	T* arr;

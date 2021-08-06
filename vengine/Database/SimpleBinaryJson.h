@@ -34,15 +34,15 @@ public:
 	uint64 instanceCount = 0;
 	SimpleBinaryJson(uint64 index, IJsonDatabase* parent);
 	IJsonDatabase* GetParent() override { return parent; }
-	IJsonDict* GetRootObject() override;
-	IJsonDict* CreateJsonObject() override;
-	IJsonArray* CreateJsonArray() override;
+	IJsonRefDict* GetRootObject() override;
+	IJsonRefDict* CreateJsonObject() override;
+	IJsonRefArray* CreateJsonArray() override;
 	uint64 GetIndex() override { return index; }
-	IJsonDict* GetJsonObject(uint64 id) override;
-	IJsonArray* GetJsonArray(uint64 id) override;
+	IJsonRefDict* GetJsonObject(uint64 id) override;
+	IJsonRefArray* GetJsonArray(uint64 id) override;
 
-	void Dispose(IJsonDict* jsonObj);
-	void Dispose(IJsonArray* jsonArr);
+	void Dispose(IJsonRefDict* jsonObj);
+	void Dispose(IJsonRefArray* jsonArr);
 	void Dispose() override;
 	vstd::vector<uint8_t> IncreSerialize() override;
 

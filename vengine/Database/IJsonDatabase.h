@@ -2,14 +2,14 @@
 #include <Common/Common.h>
 #include <Common/Runnable.h>
 namespace toolhub::db {
-class IJsonDict;
-class IJsonArray;
+class IJsonRefDict;
+class IJsonRefArray;
 class IDatabaseEvtVisitor {
 public:
-	virtual void AddDict(IJsonDict* newDict) = 0;
-	virtual void RemoveDict(IJsonDict* removedDict) = 0;
-	virtual void AddArray(IJsonArray* newDict) = 0;
-	virtual void RemoveArray(IJsonArray* newDict) = 0;
+	virtual void AddDict(IJsonRefDict* newDict) = 0;
+	virtual void RemoveDict(IJsonRefDict* removedDict) = 0;
+	virtual void AddArray(IJsonRefArray* newDict) = 0;
+	virtual void RemoveArray(IJsonRefArray* newDict) = 0;
 };
 class IJsonSubDatabase;
 class IJsonDatabase : public vstd::IDisposable {
@@ -28,11 +28,11 @@ protected:
 
 public:
 	virtual uint64 GetIndex() = 0;
-	virtual IJsonDict* GetRootObject() = 0;
-	virtual IJsonDict* CreateJsonObject() = 0;
-	virtual IJsonArray* CreateJsonArray() = 0;
-	virtual IJsonDict* GetJsonObject(uint64 id) = 0;
-	virtual IJsonArray* GetJsonArray(uint64 id) = 0;
+	virtual IJsonRefDict* GetRootObject() = 0;
+	virtual IJsonRefDict* CreateJsonObject() = 0;
+	virtual IJsonRefArray* CreateJsonArray() = 0;
+	virtual IJsonRefDict* GetJsonObject(uint64 id) = 0;
+	virtual IJsonRefArray* GetJsonArray(uint64 id) = 0;
 	virtual vstd::vector<uint8_t> Serialize() = 0;
 	virtual vstd::vector<uint8_t> IncreSerialize() = 0;
 	virtual void Read(std::span<uint8_t> data) = 0;
