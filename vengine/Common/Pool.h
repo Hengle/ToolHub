@@ -122,15 +122,13 @@ public:
 			ptr->~T();
 		allPtrs.push_back(ptr);
 	}
-	void Delete_Lock(std::mutex& mtx, void* pp) {
-		T* ptr = (T*)pp;
+	void Delete_Lock(std::mutex& mtx, T* ptr) {
 		if constexpr (!std::is_trivially_destructible_v<T>)
 			ptr->~T();
 		std::lock_guard lck(mtx);
 		allPtrs.push_back(ptr);
 	}
-	void Delete_Lock(spin_mutex& mtx, void* pp) {
-		T* ptr = (T*)pp;
+	void Delete_Lock(spin_mutex& mtx, T* ptr) {
 		if constexpr (!std::is_trivially_destructible_v<T>)
 			ptr->~T();
 		std::lock_guard lck(mtx);
@@ -284,16 +282,14 @@ public:
 		RemoveAllocatedObject(ptr);
 		allPtrs.push_back(ptr);
 	}
-	void Delete_Lock(std::mutex& mtx, void* pp) {
-		T* ptr = (T*)pp;
+	void Delete_Lock(std::mutex& mtx, T* ptr) {
 		if constexpr (!std::is_trivially_destructible_v<T>)
 			ptr->~T();
 		std::lock_guard lck(mtx);
 		RemoveAllocatedObject(ptr);
 		allPtrs.push_back(ptr);
 	}
-	void Delete_Lock(spin_mutex& mtx, void* pp) {
-		T* ptr = (T*)pp;
+	void Delete_Lock(spin_mutex& mtx, T* ptr) {
 		if constexpr (!std::is_trivially_destructible_v<T>)
 			ptr->~T();
 		std::lock_guard lck(mtx);

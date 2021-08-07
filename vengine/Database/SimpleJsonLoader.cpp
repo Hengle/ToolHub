@@ -8,20 +8,15 @@ bool SimpleJsonLoader::Check(IJsonDatabase* parent, SimpleJsonVariant const& var
 	auto setTrue = [&](auto&&) {
 		res = true;
 	};
+	auto setTrack = [&](auto&& obj) {
+		res == (obj.Get() != nullptr);
+	};
 	var.value.visit(
 		setTrue,
 		setTrue,
 		setTrue,
-		[&](auto&& obj) {
-			auto db = parent->GetDatabase(obj.dbIndex);
-			if (db && (db->GetJsonObject(obj.instanceID) != nullptr))
-				res = true;
-		},
-		[&](auto&& obj) {
-			auto db = parent->GetDatabase(obj.dbIndex);
-			if (db && (db->GetJsonArray(obj.instanceID) != nullptr))
-				res = true;
-		},
+		setTrack,
+		setTrack,
 		setTrue,
 		setTrue);
 	return res;
@@ -42,20 +37,24 @@ SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, IJsonDa
 			return SimpleJsonVariant(PopValue<vstd::string>(arr));
 		}
 		case ValueType::Dict: {
-			JsonObjIDBase obj = PopValue<JsonObjIDBase>(arr);
-			auto db = parent->GetDatabase(obj.dbIndex);
-			auto ite = db->GetJsonObject(obj.instanceID);
+			uint64 dbIndex, instanceID;
+			dbIndex = PopValue<uint64>(arr);
+			instanceID = PopValue<uint64>(arr);
+			auto db = parent->GetDatabase(dbIndex);
+			auto ite = db->GetJsonObject(instanceID);
 			if (ite) {
-				return SimpleJsonVariant(ite);
+				return SimpleJsonVariant(ite->GetTrackFlag());
 			}
 			return SimpleJsonVariant();
 		}
 		case ValueType::Array: {
-			JsonObjIDBase obj = PopValue<JsonObjIDBase>(arr);
-			auto db = parent->GetDatabase(obj.dbIndex);
-			auto ite = db->GetJsonArray(obj.instanceID);
+			uint64 dbIndex, instanceID;
+			dbIndex = PopValue<uint64>(arr);
+			instanceID = PopValue<uint64>(arr);
+			auto db = parent->GetDatabase(dbIndex);
+			auto ite = db->GetJsonArray(instanceID);
 			if (ite) {
-				return SimpleJsonVariant(ite);
+				return SimpleJsonVariant(ite->GetTrackFlag());
 			}
 			return SimpleJsonVariant();
 		}
@@ -70,14 +69,18 @@ SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, IJsonDa
 	}
 }
 void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data) {
+	size_t dataOffset = data.size();
 	data.push_back(v.value.GetType());
 	auto func = [&]<typename TT>(TT&& f) {
 		PushDataToVector(f, data);
 	};
-	auto addJsonObj = [&](auto&& d, auto&& isInvalidFunc) {
-		auto otherDB = parent->GetDatabase(d.dbIndex);
-		if (otherDB && !isInvalidFunc(otherDB, d.instanceID)) {
-			func.operator()<JsonObjIDBase const&>(d);
+	auto addJsonObj = [&](uint64 dbIndex, uint64 instanceID) {
+		auto otherDB = parent->GetDatabase(dbIndex);
+		if (otherDB) {
+			func(dbIndex);
+			func(instanceID);
+		} else {
+			data[dataOffset] = v.value.argSize;
 		}
 	};
 	Runnable<void(JsonVariant const&)> serJsonVariant;
@@ -107,34 +110,33 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 	};
 
 	serJsonVariant = [&](JsonVariant const& v) {
+		auto serObj = [&](auto&& d) {
+			addJsonObj(d->GetDatabase()->GetIndex(), d->GetInstanceID());
+		};
 		v.visit(
-			func,
-			func,
-			func,
-			[&](IJsonRefDict* d) {
-				addJsonObj(JsonObjID<IJsonRefDict>(d), [](auto&&, auto&&) { return false; });
-			},
-			[&](IJsonRefArray* d) {
-				addJsonObj(JsonObjID<IJsonRefArray>(d), [](auto&&, auto&&) { return false; });
-			},
-			serValueDict,
-			serValueArray);
+			func,		   //int64
+			func,		   //double
+			func,		   //string_view
+			serObj,		   //IJsonRefDict*
+			serObj,		   //IJsonRefArray*
+			serValueDict,  //IJsonValueDict*
+			serValueArray);//IJsonValueArray*
 	};
-
+	// Call SimpleVariant
+	auto serObjTracker = [&](auto&& d) {
+		auto ptr = d.Get();
+		if (ptr) {
+			addJsonObj(ptr->GetDatabase()->GetIndex(), ptr->GetInstanceID());
+		} else {
+			data[dataOffset] = v.value.argSize;
+		}
+	};
 	v.value.visit(
-		func,
-		func,
-		func,
-		[&](auto&& d) {
-			addJsonObj(d, [&](IJsonSubDatabase* otherDB, uint64 instanceID) {
-				return otherDB->GetJsonObject(instanceID) == nullptr;
-			});
-		},
-		[&](auto&& d) {
-			addJsonObj(d, [&](IJsonSubDatabase* otherDB, uint64 instanceID) {
-				return otherDB->GetJsonArray(instanceID) == nullptr;
-			});
-		},
+		func,		  //int64
+		func,		  //double
+		func,		  //string
+		serObjTracker,//vstd::ObjectTrackFlag<IJsonRefDict>
+		serObjTracker,// vstd::ObjectTrackFlag<IJsonRefArray>
 		[&](vstd::unique_ptr<IJsonValueDict> const& d) {
 			serValueDict(d.get());
 		},
@@ -143,24 +145,27 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 		});
 }
 
-IJsonRefDict* SimpleJsonLoader::GetDictFromID(IJsonDatabase* db, JsonObjID<IJsonRefDict> const& id) {
-	auto subDB = db->GetDatabase(id.dbIndex);
-	return subDB->GetJsonObject(id.instanceID);
+IJsonRefDict* SimpleJsonLoader::GetDictFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID) {
+	auto subDB = db->GetDatabase(dbIndex);
+	return subDB->GetJsonObject(instanceID);
 }
-IJsonRefArray* SimpleJsonLoader::GetArrayFromID(IJsonDatabase* db, JsonObjID<IJsonRefArray> const& id) {
-	auto subDB = db->GetDatabase(id.dbIndex);
-	return subDB->GetJsonArray(id.instanceID);
+IJsonRefArray* SimpleJsonLoader::GetArrayFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID) {
+	auto subDB = db->GetDatabase(dbIndex);
+	return subDB->GetJsonArray(instanceID);
 }
 SimpleJsonVariant::SimpleJsonVariant(JsonVariant const& v) {
 	auto func = [&](auto&& v) {
 		value = v;
 	};
+	auto getSer = [&](auto&& d) {
+		value = d->GetTrackFlag();
+	};
 	v.visit(
 		func,
 		func,
 		func,
-		func,
-		func,
+		getSer,
+		getSer,
 		[&](auto&& d) {
 			value = CopyValueDict(d);
 		},
@@ -173,16 +178,15 @@ JsonVariant SimpleJsonVariant::GetVariant(IJsonDatabase* db) const {
 	auto func = [&](auto&& v) -> JsonVariant {
 		return v;
 	};
+	auto getTracker = [&](auto const& flag) {
+		return flag.Get();
+	};
 	return value.visit(
-		func,
-		func,
-		func,
-		[db](JsonObjID<IJsonRefDict> const& dict) -> JsonVariant {
-			return SimpleJsonLoader::GetDictFromID(db, dict);
-		},
-		[db](JsonObjID<IJsonRefArray> const& arr) -> JsonVariant {
-			return SimpleJsonLoader::GetArrayFromID(db, arr);
-		},
+		func,	   //int64
+		func,	   //double
+		func,	   //string
+		getTracker,//vstd::ObjectTrackFlag<IJsonRefDict>
+		getTracker,// vstd::ObjectTrackFlag<IJsonRefArray>
 		[&](vstd::unique_ptr<IJsonValueDict> const& v) -> JsonVariant {
 			return v.get();
 		},
@@ -202,12 +206,15 @@ SimpleJsonVariant::SimpleJsonVariant(JsonVariant&& v) {
 	auto func = [&](auto&& v) {
 		value = std::move(v);
 	};
+	auto getSer = [&](auto&& d) {
+		value = d->GetTrackFlag();
+	};
 	v.visit(
 		func,
 		func,
 		func,
-		func,
-		func,
+		getSer,
+		getSer,
 		[&](auto&& d) {
 			value = CopyValueDict(d);
 		},

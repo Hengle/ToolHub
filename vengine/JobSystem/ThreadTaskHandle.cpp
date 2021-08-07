@@ -23,7 +23,7 @@ ThreadTaskHandle::ThreadTaskHandle(
 		[](void* ptr) {
 			TaskData* pp = reinterpret_cast<TaskData*>(ptr);
 			ObjectPtr<PoolType> pt = std::move(pp->poolPtr);
-			pt->pool.Delete_Lock(pt->mtx, ptr);
+			pt->pool.Delete_Lock(pt->mtx, pp);
 		});
 	taskFlag.New(std::move(ptr));
 }
@@ -52,7 +52,7 @@ ThreadTaskHandle::ThreadTaskHandle(
 			[](void* ptr) {
 				auto pp = reinterpret_cast<ThreadTaskHandle::TaskData*>(ptr);
 				ObjectPtr<PoolType> pt = std::move(pp->poolPtr);
-				pt->pool.Delete_Lock(pt->mtx, ptr);
+				pt->pool.Delete_Lock(pt->mtx, pp);
 			}));
 	};
 	for (size_t i = 0; i < threadCount; ++i) {
@@ -87,7 +87,7 @@ ThreadTaskHandle::ThreadTaskHandle(
 			[](void* ptr) {
 				auto pp = reinterpret_cast<ThreadTaskHandle::TaskData*>(ptr);
 				ObjectPtr<PoolType> pt = std::move(pp->poolPtr);
-				pt->pool.Delete_Lock(pt->mtx, ptr);
+				pt->pool.Delete_Lock(pt->mtx, pp);
 			}));
 	};
 	for (size_t i = 0; i < threadCount; ++i) {

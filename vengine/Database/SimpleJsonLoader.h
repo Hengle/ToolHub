@@ -4,20 +4,8 @@
 #include <Database/IJsonDatabase.h>
 #include <Database/IJsonObject.h>
 #include <Network/FunctionSerializer.h>
+#include <Utility/ObjectTracker.h>
 namespace toolhub::db {
-struct JsonObjIDBase {
-	uint64 instanceID;
-	uint64 dbIndex;
-};
-template<typename T>
-struct JsonObjID : public JsonObjIDBase {
-
-	JsonObjID(T* ptr)
-		: JsonObjIDBase{
-			ptr->GetInstanceID(),
-			ptr->GetDatabase()->GetIndex()} {
-	}
-};
 class SimpleBinaryJson;
 static constexpr uint8_t DICT_TYPE = 0;
 static constexpr uint8_t ARRAY_TYPE = 1;
@@ -35,8 +23,8 @@ struct SimpleJsonVariant {
 	vstd::variant<int64,
 				  double,
 				  vstd::string,
-				  JsonObjID<IJsonRefDict>,
-				  JsonObjID<IJsonRefArray>,
+				  vstd::ObjectTrackFlag<IJsonRefDict>,
+				  vstd::ObjectTrackFlag<IJsonRefArray>,
 				  vstd::unique_ptr<IJsonValueDict>,
 				  vstd::unique_ptr<IJsonValueArray>>
 		value;
@@ -63,8 +51,8 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 
 class SimpleJsonLoader {
 public:
-	static IJsonRefDict* GetDictFromID(IJsonDatabase* db, JsonObjID<IJsonRefDict> const& id);
-	static IJsonRefArray* GetArrayFromID(IJsonDatabase* db, JsonObjID<IJsonRefArray> const& id);
+	static IJsonRefDict* GetDictFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID);
+	static IJsonRefArray* GetArrayFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID);
 	static bool Check(IJsonDatabase* db, SimpleJsonVariant const& var);
 	static SimpleJsonVariant DeSerialize(std::span<uint8_t>& arr, IJsonDatabase* db);
 	static void Serialize(IJsonDatabase* db, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data);

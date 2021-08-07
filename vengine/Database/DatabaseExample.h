@@ -60,7 +60,7 @@ void jsonTest(
 	// cross database link
 	// cloneArr == subArr
 	auto cloneArrVariant = cloneRoot->Get("array"_sv);
-	auto&& cloneArr = cloneArrVariant.try_get<IJsonRefArray*>();
+	auto cloneArr = cloneArrVariant.try_get<IJsonRefArray*>();
 	if (cloneArr && (*cloneArr == subArr)) {
 		auto ite = (*cloneArr)->GetIterator();
 		//Iterate and print all elements

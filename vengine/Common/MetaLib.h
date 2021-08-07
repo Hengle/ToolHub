@@ -673,7 +673,7 @@ private:
 		template<typename Ret, typename F, typename... Funcs>
 		static void Set(funcPtr_t<Ret(void*, void*)>* funcPtr, void** funcP, F&& f, Funcs&&... fs) {
 			if constexpr (idx == c) return;
-			*funcPtr = [](void* ptr, void* arg) {
+			*funcPtr = [](void* ptr, void* arg) -> Ret{
 				return (*reinterpret_cast<std::remove_reference_t<F>*>(ptr))(*reinterpret_cast<std::remove_reference_t<T>*>(arg));
 			};
 			*funcP = &f;
@@ -682,7 +682,7 @@ private:
 		template<typename Ret, typename F, typename... Funcs>
 		static void Set_Const(funcPtr_t<Ret(void*, void const*)>* funcPtr, void** funcP, F&& f, Funcs&&... fs) {
 			if constexpr (idx == c) return;
-			*funcPtr = [](void* ptr, void const* arg) {
+			*funcPtr = [](void* ptr, void const* arg) -> Ret {
 				return (*reinterpret_cast<std::remove_reference_t<F>*>(ptr))(*reinterpret_cast<std::remove_reference_t<T> const*>(arg));
 			};
 			*funcP = &f;
@@ -883,15 +883,24 @@ public:
 	}
 
 	template<typename T>
-	vstd::optional<T> try_get() const {
+	T const* try_get() const {
 		static constexpr auto tarIdx = IndexOf<T>;
 		static_assert(tarIdx < argSize, "Illegal target type!");
 		if (tarIdx != switcher) {
-			return vstd::optional<T>();
+			return nullptr;
 		}
-		return Constructor<AA...>::template Get<tarIdx>(&placeHolder);
+		return &Constructor<AA...>::template Get<tarIdx>(&placeHolder);
 	}
 
+	template<typename T>
+	T* try_get() {
+		static constexpr auto tarIdx = IndexOf<T>;
+		static_assert(tarIdx < argSize, "Illegal target type!");
+		if (tarIdx != switcher) {
+			return nullptr;
+		}
+		return &Constructor<AA...>::template Get<tarIdx>(&placeHolder);
+	}
 	template<typename Arg>
 	variant& operator=(Arg&& arg) {
 		this->~variant();
