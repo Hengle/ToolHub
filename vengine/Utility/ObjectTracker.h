@@ -14,7 +14,7 @@ class VENGINE_DLL_COMMON ObjectTrackFlag_Impl {
 
 private:
 	size_t ptr;
-	std::atomic_int64_t refCount;
+	std::atomic_uint64_t refCount;
 	ObjectTrackFlag_Impl();
 	~ObjectTrackFlag_Impl() = default;
 	static ObjectTrackFlag_Impl* Allocate();
@@ -58,7 +58,7 @@ public:
 	}
 	~ObjectTrackFlag() {
 		if (!impl) return;
-		if (--impl->refCount <= 0) {
+		if (--impl->refCount == 0) {
 			ObjectTrackFlag_Impl::DeAllocate(impl);
 		}
 	}
@@ -72,7 +72,7 @@ private:
 protected:
 	~ObjectTracker() {
 		if (!impl) return;
-		if (--impl->refCount <= 0) {
+		if (--impl->refCount == 0) {
 			ObjectTrackFlag_Impl::DeAllocate(impl);
 		} else {
 			impl->ptr = 0;
