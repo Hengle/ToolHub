@@ -2,6 +2,7 @@
 
 #include <Database/SimpleJsonDict.h>
 #include <Database/SimpleBinaryJson.h>
+#include <Database/SimpleJsonValue.h>
 namespace toolhub::db {
 
 //Dict Deserialize
@@ -9,12 +10,12 @@ namespace toolhub::db {
 JsonVariant SimpleJsonDict::Get(vstd::string_view key) {
 
 	auto ite = vars.Find(key);
-	if (ite) return ite.Value().GetVariant(db->GetParent());
+	if (ite) return ite.Value().GetVariant();
 	return JsonVariant();
 }
 void SimpleJsonDict::Set(vstd::string key, JsonVariant value) {
 	Update();
-	vars.ForceEmplace(std::move(key), std::move(value));
+	vars.ForceEmplace(std::move(key), db, value, static_cast<SimpleJsonObject*>(this));
 }
 void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
 	if (!data.empty()) {
@@ -23,8 +24,7 @@ void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
 		vars.reserve(arrSize);
 		auto GetNextKeyValue = [&]() {
 			auto str = PopValue<vstd::string>(data);
-
-			return std::pair<vstd::string, SimpleJsonVariant>(std::move(str), SimpleJsonLoader::DeSerialize(data, db->GetParent()));
+			return std::pair<vstd::string, SimpleJsonVariant>(std::move(str), SimpleJsonLoader::DeSerialize(data, db, this));
 		};
 		for (auto i : vstd::range(arrSize)) {
 			auto kv = GetNextKeyValue();
@@ -33,7 +33,6 @@ void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
 	}
 }
 void SimpleJsonDict::Remove(vstd::string const& key) {
-
 	Update();
 	vars.Remove(key);
 }
@@ -42,7 +41,7 @@ vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonDict::GetIte
 	return vstd::linq::ConstIEnumerator(vars)
 		.make_transformer(
 			[this](auto&& kv) -> const JsonKeyPair {
-				return JsonKeyPair{kv.first, kv.second.GetVariant(db->GetParent())};
+				return JsonKeyPair{kv.first, kv.second.GetVariant()};
 			})
 		.MoveNew();
 }
@@ -67,15 +66,7 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
 }
 void SimpleJsonDict::Clean() {
-	vstd::vector<vstd::string const*> removeIndices;
-	for (auto&& i : vars) {
-		if (!SimpleJsonLoader::Check(db->GetParent(), i.second)) {
-			removeIndices.push_back(&i.first);
-		}
-	}
-	for (auto&& i : removeIndices) {
-		vars.Remove(*i);
-	}
+	SimpleJsonLoader::Clean(db->GetParent(), vars);
 }
 void SimpleJsonDict::Reset() {
 	vars.Clear();
@@ -86,6 +77,28 @@ SimpleJsonDict::SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db)
 }
 IJsonSubDatabase* SimpleJsonDict::GetDatabase() { return db; }
 SimpleJsonDict::~SimpleJsonDict() {
+}
+IJsonValueDict* SimpleJsonDict::AddOrGetDict(vstd::string key) {
+	auto ite = vars.Find(key);
+	if (ite) {
+		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueDict>>();
+		if (ptr) return ptr->get();
+	}
+	Update();
+	auto result = db->dictValuePool.New(db, this);
+	ite = vars.ForceEmplace(std::move(key), result);
+	return result;
+}
+IJsonValueArray* SimpleJsonDict::AddOrGetArray(vstd::string key) {
+	auto ite = vars.Find(key);
+	if (ite) {
+		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueArray>>();
+		if (ptr) return ptr->get();
+	}
+	Update();
+	auto result = db->arrValuePool.New(db, this);
+	ite = vars.ForceEmplace(std::move(key), result);
+	return result;
 }
 void SimpleJsonDict::Dispose() {
 	db->Dispose(this);

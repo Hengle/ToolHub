@@ -4,6 +4,9 @@
 namespace toolhub::db {
 class IJsonRefDict;
 class IJsonRefArray;
+class IJsonValueDict;
+class IJsonValueArray;
+
 class IDatabaseEvtVisitor {
 public:
 	virtual void AddDict(IJsonRefDict* newDict) = 0;

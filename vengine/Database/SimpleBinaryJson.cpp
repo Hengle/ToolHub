@@ -52,9 +52,15 @@ void SimpleBinaryJson::MarkDelete(SimpleJsonObject* dict) {
 SimpleBinaryJson::SimpleBinaryJson(uint64 index, IJsonDatabase* parent)
 	: arrPool(256),
 	  dictPool(256),
+	  dictValuePool(256),
+	  arrValuePool(256),
 	  parent(parent),
 	  index(index),
 	  rootObj(0, this) {
+}
+
+SimpleBinaryJson::~SimpleBinaryJson() {
+	enabled = false;
 }
 
 IJsonRefDict* SimpleBinaryJson::GetRootObject() {

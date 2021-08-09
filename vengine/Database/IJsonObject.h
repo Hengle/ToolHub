@@ -46,6 +46,8 @@ protected:
 public:
 	virtual JsonVariant Get(vstd::string_view key) = 0;
 	virtual void Set(vstd::string key, JsonVariant value) = 0;
+	virtual IJsonValueDict* AddOrGetDict(vstd::string key) = 0;
+	virtual IJsonValueArray* AddOrGetArray(vstd::string key) = 0;
 	virtual void Remove(vstd::string const& key) = 0;
 	virtual vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> GetIterator() = 0;
 };
@@ -59,6 +61,8 @@ public:
 	virtual void Set(size_t index, JsonVariant value) = 0;
 	virtual void Remove(size_t index) = 0;
 	virtual void Add(JsonVariant value) = 0;
+	virtual IJsonValueDict* AddDict() = 0;
+	virtual IJsonValueArray* AddArray() = 0;
 	virtual vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> GetIterator() = 0;
 };
 

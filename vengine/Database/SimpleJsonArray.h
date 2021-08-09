@@ -24,6 +24,8 @@ public:
 	void Reset() override;
 	SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db);
 	~SimpleJsonArray();
+	IJsonValueDict* AddDict() override;
+	IJsonValueArray* AddArray() override;
 	void Dispose() override;
 	void AfterAdd(IDatabaseEvtVisitor* visitor) override;
 	void BeforeRemove(IDatabaseEvtVisitor* visitor) override;

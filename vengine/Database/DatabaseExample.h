@@ -18,22 +18,20 @@ void jsonTest(
 	// Get Root Json Object
 	auto rootObj = db->GetRootObject();
 	// Create a json array
-	auto subArr = db->CreateJsonArray();
+	auto subArr = rootObj->AddOrGetArray("array");
 	subArr->Add(5);
 	subArr->Add(8.3);
 	subArr->Add("string1"_sv);
 	// Create a json dictionary
-	auto subObj = db->CreateJsonObject();
+	auto subObj = rootObj->AddOrGetDict("dict");
 	subObj->Set("number"_sv, 53);
 	subObj->Set("number1"_sv, 12.5);
-
 	// Set RootObj
-	rootObj->Set("array"_sv, subArr);
-	rootObj->Set("dict"_sv, subObj);
 	//Full Serialize Data
 	auto vec = db->Serialize();
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
 	//Incremental Serialize Data
+	subObj->Set("number"_sv, 26);
 	auto updateV = db->IncreSerialize();
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
@@ -55,13 +53,14 @@ void jsonTest(
 	};
 	EventTrigger evtTrigger;
 	cloneDB->Read(vec, &evtTrigger);
+	cloneDB->Read(updateV, &evtTrigger);
 	auto cloneRoot = cloneDB->GetRootObject();
 	auto rIte = cloneRoot->GetIterator();
 	// cross database link
 	// cloneArr == subArr
 	auto cloneArrVariant = cloneRoot->Get("array"_sv);
-	auto cloneArr = cloneArrVariant.try_get<IJsonRefArray*>();
-	if (cloneArr && (*cloneArr == subArr)) {
+	auto cloneArr = cloneArrVariant.try_get<IJsonValueArray*>();
+	if (cloneArr) {
 		auto ite = (*cloneArr)->GetIterator();
 		//Iterate and print all elements
 		LINQ_LOOP(i, *ite) {
@@ -83,8 +82,8 @@ void jsonTest(
 		(*cloneArr)->Dispose();
 	}
 
-	auto cloneDict = cloneRoot->Get("dict"_sv).try_get<IJsonRefDict*>();
-	if (cloneDict && (*cloneDict == subObj)) {
+	auto cloneDict = cloneRoot->Get("dict"_sv).try_get<IJsonValueDict*>();
+	if (cloneDict) {
 		auto ite = (*cloneDict)->GetIterator();
 		//Iterate and print all elements
 		LINQ_LOOP(i, *ite) {

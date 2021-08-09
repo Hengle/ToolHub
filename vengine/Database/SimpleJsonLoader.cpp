@@ -2,11 +2,15 @@
 
 #include <Database/SimpleJsonLoader.h>
 #include <Database/SimpleBinaryJson.h>
+#include <Database/SimpleJsonValue.h>
 namespace toolhub::db {
 bool SimpleJsonLoader::Check(IJsonDatabase* parent, SimpleJsonVariant const& var) {
 	bool res = false;
 	auto setTrue = [&](auto&&) {
 		res = true;
+	};
+	auto setNullCheck = [&](auto&& v) {
+		res = (v.get() != nullptr);
 	};
 	auto setTrack = [&](auto&& obj) {
 		res == (obj.Get() != nullptr);
@@ -17,11 +21,28 @@ bool SimpleJsonLoader::Check(IJsonDatabase* parent, SimpleJsonVariant const& var
 		setTrue,
 		setTrack,
 		setTrack,
-		setTrue,
-		setTrue);
+		setNullCheck,
+		setNullCheck);
 	return res;
 }
-SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, IJsonDatabase* parent) {
+void SimpleJsonLoader::Clean(IJsonDatabase* db, HashMap<vstd::string, SimpleJsonVariant>& vars) {
+	vstd::vector<std::remove_reference_t<decltype(vars)>::NodePair const*> removeIndices;
+	for (auto&& i : vars) {
+		if (!SimpleJsonLoader::Check(db, i.second)) {
+			removeIndices.push_back(&i);
+		}
+	}
+	for (auto&& i : removeIndices) {
+		vars.Remove(*i);
+	}
+}
+void SimpleJsonLoader::Clean(IJsonDatabase* db, vstd::vector<SimpleJsonVariant>& arrs) {
+	arrs.compact([&](SimpleJsonVariant const& v) {
+		return SimpleJsonLoader::Check(db, v);
+	});
+}
+SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* localDB, SimpleJsonObject* obj) {
+	auto parent = localDB->GetParent();
 	ValueType type = PopValue<ValueType>(arr);
 	switch (type) {
 		case ValueType::Int: {
@@ -59,10 +80,14 @@ SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, IJsonDa
 			return SimpleJsonVariant();
 		}
 		case ValueType::ValueDict: {
-			//TODO: Deser
+			auto ptr = localDB->dictValuePool.New(localDB, obj);
+			ptr->LoadFromSer(arr);
+			return SimpleJsonVariant(ptr);
 		}
 		case ValueType::ValueArray: {
-			//TODO: Deser
+			auto ptr = localDB->arrValuePool.New(localDB, obj);
+			ptr->LoadFromSer(arr);
+			return SimpleJsonVariant(ptr);
 		}
 		default:
 			return SimpleJsonVariant();
@@ -83,45 +108,7 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 			data[dataOffset] = v.value.argSize;
 		}
 	};
-	Runnable<void(JsonVariant const&)> serJsonVariant;
-	auto serValueDict = [&](IJsonValueDict* d) {
-		size_t sizeOffset = data.size();
-		PushDataToVector<uint64>(0, data);
-		auto ite = d->GetIterator();
-		uint64 size = 0;
-		LINQ_LOOP(i, *ite) {
-			size++;
-			PushDataToVector(i->key, data);
-			serJsonVariant(i->value);
-		}
-		*(uint64*)(data.data() + sizeOffset) = size;
-	};
 
-	auto serValueArray = [&](IJsonValueArray* d) {
-		size_t sizeOffset = data.size();
-		PushDataToVector<uint64>(0, data);
-		auto ite = d->GetIterator();
-		uint64 size = 0;
-		LINQ_LOOP(i, *ite) {
-			size++;
-			serJsonVariant(*i);
-		}
-		*(uint64*)(data.data() + sizeOffset) = size;
-	};
-
-	serJsonVariant = [&](JsonVariant const& v) {
-		auto serObj = [&](auto&& d) {
-			addJsonObj(d->GetDatabase()->GetIndex(), d->GetInstanceID());
-		};
-		v.visit(
-			func,		   //int64
-			func,		   //double
-			func,		   //string_view
-			serObj,		   //IJsonRefDict*
-			serObj,		   //IJsonRefArray*
-			serValueDict,  //IJsonValueDict*
-			serValueArray);//IJsonValueArray*
-	};
 	// Call SimpleVariant
 	auto serObjTracker = [&](auto&& d) {
 		auto ptr = d.Get();
@@ -131,18 +118,17 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 			data[dataOffset] = v.value.argSize;
 		}
 	};
+	auto serValue = [&](auto&& d) {
+		d->M_GetSerData(data);
+	};
 	v.value.visit(
 		func,		  //int64
 		func,		  //double
 		func,		  //string
 		serObjTracker,//vstd::ObjectTrackFlag<IJsonRefDict>
 		serObjTracker,// vstd::ObjectTrackFlag<IJsonRefArray>
-		[&](vstd::unique_ptr<IJsonValueDict> const& d) {
-			serValueDict(d.get());
-		},
-		[&](vstd::unique_ptr<IJsonValueArray> const& d) {
-			serValueArray(d.get());
-		});
+		serValue,
+		serValue);
 }
 
 IJsonRefDict* SimpleJsonLoader::GetDictFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID) {
@@ -153,7 +139,7 @@ IJsonRefArray* SimpleJsonLoader::GetArrayFromID(IJsonDatabase* db, uint64 dbInde
 	auto subDB = db->GetDatabase(dbIndex);
 	return subDB->GetJsonArray(instanceID);
 }
-SimpleJsonVariant::SimpleJsonVariant(JsonVariant const& v) {
+SimpleJsonVariant::SimpleJsonVariant(SimpleBinaryJson* db, JsonVariant const& v, SimpleJsonObject* obj) {
 	auto func = [&](auto&& v) {
 		value = v;
 	};
@@ -167,14 +153,14 @@ SimpleJsonVariant::SimpleJsonVariant(JsonVariant const& v) {
 		getSer,
 		getSer,
 		[&](auto&& d) {
-			value = CopyValueDict(d);
+			value = db->dictValuePool.New(db, obj, d);
 		},
 		[&](auto&& d) {
-			value = CopyValueArray(d);
+			value = db->arrValuePool.New(db, obj, d);
 		});
 }
 
-JsonVariant SimpleJsonVariant::GetVariant(IJsonDatabase* db) const {
+JsonVariant SimpleJsonVariant::GetVariant() const {
 	auto func = [&](auto&& v) -> JsonVariant {
 		return v;
 	};
@@ -187,39 +173,12 @@ JsonVariant SimpleJsonVariant::GetVariant(IJsonDatabase* db) const {
 		func,	   //string
 		getTracker,//vstd::ObjectTrackFlag<IJsonRefDict>
 		getTracker,// vstd::ObjectTrackFlag<IJsonRefArray>
-		[&](vstd::unique_ptr<IJsonValueDict> const& v) -> JsonVariant {
+		[&](vstd::unique_ptr<SimpleJsonValueDict> const& v) -> JsonVariant {
 			return v.get();
 		},
-		[&](vstd::unique_ptr<IJsonValueArray> const& v) -> JsonVariant {
+		[&](vstd::unique_ptr<SimpleJsonValueArray> const& v) -> JsonVariant {
 			return v.get();
 		});
 }
-vstd::unique_ptr<IJsonValueDict> toolhub::db::SimpleJsonVariant::CopyValueDict(IJsonValueDict* valueDict) {
-	//TODO
-	return vstd::unique_ptr<IJsonValueDict>();
-}
-vstd::unique_ptr<IJsonValueArray> toolhub::db::SimpleJsonVariant::CopyValueArray(IJsonValueArray* valueDict) {
-	//TODO
-	return vstd::unique_ptr<IJsonValueArray>();
-}
-SimpleJsonVariant::SimpleJsonVariant(JsonVariant&& v) {
-	auto func = [&](auto&& v) {
-		value = std::move(v);
-	};
-	auto getSer = [&](auto&& d) {
-		value = d->GetTrackFlag();
-	};
-	v.visit(
-		func,
-		func,
-		func,
-		getSer,
-		getSer,
-		[&](auto&& d) {
-			value = CopyValueDict(d);
-		},
-		[&](auto&& d) {
-			value = CopyValueArray(d);
-		});
-}
+
 }// namespace toolhub::db

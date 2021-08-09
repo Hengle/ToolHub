@@ -1,6 +1,7 @@
 #pragma once
 #include <Database/SimpleJsonDict.h>
 #include <Database/SimpleJsonArray.h>
+#include <Database/SimpleJsonValue.h>
 namespace toolhub::db {
 
 class SimpleBinaryJson final : public IJsonSubDatabase, public vstd::IOperatorNewBase {
@@ -16,8 +17,10 @@ private:
 		vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>>& vecs);
 	uint64 index;
 	IJsonDatabase* parent;
+	bool enabled = true;
 
 public:
+	bool Enabled() const { return enabled; }
 	using ObjMap = HashMap<uint64, std::pair<SimpleJsonObject*, uint8_t>>;
 
 	void DisposeProperty(std::pair<SimpleJsonObject*, uint8_t> const& data);
@@ -30,9 +33,12 @@ public:
 	vstd::vector<vstd::variant<SimpleJsonObject*, uint64>> updateVec;
 	Pool<SimpleJsonArray> arrPool;
 	Pool<SimpleJsonDict> dictPool;
+	Pool<SimpleJsonValueArray> arrValuePool;
+	Pool<SimpleJsonValueDict> dictValuePool;
 	SimpleJsonDict rootObj;
 	uint64 instanceCount = 0;
 	SimpleBinaryJson(uint64 index, IJsonDatabase* parent);
+	~SimpleBinaryJson();
 	IJsonDatabase* GetParent() override { return parent; }
 	IJsonRefDict* GetRootObject() override;
 	IJsonRefDict* CreateJsonObject() override;

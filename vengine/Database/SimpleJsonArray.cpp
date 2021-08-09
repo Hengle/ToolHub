@@ -9,7 +9,7 @@ size_t SimpleJsonArray::Length() {
 	return arrs.size();
 }
 JsonVariant SimpleJsonArray::Get(size_t index) {
-	return arrs[index].GetVariant(db->GetParent());
+	return arrs[index].GetVariant();
 }
 void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
 	if (!data.empty()) {
@@ -18,32 +18,32 @@ void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
 		arrs.reserve(arrSize);
 		arrs.push_back_func(
 			[&]() {
-				return SimpleJsonLoader::DeSerialize(data, db->GetParent());
+				return SimpleJsonLoader::DeSerialize(data, db, this);
 			},
 			arrSize);
 	}
 }
 void SimpleJsonArray::Set(size_t index, JsonVariant value) {
+	if (index >= arrs.size()) return;
 	Update();
-	arrs[index] = std::move(value);
+	arrs[index].Set(db, value, static_cast<SimpleJsonObject*>(this));
 }
 void SimpleJsonArray::Remove(size_t index) {
-
+	if (index >= arrs.size()) return;
 	Update();
 	arrs.erase(arrs.begin() + index);
 }
 IJsonSubDatabase* SimpleJsonArray::GetDatabase() { return db; }
 
 void SimpleJsonArray::Add(JsonVariant value) {
-
 	Update();
-	arrs.emplace_back(std::move(value));
+	arrs.emplace_back(db, value, static_cast<SimpleJsonObject*>(this));
 }
 vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonArray::GetIterator() {
 
 	return vstd::linq::ConstIEnumerator(arrs)
 		.make_transformer([this](auto&& func) -> JsonVariant const {
-			return func.GetVariant(db->GetParent());
+			return func.GetVariant();
 		})
 		.MoveNew();
 }
@@ -70,6 +70,21 @@ SimpleJsonArray::SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db)
 }
 SimpleJsonArray::~SimpleJsonArray() {
 }
+
+IJsonValueDict* SimpleJsonArray::AddDict() {
+	Update();
+	auto r = db->dictValuePool.New(db, this);
+	arrs.emplace_back(r);
+	return r;
+}
+
+IJsonValueArray* SimpleJsonArray::AddArray() {
+	Update();
+	auto r = db->arrValuePool.New(db, this);
+	arrs.emplace_back(r);
+	return r;
+}
+
 void SimpleJsonArray::AfterAdd(IDatabaseEvtVisitor* visitor) {
 	visitor->AddArray(this);
 }
@@ -80,10 +95,7 @@ void SimpleJsonArray::Dispose() {
 	db->Dispose(this);
 }
 void SimpleJsonArray::Clean() {
-	Update();
-	arrs.compact([&](SimpleJsonVariant const& v) {
-		return SimpleJsonLoader::Check(db->GetParent(), v);
-	});
+	SimpleJsonLoader::Clean(db->GetParent(), arrs);
 }
 
 }// namespace toolhub::db

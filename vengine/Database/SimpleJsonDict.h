@@ -26,6 +26,8 @@ public:
 	void Reset() override;
 	SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db);
 	~SimpleJsonDict();
+	IJsonValueDict* AddOrGetDict(vstd::string key) override;
+	IJsonValueArray* AddOrGetArray(vstd::string key) override;
 	void Dispose() override;
 	void AfterAdd(IDatabaseEvtVisitor* visitor) override;
 	void BeforeRemove(IDatabaseEvtVisitor* visitor) override;
