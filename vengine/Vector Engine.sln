@@ -25,6 +25,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VEngine_Unity", "VEngine_Un
 		{767665BC-162D-443E-B2B4-5F4C7F33FD8B} = {767665BC-162D-443E-B2B4-5F4C7F33FD8B}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VEngine_Server", "VEngine_Server.vcxproj", "{81243306-BE4F-4165-B784-DB8766EF18E9}"
+	ProjectSection(ProjectDependencies) = postProject
+		{767665BC-162D-443E-B2B4-5F4C7F33FD8B} = {767665BC-162D-443E-B2B4-5F4C7F33FD8B}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -65,6 +70,12 @@ Global
 		{697AD6CA-2DD8-4595-9B29-B9ED04E9C50A}.Release|x64.ActiveCfg = Release|x64
 		{697AD6CA-2DD8-4595-9B29-B9ED04E9C50A}.Release|x64.Build.0 = Release|x64
 		{697AD6CA-2DD8-4595-9B29-B9ED04E9C50A}.Release|x86.ActiveCfg = Release|x64
+		{81243306-BE4F-4165-B784-DB8766EF18E9}.Debug|x64.ActiveCfg = Debug|x64
+		{81243306-BE4F-4165-B784-DB8766EF18E9}.Debug|x64.Build.0 = Debug|x64
+		{81243306-BE4F-4165-B784-DB8766EF18E9}.Debug|x86.ActiveCfg = Debug|x64
+		{81243306-BE4F-4165-B784-DB8766EF18E9}.Release|x64.ActiveCfg = Release|x64
+		{81243306-BE4F-4165-B784-DB8766EF18E9}.Release|x64.Build.0 = Release|x64
+		{81243306-BE4F-4165-B784-DB8766EF18E9}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

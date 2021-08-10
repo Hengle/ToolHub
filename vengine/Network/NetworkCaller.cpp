@@ -146,7 +146,7 @@ public:
 		};
 		disposeThread(readThread);
 	}
-	void SendMessage(vstd::string const& messageName, std::span<uint8_t> const& data) override {
+	void SendMsg(vstd::string const& messageName, std::span<uint8_t> const& data) override {
 		auto ite = messageMap.Find(messageName);
 		if (!ite) return;
 		vstd::vector<uint8_t> vec;

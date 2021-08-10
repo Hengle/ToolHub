@@ -42,7 +42,7 @@ void server() {
 			break;
 		}
 	}
-	NETSERVICE_REGIST_MESSAGE(service.get(), Fuck);
+	service->NETSERVICE_REGIST_MESSAGE(Fuck);
 	if (service->GetSocket()->Connect()) {
 		std::cout << "start success!\n";
 	} else {
@@ -52,7 +52,7 @@ void server() {
 	vstd::string s;
 	while (true) {
 		std::cin >> s;
-		NETSERVICE_SEND_MESSAGE(service.get(), Fuck, s);
+		service->NETSERVICE_SEND_MESSAGE(Fuck, s);
 	}
 }
 int main() {
