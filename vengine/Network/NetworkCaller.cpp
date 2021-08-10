@@ -4,6 +4,9 @@
 #include <Network/ISocket.h>
 #include <Utility/TaskThread.h>
 #include <Network/NetworkInclude.h>
+#include <Network/FunctionSerializer.h>
+#include <Network/IRegistObject.h>
+#include <Network/ObjectRegister.h>
 namespace toolhub::net {
 
 static constexpr uint8_t REGIST_MESSAGE_FLAG = 1;
@@ -11,39 +14,36 @@ static constexpr uint8_t CALL_FUNC_FLAG = 2;
 
 template<typename T>
 T PopValue(std::span<uint8_t>& sp) {
-	if constexpr (std::is_same_v<T, vstd::string>) {
-		auto strLen = PopValue<uint16_t>(sp);
-		auto ptr = sp.data();
-		sp = std::span<uint8_t>(ptr + strLen, sp.size() - strLen);
-		return vstd::string(vstd::string_view(
-			reinterpret_cast<char const*>(ptr),
-			strLen));
-	} else {
-		T const* ptr = reinterpret_cast<T const*>(sp.data());
-		sp = std::span<uint8_t>(sp.data() + sizeof(T), sp.size() - sizeof(T));
-		return *ptr;
-	}
+	return vstd::SerDe<std::remove_cvref_t<T>>::Get(sp);
 };
 template<typename T>
 void PushValue(T const& data, vstd::vector<uint8_t>& arr) {
-	if constexpr (std::is_same_v<T, vstd::string> || std::is_same_v<T, vstd::string_view>) {
-		PushValue<uint16_t>(data.size(), arr);
-		arr.push_back_all(reinterpret_cast<uint8_t const*>(data.data()), data.size());
-	} else {
-		arr.push_back_all(reinterpret_cast<uint8_t const*>(&data), sizeof(data));
-	}
+	return vstd::SerDe<std::remove_cvref_t<T>>::Set(arr);
 }
 class NetworkCaller final : public INetworkService, public vstd::IOperatorNewBase {
 public:
 	using Function = std::pair<Runnable<void(std::span<uint8_t>)>, vstd::string>;
 
 private:
+	struct ClassMemberFunctions {
+		Runnable<IRegistObject*()> constructor;
+		HashMap<
+			vstd::string,
+			uint64>
+			memberFuncs;
+		vstd::vector<Runnable<void(IRegistObject*, std::span<uint8_t>)>> funcs;
+		ClassMemberFunctions() {}
+	};
+	static constexpr uint CONSTRUCTOR_INDEX = std::numeric_limits<uint>::max();
+	static constexpr uint DISPOSE_INDEX = CONSTRUCTOR_INDEX - 1;
+	ObjectRegister objRegister;
 	vstd::unique_ptr<ISocket> socket;
-	HashMap<vstd::string, uint> messageMap;
-	vstd::vector<Function> funcMap;
 	vstd::optional<std::thread> readThread;
 	vstd::optional<TaskThread> writeThread;
 	LockFreeArrayQueue<vstd::vector<uint8_t>> writeCmd;
+	HashMap<Type, uint64> rpcClassIndices;
+	vstd::vector<ClassMemberFunctions> clsFunctions;
+
 	struct Func {
 		NetworkCaller* ths;
 		void operator()() const {
@@ -52,8 +52,6 @@ private:
 	};
 	Func func;
 	size_t maxBufferSize;
-	bool initialized = false;
-
 	void Read() {
 		vstd::vector<uint8_t> buffer;
 		buffer.reserve(maxBufferSize);
@@ -61,75 +59,81 @@ private:
 		while (socket->Read(buffer, maxBufferSize)) {
 			std::span<uint8_t> sp = buffer;
 			if (buffer.empty()) continue;
-			auto tag = PopValue<uint8_t>(sp);
-			switch (tag) {
-				case REGIST_MESSAGE_FLAG: {
-					InitMessageMap(sp);
-				} break;
-				case CALL_FUNC_FLAG: {
-					auto callID = PopValue<uint>(sp);
-					if (callID < funcMap.size()) {
-						funcMap[callID].first(sp);
-					}
-				} break;
+			FunctionCallCmd callCmd = vstd::SerDe<FunctionCallCmd>::Get(sp);
+			if (callCmd.funcIndex == CONSTRUCTOR_INDEX) {
+				auto&& cls = clsFunctions[callCmd.typeIndex];
+				auto newPtr = objRegister.CreateObjByRemote(cls.constructor, callCmd.instanceID);
+				newPtr->AddDisposeFunc([this](IRegistObject* obj) {
+					SendDisposeMessage(obj);
+				});
+				newPtr->netSer = this;
+				continue;
 			}
+			auto instance = objRegister.GetObject(callCmd.instanceID);
+			if (!instance) continue;
+			if (callCmd.funcIndex == DISPOSE_INDEX) {
+				instance->msgSended = true;
+				instance->Dispose();
+				continue;
+			}
+			if (callCmd.typeIndex >= clsFunctions.size()) continue;
+			auto&& funcvec = clsFunctions[callCmd.typeIndex].funcs;
+			if (callCmd.funcIndex >= funcvec.size()) continue;
+			funcvec[callCmd.funcIndex](instance, sp);
 		}
 	}
 	void Dispose() override {
 		delete this;
 	}
 	void Write() {
-		// Init Method Table
-		if (!initialized) {
-			initialized = true;
-			if (!socket->Write(WriteMessageMap()))
-				return;
-		}
-		// Message
 		while (auto f = writeCmd.Pop()) {
 			if (!socket->Write(*f)) return;
 		}
 	}
-	void InitMessageMap(std::span<uint8_t> sp) {
-		while (sp.size() > 0) {
-			auto id = PopValue<uint>(sp);
-			if (id == std::numeric_limits<uint>::max()) return;
-			auto name = PopValue<vstd::string>(sp);
-			messageMap.Emplace(std::move(name), id);
-		}
+
+	bool enabled = true;
+	struct FunctionCallCmd {
+		uint64 instanceID;
+		uint typeIndex;
+		uint funcIndex;
+	};
+	void RunNext() {
+		writeThread->ExecuteNext();
 	}
-	vstd::vector<uint8_t> WriteMessageMap() {
-		vstd::vector<uint8_t> data;
-		PushValue<uint8_t>(REGIST_MESSAGE_FLAG, data);
-		uint v = 0;
-		for (auto&& i : funcMap) {
-			PushValue<uint>(v, data);
-			PushValue<vstd::string>(i.second, data);
-			v++;
-		}
-		PushValue<uint>(std::numeric_limits<uint>::max(), data);
-		return data;
-	}
-	bool readFinished = true;
 
 public:
 	void Run() override {
-		if (readFinished) {
-			readFinished = false;
-			readThread.New(
-				[this]() {
-					Read();
-					readFinished = true;
-				});
-			writeThread.New();
-			writeThread->SetFunctor(func);
-			writeThread->ExecuteNext();
-		}
+		readThread.New(
+			[this]() {
+				Read();
+			});
+		writeThread.New();
+		writeThread->SetFunctor(func);
 	}
 	void AddFunc(
+		Type tarType,
 		vstd::string&& name,
-		Runnable<void(std::span<uint8_t>)>&& func) override {
-		funcMap.emplace_back(std::move(func), std::move(name));
+		Runnable<void(IRegistObject*, std::span<uint8_t>)> func) override {
+		auto ite = rpcClassIndices.Find(tarType);
+		if (!ite) {
+			ite = rpcClassIndices.Emplace(tarType, clsFunctions.size());
+			clsFunctions.emplace_back();
+		}
+		auto&& clsMembers = *(clsFunctions.end() - 1);
+		clsMembers.memberFuncs.Emplace(
+			std::move(name),//Key
+			clsMembers.funcs.size());
+		clsMembers.funcs.emplace_back(std::move(func));
+	}
+	void SetConstructor(
+		Type tarType,
+		Runnable<IRegistObject*()> constructor) override {
+		auto ite = rpcClassIndices.Find(tarType);
+		if (!ite) {
+			ite = rpcClassIndices.Emplace(tarType, clsFunctions.size());
+			clsFunctions.emplace_back();
+		}
+		(clsFunctions.end() - 1)->constructor = std::move(constructor);
 	}
 	NetworkCaller(
 		vstd::unique_ptr<ISocket>&& socket,
@@ -139,6 +143,7 @@ public:
 		func.ths = this;
 	}
 	~NetworkCaller() {
+		enabled = false;
 		auto disposeThread = [&](vstd::optional<std::thread>& td) {
 			if (td) {
 				td->join();
@@ -146,19 +151,70 @@ public:
 		};
 		disposeThread(readThread);
 	}
-	void SendMsg(vstd::string const& messageName, std::span<uint8_t> const& data) override {
-		auto ite = messageMap.Find(messageName);
+
+	void SendDisposeMessage(IRegistObject* obj) {
+		if (!enabled) return;
+		if (obj->msgSended) return;
+		obj->msgSended = true;
+		auto ite = rpcClassIndices.Find(typeid(*obj));
 		if (!ite) return;
+		auto typeIndex = ite.Value();
 		vstd::vector<uint8_t> vec;
-		vec.reserve(data.size() + sizeof(uint64_t));
-		PushValue<uint8_t>(CALL_FUNC_FLAG, vec);
-		PushValue<uint>(ite.Value(), vec);
-		auto lastSize = vec.size();
-		vec.resize(lastSize + data.size());
-		memcpy(vec.data() + lastSize, data.data(), data.size());
-		writeCmd.Push(
-			std::move(vec));
-		writeThread->ExecuteNext();
+		FunctionCallCmd cmd;
+		cmd.instanceID = ObjectRegister::CombineData(obj->GetLocalID(), !obj->IsCreatedLocally());
+		cmd.typeIndex = typeIndex;
+		cmd.funcIndex = DISPOSE_INDEX;
+		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
+		writeCmd.Push(std::move(vec));
+		RunNext();
+	}
+
+	IRegistObject* CreateClass(Type tarType) override {
+		auto ite = rpcClassIndices.Find(tarType);
+		if (!ite) return nullptr;
+		uint64 typeIndex = ite.Value();
+		auto&& clsMember = clsFunctions[typeIndex];
+		auto newPtr = objRegister.CreateObjLocally(clsMember.constructor);
+		newPtr->AddDisposeFunc([this](IRegistObject* obj) {
+			SendDisposeMessage(obj);
+		});
+		newPtr->netSer = this;
+		vstd::vector<uint8_t> vec;
+		FunctionCallCmd cmd;
+		cmd.instanceID = newPtr->GetLocalID();//No Combine in constructor
+		cmd.typeIndex = typeIndex;
+		cmd.funcIndex = CONSTRUCTOR_INDEX;
+		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
+		writeCmd.Push(std::move(vec));
+		RunNext();
+		return newPtr;
+	}
+	bool CallMemberFunc(
+		IRegistObject* ptr,
+		vstd::string const& name,
+		std::span<uint8_t> arg) override {
+		if (ptr->GetLocalID() == std::numeric_limits<uint64>::max()) {
+			VEngine_Log("Illegal Network Object!\n");
+			VENGINE_EXIT;
+			return false;
+		}
+		auto ite = rpcClassIndices.Find(typeid(*ptr));
+		if (!ite) return false;
+		auto typeIndex = ite.Value();
+		auto&& cls = clsFunctions[typeIndex];
+		auto funcIte = cls.memberFuncs.Find(name);
+		if (!funcIte) return false;
+		vstd::vector<uint8_t> vec;
+		vec.reserve(sizeof(FunctionCallCmd) + arg.size());
+		FunctionCallCmd cmd;
+		cmd.instanceID = ObjectRegister::CombineData(ptr->GetLocalID(), !ptr->IsCreatedLocally());
+		cmd.typeIndex = typeIndex;
+		cmd.funcIndex = funcIte.Value();
+		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
+		vec.push_back_all(arg);
+		writeCmd.Push(std::move(vec));
+		RunNext();
+		return true;
 	}
 	ISocket* GetSocket() override {
 		return socket.get();

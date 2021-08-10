@@ -153,8 +153,16 @@ struct SerDeAll_Impl<Ret(Args...)> {
 	static decltype(auto) Call(
 		Func&& func) {
 		return [f = std::forward<Func>(func)](std::span<uint8_t> data) {
-			std::apply(f, std::tuple<Args...>{SerDe<std::remove_cvref_t<Args>>::Get(data)...});
+			return std::apply(f, std::tuple<Args...>{SerDe<std::remove_cvref_t<Args>>::Get(data)...});
 		};
+	}
+
+	template <typename Class, typename Func>
+	static Ret CallMemberFunc(Class* ptr, Func func, std::span<uint8_t> data) {
+		auto closureFunc = [&](Args&&... args) {
+			(ptr->*func)(std::forward<Args>(args)...);
+		};
+		return std::apply(closureFunc, std::tuple<Args...>{SerDe<std::remove_cvref_t<Args>>::Get(data)...});
 	}
 
 	static vstd::vector<uint8_t> Ser(
@@ -167,5 +175,6 @@ struct SerDeAll_Impl<Ret(Args...)> {
 
 template<typename Func>
 using SerDeAll = SerDeAll_Impl<FuncType<std::remove_cvref_t<Func>>>;
-
+template<typename Func>
+using SerDeAll_Member = SerDeAll_Impl<typename FunctionTemplateGlobal::memFuncPtr<std::remove_cvref_t<Func>>::Type::FuncType>;
 }// namespace vstd

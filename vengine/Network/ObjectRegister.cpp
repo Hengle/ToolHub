@@ -1,39 +1,38 @@
 #pragma vengine_package vengine_network
 
 #include <Network/ObjectRegister.h>
-namespace toolhub {
-static vstd::optional<ObjectRegister> current_register;
-ObjectRegister* ObjectRegister::GetSingleton() {
-	if (!current_register) current_register.New();
-	return current_register;
-}
-void ObjectRegister::DisposeSingleton() {
-	current_register.Delete();
-}
+namespace toolhub::net {
 ObjectRegister::ObjectRegister() {
 	incrementalID = 0;
 }
 ObjectRegister::~ObjectRegister() {
 }
-void ObjectRegister::CreateObjLocally(
+IRegistObject* ObjectRegister::CreateObjLocally(
 	Runnable<IRegistObject*()> const& creater) {
 	auto ptr = CreateObj(creater);
 	std::lock_guard lck(mtx);
-	allObjects.ForceEmplace(CombineData(++incrementalID, true), ptr);
+	auto id = ++incrementalID;
+	ptr->id = id;
+	ptr->createdLocally = true;
+	allObjects.ForceEmplace(CombineData(id, true), ptr);
+	return ptr;
 }
 IRegistObject* ObjectRegister::CreateObj(Runnable<IRegistObject*()> const& creater) {
 	auto c = creater();
 	c->AddDisposeFunc([this](IRegistObject* ptr) {
 		DisposeObj(ptr->GetLocalID(), ptr->IsCreatedLocally());
 	});
-	return nullptr;
+	return c;
 }
-void ObjectRegister::CreateObjByRemote(
+IRegistObject* ObjectRegister::CreateObjByRemote(
 	Runnable<IRegistObject*()> const& creater,
 	uint64 remoteID) {
 	auto ptr = CreateObj(creater);
 	std::lock_guard lck(mtx);
+	ptr->id = remoteID;
+	ptr->createdLocally = false;
 	allObjects.ForceEmplace(CombineData(remoteID, false), ptr);
+	return ptr;
 }
 void ObjectRegister::DisposeObj(
 	uint64 id,
@@ -51,5 +50,9 @@ IRegistObject* ObjectRegister::GetObject(uint64 id, bool createLocally) {
 	auto ite = allObjects.Find(CombineData(id, createLocally));
 	return ite ? ite.Value().get() : nullptr;
 }
-
-}// namespace toolhub
+IRegistObject* ObjectRegister::GetObject(uint64 id) {
+	std::lock_guard lck(mtx);
+	auto ite = allObjects.Find(id);
+	return ite ? ite.Value().get() : nullptr;
+}
+}// namespace toolhub::net
