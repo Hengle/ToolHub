@@ -6,6 +6,13 @@ VENGINE_DLL_COMMON void VEngine_Log(vstd::string_view const& chunk);
 VENGINE_DLL_COMMON void VEngine_Log(vstd::string_view const* chunk, size_t chunkCount);
 VENGINE_DLL_COMMON void VEngine_Log(std::initializer_list<vstd::string_view> const& initList);
 VENGINE_DLL_COMMON void VEngine_Log(char const* chunk);
-#define NOT_IMPLEMENT_EXCEPTION(T)\
-VEngine_Log({#T##_sv, " not implemented!\n"_sv});\
-VENGINE_EXIT;
+VENGINE_DLL_COMMON void VEngine_Log_PureVirtual(Type tarType);
+#define VENGINE_PURE_VIRTUAL                    \
+	{                                           \
+		VEngine_Log_PureVirtual(typeid(*this)); \
+		VENGINE_EXIT;                           \
+	}
+
+#define NOT_IMPLEMENT_EXCEPTION(T)                    \
+	VEngine_Log({#T##_sv, " not implemented!\n"_sv}); \
+	VENGINE_EXIT;
