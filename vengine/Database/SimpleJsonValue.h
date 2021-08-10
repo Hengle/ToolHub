@@ -1,7 +1,7 @@
 #pragma once
 #include <Common/Common.h>
-#include <IJsonObject.h>
-#include <SimpleJsonLoader.h>
+#include <Database/IJsonObject.h>
+#include <Database/SimpleJsonLoader.h>
 namespace toolhub::db {
 class SimpleBinaryJson;
 class SimpleJsonObject;

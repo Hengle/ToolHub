@@ -1,8 +1,8 @@
-#pragma vengine_package vengine_unity
+#pragma vengine_package vengine_network
 
-#include <ObjectRegister.h>
+#include <Network/ObjectRegister.h>
 namespace toolhub {
-static vstd::optional<ObjectRegister> current_register = nullptr;
+static vstd::optional<ObjectRegister> current_register;
 ObjectRegister* ObjectRegister::GetSingleton() {
 	if (!current_register) current_register.New();
 	return current_register;

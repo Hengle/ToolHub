@@ -1,6 +1,6 @@
 #pragma once
 
-#include <NetworkInclude.h>
+#include <Network/NetworkInclude.h>
 #include <boost/asio.hpp>
 namespace toolhub::net {
 static NetWorkImpl network;

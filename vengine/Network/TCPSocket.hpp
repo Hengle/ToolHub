@@ -1,7 +1,7 @@
 #pragma once
 
-#include <ISocket.h>
-#include <NetworkInclude.h>
+#include <Network/ISocket.h>
+#include <Network/NetworkInclude.h>
 #include <boost/asio.hpp>
 namespace toolhub::net {
 

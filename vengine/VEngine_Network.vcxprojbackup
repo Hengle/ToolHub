@@ -85,7 +85,7 @@
 			<MinFilesInUnityFile>8</MinFilesInUnityFile>
 			<LanguageStandard_C>stdc17</LanguageStandard_C>
 			<EnableModules>true</EnableModules>
-			<AdditionalIncludeDirectories>./Network;.;..;</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>.;..;</AdditionalIncludeDirectories>
 			<UseStandardPreprocessor>true</UseStandardPreprocessor>
 			<ProgramDataBaseFileName>$(IntDir)vc_2.pdb</ProgramDataBaseFileName>
 			<OpenMPSupport>false</OpenMPSupport>
@@ -130,7 +130,7 @@
 			<LanguageStandard_C>stdc17</LanguageStandard_C>
 			<EnableModules>false</EnableModules>
 			<DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-			<AdditionalIncludeDirectories>./Network;.;..;</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>.;..;</AdditionalIncludeDirectories>
 			<UseStandardPreprocessor>true</UseStandardPreprocessor>
 			<DisableLanguageExtensions>false</DisableLanguageExtensions>
 			<ProgramDataBaseFileName>$(IntDir)vc_2.pdb</ProgramDataBaseFileName>

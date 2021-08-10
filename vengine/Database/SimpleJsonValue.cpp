@@ -1,7 +1,7 @@
 #pragma vengine_package vengine_database
 
-#include <SimpleBinaryJson.h>
-#include <SimpleJsonValue.h>
+#include <Database/SimpleBinaryJson.h>
+#include <Database/SimpleJsonValue.h>
 #include <Common/Common.h>
 namespace toolhub::db {
 SimpleJsonValueDict::SimpleJsonValueDict(

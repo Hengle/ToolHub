@@ -1,6 +1,6 @@
-#pragma vengine_package vengine_unity
+#pragma vengine_package vengine_network
 
-#include <IRegistObject.h>
+#include <Network/IRegistObject.h>
 namespace toolhub {
 IRegistObject::~IRegistObject() {
 	for (auto&& i : disposeFuncs) {

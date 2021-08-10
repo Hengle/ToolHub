@@ -3,7 +3,7 @@
 #include <Common/Common.h>
 #include <Network/INetworkService.h>
 #include <Network/ISocket.h>
-#include <IRegistObject.h>
+#include <Network/IRegistObject.h>
 namespace toolhub {
 class ObjectRegister : public vstd::IOperatorNewBase {
 private:

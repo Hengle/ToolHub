@@ -1,5 +1,5 @@
 #pragma vengine_package vengine_network
 
-#include <TCPSocket.hpp>
-#include <NetworkMain.hpp>
-#include <UDPSocket.hpp>
+#include <Network/TCPSocket.hpp>
+#include <Network/NetworkMain.hpp>
+#include <Network/UDPSocket.hpp>

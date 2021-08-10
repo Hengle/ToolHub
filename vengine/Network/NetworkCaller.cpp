@@ -1,9 +1,9 @@
 #pragma vengine_package vengine_network
 
-#include <INetworkService.h>
-#include <ISocket.h>
+#include <Network/INetworkService.h>
+#include <Network/ISocket.h>
 #include <Utility/TaskThread.h>
-#include <NetworkInclude.h>
+#include <Network/NetworkInclude.h>
 namespace toolhub::net {
 
 static constexpr uint8_t REGIST_MESSAGE_FLAG = 1;
