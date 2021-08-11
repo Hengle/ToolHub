@@ -6,11 +6,6 @@
 #include <Network/IRegistObject.h>
 namespace toolhub::net {
 class ObjectRegister : public vstd::IOperatorNewBase {
-public:
-	static constexpr uint64 CombineData(uint64 id, bool createdLocally) {
-		return (id << 1) | (createdLocally ? 1 : 0);
-	}
-
 private:
 	struct RegistObj {
 		IRegistObject* ptr;
@@ -30,8 +25,7 @@ private:
 
 	std::atomic_uint64_t incrementalID;
 	void DisposeObj(
-		uint64 id,
-		bool createLocally);
+		uint64 id);
 	IRegistObject* CreateObj(
 		Runnable<IRegistObject*()> const& creater);
 
@@ -41,12 +35,12 @@ public:
 	ObjectRegister();
 	~ObjectRegister();
 	IRegistObject* CreateObjLocally(
-		Runnable<IRegistObject*()> const& creater);
+		Runnable<IRegistObject*()> const& creater,
+		bool msgIsFromServer);
 	IRegistObject* CreateObjByRemote(
 		Runnable<IRegistObject*()> const& creater,
 		uint64 remoteID);
 
-	IRegistObject* GetObject(uint64 id, bool createLocally);
 	IRegistObject* GetObject(uint64 id);
 };
 }// namespace toolhub::net

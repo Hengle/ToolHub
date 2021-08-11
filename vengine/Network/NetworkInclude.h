@@ -15,6 +15,7 @@ public:
 		uint16_t port, char const* address) const = 0;
 	virtual INetworkService* GetNetworkService(
 		vstd::unique_ptr<ISocket>&& socket,
+		bool isServer,
 		size_t maxBufferSize = 0x400000) const = 0;
 };
 #ifdef VENGINE_NETWORK_PROJECT
@@ -31,6 +32,7 @@ public:
 		char const* address) const override;
 	INetworkService* GetNetworkService(
 		vstd::unique_ptr<ISocket>&& socket,
+		bool isServer,
 		size_t maxBufferSize) const override;
 };
 #endif

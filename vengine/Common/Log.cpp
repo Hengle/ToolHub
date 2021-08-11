@@ -62,4 +62,5 @@ void VEngine_Log_PureVirtual(Type tarType) {
 	vstd::string d;
 	d << "Try call pure virtual function in " << tarType.GetType().name() << '\n';
 	VEngine_Log(d);
+	VENGINE_EXIT;
 }

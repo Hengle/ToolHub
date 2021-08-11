@@ -43,6 +43,7 @@ private:
 	LockFreeArrayQueue<vstd::vector<uint8_t>> writeCmd;
 	HashMap<Type, uint64> rpcClassIndices;
 	vstd::vector<ClassMemberFunctions> clsFunctions;
+	bool isServer;
 
 	struct Func {
 		NetworkCaller* ths;
@@ -52,6 +53,13 @@ private:
 	};
 	Func func;
 	size_t maxBufferSize;
+	void InitializeRegistObject(IRegistObject* newPtr, uint64 typeIndex) {
+		newPtr->AddDisposeFunc([this](IRegistObject* obj) {
+			SendDisposeMessage(obj);
+		});
+		newPtr->netSer = this;
+		newPtr->typeIndex = typeIndex;
+	}
 	void Read() {
 		vstd::vector<uint8_t> buffer;
 		buffer.reserve(maxBufferSize);
@@ -63,10 +71,7 @@ private:
 			if (callCmd.funcIndex == CONSTRUCTOR_INDEX) {
 				auto&& cls = clsFunctions[callCmd.typeIndex];
 				auto newPtr = objRegister.CreateObjByRemote(cls.constructor, callCmd.instanceID);
-				newPtr->AddDisposeFunc([this](IRegistObject* obj) {
-					SendDisposeMessage(obj);
-				});
-				newPtr->netSer = this;
+				InitializeRegistObject(newPtr, callCmd.typeIndex);
 				continue;
 			}
 			auto instance = objRegister.GetObject(callCmd.instanceID);
@@ -137,8 +142,10 @@ public:
 	}
 	NetworkCaller(
 		vstd::unique_ptr<ISocket>&& socket,
+		bool isServer,
 		size_t maxBufferSize)
 		: maxBufferSize(maxBufferSize),
+		  isServer(isServer),
 		  socket(std::move(socket)) {
 		func.ths = this;
 	}
@@ -156,12 +163,10 @@ public:
 		if (!enabled) return;
 		if (obj->msgSended) return;
 		obj->msgSended = true;
-		auto ite = rpcClassIndices.Find(typeid(*obj));
-		if (!ite) return;
-		auto typeIndex = ite.Value();
+		auto typeIndex = obj->typeIndex;
 		vstd::vector<uint8_t> vec;
 		FunctionCallCmd cmd;
-		cmd.instanceID = ObjectRegister::CombineData(obj->GetLocalID(), !obj->IsCreatedLocally());
+		cmd.instanceID = obj->GetGlobalID();
 		cmd.typeIndex = typeIndex;
 		cmd.funcIndex = DISPOSE_INDEX;
 		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
@@ -174,20 +179,20 @@ public:
 		if (!ite) return nullptr;
 		uint64 typeIndex = ite.Value();
 		auto&& clsMember = clsFunctions[typeIndex];
-		auto newPtr = objRegister.CreateObjLocally(clsMember.constructor);
-		newPtr->AddDisposeFunc([this](IRegistObject* obj) {
-			SendDisposeMessage(obj);
-		});
-		newPtr->netSer = this;
+		auto newPtr = objRegister.CreateObjLocally(clsMember.constructor, isServer);
+		InitializeRegistObject(newPtr, typeIndex);
 		vstd::vector<uint8_t> vec;
 		FunctionCallCmd cmd;
-		cmd.instanceID = newPtr->GetLocalID();//No Combine in constructor
+		cmd.instanceID = newPtr->GetLocalID();
 		cmd.typeIndex = typeIndex;
 		cmd.funcIndex = CONSTRUCTOR_INDEX;
 		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
 		writeCmd.Push(std::move(vec));
 		RunNext();
 		return newPtr;
+	}
+	IRegistObject* m_GetObject(uint64 id) override {
+		return objRegister.GetObject(id);
 	}
 	bool CallMemberFunc(
 		IRegistObject* ptr,
@@ -198,16 +203,14 @@ public:
 			VENGINE_EXIT;
 			return false;
 		}
-		auto ite = rpcClassIndices.Find(typeid(*ptr));
-		if (!ite) return false;
-		auto typeIndex = ite.Value();
+		auto typeIndex = ptr->typeIndex;
 		auto&& cls = clsFunctions[typeIndex];
 		auto funcIte = cls.memberFuncs.Find(name);
 		if (!funcIte) return false;
 		vstd::vector<uint8_t> vec;
 		vec.reserve(sizeof(FunctionCallCmd) + arg.size());
 		FunctionCallCmd cmd;
-		cmd.instanceID = ObjectRegister::CombineData(ptr->GetLocalID(), !ptr->IsCreatedLocally());
+		cmd.instanceID = ptr->GetLocalID();
 		cmd.typeIndex = typeIndex;
 		cmd.funcIndex = funcIte.Value();
 		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
@@ -227,9 +230,11 @@ public:
 
 INetworkService* NetWorkImpl::GetNetworkService(
 	vstd::unique_ptr<ISocket>&& socket,
+	bool isServer,
 	size_t maxBufferSize) const {
 	return new NetworkCaller(
 		std::move(socket),
+		isServer,
 		maxBufferSize);
 }
 }// namespace toolhub::net

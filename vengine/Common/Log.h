@@ -10,7 +10,6 @@ VENGINE_DLL_COMMON void VEngine_Log_PureVirtual(Type tarType);
 #define VENGINE_PURE_VIRTUAL                    \
 	{                                           \
 		VEngine_Log_PureVirtual(typeid(*this)); \
-		VENGINE_EXIT;                           \
 	}
 
 #define NOT_IMPLEMENT_EXCEPTION(T)                    \

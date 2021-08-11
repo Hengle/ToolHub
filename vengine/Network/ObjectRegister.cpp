@@ -1,6 +1,7 @@
 #pragma vengine_package vengine_network
 
 #include <Network/ObjectRegister.h>
+#include <Network/IRegistObject.h>
 namespace toolhub::net {
 ObjectRegister::ObjectRegister() {
 	incrementalID = 0;
@@ -8,19 +9,22 @@ ObjectRegister::ObjectRegister() {
 ObjectRegister::~ObjectRegister() {
 }
 IRegistObject* ObjectRegister::CreateObjLocally(
-	Runnable<IRegistObject*()> const& creater) {
+	Runnable<IRegistObject*()> const& creater,
+	bool msgIsFromServer) {
+	auto CombineData = [&](uint64 id) {
+		return (id << 1) | (msgIsFromServer ? 1 : 0);
+	};
 	auto ptr = CreateObj(creater);
-	std::lock_guard lck(mtx);
 	auto id = ++incrementalID;
-	ptr->id = id;
-	ptr->createdLocally = true;
-	allObjects.ForceEmplace(CombineData(id, true), ptr);
+	ptr->id = CombineData(id);
+	std::lock_guard lck(mtx);
+	allObjects.ForceEmplace(ptr->id, ptr);
 	return ptr;
 }
 IRegistObject* ObjectRegister::CreateObj(Runnable<IRegistObject*()> const& creater) {
 	auto c = creater();
 	c->AddDisposeFunc([this](IRegistObject* ptr) {
-		DisposeObj(ptr->GetLocalID(), ptr->IsCreatedLocally());
+		DisposeObj(ptr->GetLocalID());
 	});
 	return c;
 }
@@ -30,26 +34,19 @@ IRegistObject* ObjectRegister::CreateObjByRemote(
 	auto ptr = CreateObj(creater);
 	std::lock_guard lck(mtx);
 	ptr->id = remoteID;
-	ptr->createdLocally = false;
-	allObjects.ForceEmplace(CombineData(remoteID, false), ptr);
+	allObjects.ForceEmplace(remoteID, ptr);
 	return ptr;
 }
 void ObjectRegister::DisposeObj(
-	uint64 id,
-	bool createLocally) {
+	uint64 id) {
 	std::lock_guard lck(mtx);
-	auto ite = allObjects.Find(CombineData(id, createLocally));
+	auto ite = allObjects.Find(id);
 	if (ite) {
 		ite.Value().ptr = nullptr;
 		allObjects.Remove(ite);
 	}
 }
 
-IRegistObject* ObjectRegister::GetObject(uint64 id, bool createLocally) {
-	std::lock_guard lck(mtx);
-	auto ite = allObjects.Find(CombineData(id, createLocally));
-	return ite ? ite.Value().get() : nullptr;
-}
 IRegistObject* ObjectRegister::GetObject(uint64 id) {
 	std::lock_guard lck(mtx);
 	auto ite = allObjects.Find(id);

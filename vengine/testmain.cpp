@@ -47,14 +47,14 @@ void server() {
 			std::cout << "starting server...\n";
 
 			service = network->GetNetworkService(
-				network->GenServerTCPSock(2001));
+				network->GenServerTCPSock(2001), true);
 			break;
 		} else if (cmd[0] == 'n' || cmd[0] == 'N') {
 			std::cout << "starting client...\n";
 			BinaryReader reader("ip.txt");
 			auto data = reader.Read();
 			service = network->GetNetworkService(
-				network->GenClientTCPSock(2001, (char const*)data.data()));
+				network->GenClientTCPSock(2001, (char const*)data.data()), false);
 			break;
 		}
 	}
@@ -76,6 +76,7 @@ void server() {
 		tt->Print();
 	}
 }
+
 int main() {
 	vengine_init_malloc();
 	DynamicDLL dll("VEngine_Network.dll");

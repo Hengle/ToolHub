@@ -24,6 +24,7 @@ protected:
 		IRegistObject* ptr,
 		vstd::string const& name,
 		std::span<uint8_t> arg) = 0;
+	virtual IRegistObject* m_GetObject(uint64 id) = 0;
 	virtual ~INetworkService() = default;
 	template<typename T>
 	struct memFuncPtr {
@@ -47,6 +48,11 @@ public:
 	T* CreateClass() {
 		static_assert(std::is_base_of_v<IRegistObject, T>, "Type must be based of IRegistObject!");
 		return static_cast<T*>(CreateClass(typeid(T)));
+	}
+	template<typename T>
+	T* GetObject(uint64 id) {
+		static_assert(std::is_base_of_v<IRegistObject, T>, "Type must be based of IRegistObject!");
+		return static_cast<T*>(m_GetObject(id));
 	}
 	template<typename T>
 	void RegistClass() {

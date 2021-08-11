@@ -15,7 +15,7 @@ private:
 	INetworkService* netSer = nullptr;
 	vstd::vector<Runnable<void(IRegistObject*)>> disposeFuncs;
 	uint64 id = std::numeric_limits<uint64>::max();
-	bool createdLocally = false;
+	uint64 typeIndex = std::numeric_limits<uint64>::max();
 	bool msgSended = false;
 
 protected:
@@ -28,10 +28,11 @@ protected:
 public:
 	virtual void Dispose() override { delete this; }
 	uint64 GetLocalID() const { return id; }
+	uint64 GetGlobalID() const { return id >> 1; }
 	INetworkService* GetNetworkService() const { return netSer; }
-	bool IsCreatedLocally() const { return createdLocally; }
 	void AddDisposeFunc(Runnable<void(IRegistObject*)>&& func) {
 		disposeFuncs.emplace_back(std::move(func));
 	}
 };
+
 }// namespace toolhub::net
