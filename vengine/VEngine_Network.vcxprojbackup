@@ -107,7 +107,7 @@
 			<MultiProcessorCompilation>true</MultiProcessorCompilation>
 			<InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
 			<FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-			<OmitFramePointers>true</OmitFramePointers>
+			<OmitFramePointers>false</OmitFramePointers>
 			<EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
 			<EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
 			<EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>

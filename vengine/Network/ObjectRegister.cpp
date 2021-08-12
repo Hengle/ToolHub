@@ -4,41 +4,38 @@
 #include <Network/IRegistObject.h>
 namespace toolhub::net {
 ObjectRegister::ObjectRegister() {
-	incrementalID = 0;
 }
 ObjectRegister::~ObjectRegister() {
 }
 IRegistObject* ObjectRegister::CreateObjLocally(
-	Runnable<IRegistObject*()> const& creater,
-	bool msgIsFromServer) {
-	auto CombineData = [&](uint64 id) {
-		return (id << 1) | (msgIsFromServer ? 1 : 0);
-	};
-	auto ptr = CreateObj(creater);
-	auto id = ++incrementalID;
-	ptr->id = CombineData(id);
+	Runnable<IRegistObject*()> const& creater) {
+
+	vstd::Guid newGuid(true);
+	auto ptr = CreateObj(creater, newGuid);
 	std::lock_guard lck(mtx);
-	allObjects.ForceEmplace(ptr->id, ptr);
+	allObjects.ForceEmplace(newGuid, ptr);
 	return ptr;
 }
-IRegistObject* ObjectRegister::CreateObj(Runnable<IRegistObject*()> const& creater) {
+IRegistObject* ObjectRegister::CreateObj(Runnable<IRegistObject*()> const& creater, vstd::Guid const& newGuid) {
 	auto c = creater();
+	c->guid = newGuid;
 	c->AddDisposeFunc([this](IRegistObject* ptr) {
-		DisposeObj(ptr->GetLocalID());
+		DisposeObj(ptr->GetGUID());
 	});
 	return c;
 }
 IRegistObject* ObjectRegister::CreateObjByRemote(
 	Runnable<IRegistObject*()> const& creater,
-	uint64 remoteID) {
-	auto ptr = CreateObj(creater);
+	vstd::Guid const& remoteID) {
 	std::lock_guard lck(mtx);
-	ptr->id = remoteID;
+	auto ite = allObjects.Find(remoteID);
+	if (ite) return ite.Value().get();
+	auto ptr = CreateObj(creater, remoteID);
 	allObjects.ForceEmplace(remoteID, ptr);
 	return ptr;
 }
 void ObjectRegister::DisposeObj(
-	uint64 id) {
+	vstd::Guid const& id) {
 	std::lock_guard lck(mtx);
 	auto ite = allObjects.Find(id);
 	if (ite) {
@@ -47,9 +44,17 @@ void ObjectRegister::DisposeObj(
 	}
 }
 
-IRegistObject* ObjectRegister::GetObject(uint64 id) {
+IRegistObject* ObjectRegister::GetObject(vstd::Guid const& id) {
 	std::lock_guard lck(mtx);
 	auto ite = allObjects.Find(id);
 	return ite ? ite.Value().get() : nullptr;
+}
+static vstd::optional<ObjectRegister> objregister_singleton;
+ObjectRegister* ObjectRegister::GetSingleton() {
+	if (!objregister_singleton) objregister_singleton.New();
+	return objregister_singleton;
+}
+void ObjectRegister::DisposeSingleton() {
+	objregister_singleton.Delete();
 }
 }// namespace toolhub::net

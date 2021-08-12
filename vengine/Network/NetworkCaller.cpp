@@ -36,7 +36,7 @@ private:
 	};
 	static constexpr uint CONSTRUCTOR_INDEX = std::numeric_limits<uint>::max();
 	static constexpr uint DISPOSE_INDEX = CONSTRUCTOR_INDEX - 1;
-	ObjectRegister objRegister;
+	static constexpr uint UPDATE_GUID = DISPOSE_INDEX - 1;
 	vstd::unique_ptr<ISocket> socket;
 	vstd::optional<std::thread> readThread;
 	vstd::optional<TaskThread> writeThread;
@@ -44,6 +44,8 @@ private:
 	HashMap<Type, uint64> rpcClassIndices;
 	vstd::vector<ClassMemberFunctions> clsFunctions;
 	bool isServer;
+	vstd::Guid selfGuid;
+	vstd::Guid remoteGuid;
 
 	struct Func {
 		NetworkCaller* ths;
@@ -53,14 +55,18 @@ private:
 	};
 	Func func;
 	size_t maxBufferSize;
-	void InitializeRegistObject(IRegistObject* newPtr, uint64 typeIndex) {
+	void InitializeRegistObject(IRegistObject* newPtr) {
 		newPtr->AddDisposeFunc([this](IRegistObject* obj) {
 			SendDisposeMessage(obj);
 		});
-		newPtr->netSer = this;
+	}
+	void InitializeRegistObject(IRegistObject* newPtr, uint64 typeIndex) {
+		InitializeRegistObject(newPtr);
 		newPtr->typeIndex = typeIndex;
 	}
+
 	void Read() {
+		auto objRegister = ObjectRegister::GetSingleton();
 		vstd::vector<uint8_t> buffer;
 		buffer.reserve(maxBufferSize);
 
@@ -68,23 +74,37 @@ private:
 			std::span<uint8_t> sp = buffer;
 			if (buffer.empty()) continue;
 			FunctionCallCmd callCmd = vstd::SerDe<FunctionCallCmd>::Get(sp);
-			if (callCmd.funcIndex == CONSTRUCTOR_INDEX) {
-				auto&& cls = clsFunctions[callCmd.typeIndex];
-				auto newPtr = objRegister.CreateObjByRemote(cls.constructor, callCmd.instanceID);
-				InitializeRegistObject(newPtr, callCmd.typeIndex);
-				continue;
+			switch (callCmd.funcIndex) {
+				case CONSTRUCTOR_INDEX: {
+					auto&& cls = clsFunctions[callCmd.typeIndex];
+					auto newPtr = objRegister->CreateObjByRemote(cls.constructor, callCmd.guid);
+					InitializeRegistObject(newPtr, callCmd.typeIndex);
+				} break;
+
+				case DISPOSE_INDEX: {
+					auto instance = objRegister->GetObject(callCmd.guid);
+					if (!instance) break;
+					instance->netSer = this;
+					instance->Dispose();
+				} break;
+				case UPDATE_GUID: {
+					remoteGuid = callCmd.guid;
+				} break;
+				default: {
+					if (callCmd.typeIndex >= clsFunctions.size()) break;
+					auto&& funcvec = clsFunctions[callCmd.typeIndex].funcs;
+					if (callCmd.funcIndex >= funcvec.size()) break;
+					auto instance = objRegister->GetObject(callCmd.guid);
+					if (!instance) break;
+					instance->netSer = this;
+					auto disp = vstd::create_disposer([&]() {
+						instance->netSer = nullptr;
+					});
+					funcvec[callCmd.funcIndex](instance, sp);
+				}
 			}
-			auto instance = objRegister.GetObject(callCmd.instanceID);
-			if (!instance) continue;
-			if (callCmd.funcIndex == DISPOSE_INDEX) {
-				instance->msgSended = true;
-				instance->Dispose();
-				continue;
-			}
-			if (callCmd.typeIndex >= clsFunctions.size()) continue;
-			auto&& funcvec = clsFunctions[callCmd.typeIndex].funcs;
-			if (callCmd.funcIndex >= funcvec.size()) continue;
-			funcvec[callCmd.funcIndex](instance, sp);
+
+			auto instance = objRegister->GetObject(callCmd.guid);
 		}
 	}
 	void Dispose() override {
@@ -98,7 +118,7 @@ private:
 
 	bool enabled = true;
 	struct FunctionCallCmd {
-		uint64 instanceID;
+		vstd::Guid::GuidData guid;
 		uint typeIndex;
 		uint funcIndex;
 	};
@@ -108,12 +128,23 @@ private:
 
 public:
 	void Run() override {
+
 		readThread.New(
 			[this]() {
 				Read();
 			});
 		writeThread.New();
 		writeThread->SetFunctor(func);
+		//Update Guid Command
+		{
+			FunctionCallCmd guidCmd = {
+				selfGuid.ToBinary(),
+				0, UPDATE_GUID};
+			vstd::vector<uint8_t> vec;
+			vstd::SerDe<FunctionCallCmd>::Set(guidCmd, vec);
+			writeCmd.Push(std::move(vec));
+		}
+		writeThread->ExecuteNext();
 	}
 	void AddFunc(
 		Type tarType,
@@ -146,7 +177,9 @@ public:
 		size_t maxBufferSize)
 		: maxBufferSize(maxBufferSize),
 		  isServer(isServer),
-		  socket(std::move(socket)) {
+		  socket(std::move(socket)),
+		  selfGuid(true),
+		  remoteGuid(false) {
 		func.ths = this;
 	}
 	~NetworkCaller() {
@@ -161,44 +194,58 @@ public:
 
 	void SendDisposeMessage(IRegistObject* obj) {
 		if (!enabled) return;
-		if (obj->msgSended) return;
-		obj->msgSended = true;
+		if (obj->netSer == this) return;
 		auto typeIndex = obj->typeIndex;
 		vstd::vector<uint8_t> vec;
 		FunctionCallCmd cmd;
-		cmd.instanceID = obj->GetGlobalID();
+		cmd.guid = obj->GetGUID().ToBinary();
 		cmd.typeIndex = typeIndex;
 		cmd.funcIndex = DISPOSE_INDEX;
 		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
 		writeCmd.Push(std::move(vec));
 		RunNext();
 	}
-
+	void SendCreateMessage(IRegistObject* obj) {
+		vstd::vector<uint8_t> vec;
+		FunctionCallCmd cmd;
+		cmd.guid = obj->GetGUID().ToBinary();
+		cmd.typeIndex = obj->typeIndex;
+		cmd.funcIndex = CONSTRUCTOR_INDEX;
+		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
+		writeCmd.Push(std::move(vec));
+		RunNext();
+	}
 	IRegistObject* CreateClass(Type tarType) override {
 		auto ite = rpcClassIndices.Find(tarType);
 		if (!ite) return nullptr;
 		uint64 typeIndex = ite.Value();
 		auto&& clsMember = clsFunctions[typeIndex];
-		auto newPtr = objRegister.CreateObjLocally(clsMember.constructor, isServer);
+		auto objRegister = ObjectRegister::GetSingleton();
+		auto newPtr = objRegister->CreateObjLocally(clsMember.constructor);
 		InitializeRegistObject(newPtr, typeIndex);
-		vstd::vector<uint8_t> vec;
-		FunctionCallCmd cmd;
-		cmd.instanceID = newPtr->GetLocalID();
-		cmd.typeIndex = typeIndex;
-		cmd.funcIndex = CONSTRUCTOR_INDEX;
-		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);
-		writeCmd.Push(std::move(vec));
-		RunNext();
+		SendCreateMessage(newPtr);
 		return newPtr;
 	}
-	IRegistObject* m_GetObject(uint64 id) override {
-		return objRegister.GetObject(id);
+	vstd::Guid const& GetSelfGuid() override {
+		return selfGuid;
+	}
+	vstd::Guid const& GetRemoteGuid() override {
+		return remoteGuid;
+	}
+	IRegistObject* m_GetObject(vstd::Guid const& id) override {
+		auto objRegister = ObjectRegister::GetSingleton();
+		return objRegister->GetObject(id);
+	}
+	void AddExternalClass(IRegistObject* obj) override {
+		if (!obj->guid) return;
+		InitializeRegistObject(obj);
+		SendCreateMessage(obj);
 	}
 	bool CallMemberFunc(
 		IRegistObject* ptr,
 		vstd::string const& name,
 		std::span<uint8_t> arg) override {
-		if (ptr->GetLocalID() == std::numeric_limits<uint64>::max()) {
+		if (!ptr->GetGUID()) {
 			VEngine_Log("Illegal Network Object!\n");
 			VENGINE_EXIT;
 			return false;
@@ -210,7 +257,7 @@ public:
 		vstd::vector<uint8_t> vec;
 		vec.reserve(sizeof(FunctionCallCmd) + arg.size());
 		FunctionCallCmd cmd;
-		cmd.instanceID = ptr->GetLocalID();
+		cmd.guid = ptr->GetGUID().ToBinary();
 		cmd.typeIndex = typeIndex;
 		cmd.funcIndex = funcIte.Value();
 		vstd::SerDe<FunctionCallCmd>::Set(cmd, vec);

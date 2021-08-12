@@ -4,6 +4,7 @@
 #include <Common/Runnable.h>
 #include <Common/LockFreeArrayQueue.h>
 #include <Network/FunctionSerializer.h>
+#include <Utility/VGuid.h>
 namespace toolhub::net {
 class ISocket;
 class IRegistObject;
@@ -24,7 +25,7 @@ protected:
 		IRegistObject* ptr,
 		vstd::string const& name,
 		std::span<uint8_t> arg) = 0;
-	virtual IRegistObject* m_GetObject(uint64 id) = 0;
+	virtual IRegistObject* m_GetObject(vstd::Guid const& id) = 0;
 	virtual ~INetworkService() = default;
 	template<typename T>
 	struct memFuncPtr {
@@ -44,13 +45,16 @@ protected:
 	using MemberClassT = typename memFuncPtr<Func>::ClassType;
 
 public:
+	virtual vstd::Guid const& GetSelfGuid() = 0;
+	virtual vstd::Guid const& GetRemoteGuid() = 0;
+	virtual void AddExternalClass(IRegistObject* obj) = 0;
 	template<typename T>
 	T* CreateClass() {
 		static_assert(std::is_base_of_v<IRegistObject, T>, "Type must be based of IRegistObject!");
 		return static_cast<T*>(CreateClass(typeid(T)));
 	}
 	template<typename T>
-	T* GetObject(uint64 id) {
+	T* GetObject(vstd::Guid const& id) {
 		static_assert(std::is_base_of_v<IRegistObject, T>, "Type must be based of IRegistObject!");
 		return static_cast<T*>(m_GetObject(id));
 	}

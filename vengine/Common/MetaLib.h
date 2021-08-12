@@ -846,7 +846,7 @@ public:
 			return;
 		}
 		switcher = typeIndex;
-		setFunc(&placeHolder);
+		setFunc(reinterpret_cast<void*>(&placeHolder));
 	}
 
 	~variant() {

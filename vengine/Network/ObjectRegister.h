@@ -4,6 +4,7 @@
 #include <Network/INetworkService.h>
 #include <Network/ISocket.h>
 #include <Network/IRegistObject.h>
+#include <Utility/VGuid.h>
 namespace toolhub::net {
 class ObjectRegister : public vstd::IOperatorNewBase {
 private:
@@ -20,27 +21,27 @@ private:
 			return ptr;
 		}
 	};
-	HashMap<uint64, RegistObj> allObjects;
+	HashMap<vstd::Guid, RegistObj> allObjects;
 	std::mutex mtx;
 
-	std::atomic_uint64_t incrementalID;
 	void DisposeObj(
-		uint64 id);
+		vstd::Guid const& id);
 	IRegistObject* CreateObj(
-		Runnable<IRegistObject*()> const& creater);
+		Runnable<IRegistObject*()> const& creater,
+		vstd::Guid const& newGuid);
 
 public:
 	KILL_COPY_CONSTRUCT(ObjectRegister)
 	KILL_MOVE_CONSTRUCT(ObjectRegister)
+	static ObjectRegister* GetSingleton();
+	static void DisposeSingleton();
 	ObjectRegister();
 	~ObjectRegister();
 	IRegistObject* CreateObjLocally(
-		Runnable<IRegistObject*()> const& creater,
-		bool msgIsFromServer);
+		Runnable<IRegistObject*()> const& creater);
 	IRegistObject* CreateObjByRemote(
 		Runnable<IRegistObject*()> const& creater,
-		uint64 remoteID);
-
-	IRegistObject* GetObject(uint64 id);
+		vstd::Guid const& remoteID);
+	IRegistObject* GetObject(vstd::Guid const& id);
 };
 }// namespace toolhub::net

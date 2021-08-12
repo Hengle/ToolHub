@@ -5,6 +5,7 @@ namespace vstd {
 template<typename T>
 struct SerDe {
 	static_assert(std::is_trivial_v<T>, "only trivial type can be serialized!");
+	static_assert(!std::is_pointer_v<T>, "pointer can not be serialized!");
 	static T Get(std::span<uint8_t>& data) {
 		T const* ptr = reinterpret_cast<T const*>(data.data());
 		data = std::span<uint8_t>(data.data() + sizeof(T), data.size() - sizeof(T));
@@ -94,7 +95,7 @@ template<typename... Args>
 struct SerDe<vstd::variant<Args...>> {
 	using Value = vstd::variant<Args...>;
 	template<typename T>
-	static void ExecuteGet(Value* placePtr, std::span<uint8_t>& sp) {
+	static void ExecuteGet(void* placePtr, std::span<uint8_t>& sp) {
 		new (placePtr) Value(SerDe<T>::Get(sp));
 	}
 	template<typename T>
@@ -103,11 +104,13 @@ struct SerDe<vstd::variant<Args...>> {
 	}
 	static Value Get(std::span<uint8_t>& sp) {
 		auto type = SerDe<uint8_t>::Get(sp);
-		funcPtr_t<void(Value*, std::span<uint8_t>&)> ptrs[sizeof...(Args)] = {
+		funcPtr_t<void(void*, std::span<uint8_t>&)> ptrs[sizeof...(Args)] = {
 			ExecuteGet<Args>...};
-		StackObject<Value> value;
-		ptrs[type](value, sp);
-		return *value;
+		Value v;
+		v.update(type, [&](void* ptr) {
+			ptrs[type](ptr, sp);
+		});
+		return v;
 	}
 	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {
 		SerDe<uint8_t>::Set(data.GetType(), arr);
@@ -143,6 +146,22 @@ struct SerDe<std::span<uint8_t>> {
 		arr.push_back_all(data);
 	}
 };
+template<typename T, size_t sz>
+struct SerDe<std::array<T, sz>> {
+	using Value = std::array<T, sz>;
+	static Value Get(std::span<uint8_t>& sp) {
+		Value v;
+		for (auto&& i : v) {
+			i = vstd::SerDe<T>::Get(sp);
+		}
+		return v;
+	}
+	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {
+		for (auto&& i : data) {
+			vstd::SerDe<T>::Set(i);
+		}
+	}
+};
 
 template<typename Func>
 struct SerDeAll_Impl;
@@ -157,7 +176,7 @@ struct SerDeAll_Impl<Ret(Args...)> {
 		};
 	}
 
-	template <typename Class, typename Func>
+	template<typename Class, typename Func>
 	static Ret CallMemberFunc(Class* ptr, Func func, std::span<uint8_t> data) {
 		auto closureFunc = [&](Args&&... args) {
 			(ptr->*func)(std::forward<Args>(args)...);
