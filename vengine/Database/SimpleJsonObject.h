@@ -5,7 +5,7 @@
 namespace toolhub::db {
 
 class SimpleJsonLoader;
-class SimpleJsonObject {
+class SimpleJsonObject : public vstd::IDisposable{
 protected:
 	vstd::Guid selfGuid;
 	SimpleBinaryJson* db = nullptr;

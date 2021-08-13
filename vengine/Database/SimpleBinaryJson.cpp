@@ -66,9 +66,10 @@ SimpleBinaryJson::~SimpleBinaryJson() {
 IJsonRefDict* SimpleBinaryJson::GetRootObject() {
 	auto ite = jsonObjs.Find(rootGuid);
 	if (ite) return static_cast<SimpleJsonDict*>(ite.Value().first);
-	auto ptr = dictPool.New(rootGuid, this);
-	jsonObjs.Emplace(rootGuid, ptr, DICT_TYPE);
-	return ptr;
+	auto v = dictPool.New(rootGuid, this);
+	MarkDirty(v);
+	v->dbIndexer = jsonObjs.Emplace(rootGuid, v, DICT_TYPE);
+	return v;
 }
 IJsonRefDict* SimpleBinaryJson::CreateJsonObject() {
 	vstd::Guid guid(true);
@@ -324,7 +325,8 @@ ThreadTaskHandle SimpleBinaryJson::CollectGarbage(ThreadPool* tPool) {
 			}
 		};
 		iteDict = [&](IJsonRefDict* dict) {
-			if (!dict) return;
+			if (!dict)
+				return;
 			if (typeid(*dict) == typeid(SimpleJsonDict)) {
 				SimpleJsonDict* ptr = static_cast<SimpleJsonDict*>(dict);
 				for (auto&& i : ptr->vars) {
@@ -338,6 +340,7 @@ ThreadTaskHandle SimpleBinaryJson::CollectGarbage(ThreadPool* tPool) {
 			}
 		};
 		iteValueDict = [&](IJsonValueDict* dict) {
+			if (!dict) return;
 			if (typeid(*dict) == typeid(SimpleJsonValueDict)) {
 				SimpleJsonValueDict* ptr = static_cast<SimpleJsonValueDict*>(dict);
 				for (auto&& i : ptr->vars) {
@@ -351,6 +354,7 @@ ThreadTaskHandle SimpleBinaryJson::CollectGarbage(ThreadPool* tPool) {
 			}
 		};
 		iteValueArr = [&](IJsonValueArray* arr) {
+			if (!arr) return;
 			if (typeid(*arr) == typeid(SimpleJsonValueArray)) {
 				SimpleJsonValueArray* ptr = static_cast<SimpleJsonValueArray*>(arr);
 				for (auto&& i : ptr->arr) {
@@ -382,13 +386,14 @@ ThreadTaskHandle SimpleBinaryJson::CollectGarbage(ThreadPool* tPool) {
 			},
 			jsonObjs.size());
 		auto collectHandle = tPool->GetTask([&]() {
-			vstd::vector<ObjMap::NodePair const*> removeList;
+			vstd::vector<SimpleJsonObject*> removeList;
 			for (auto&& i : jsonObjs) {
+				if (i.first == rootGuid) continue;
 				if (!collectedGuid.Find(i.first))
-					removeList.push_back(&i);
+					removeList.push_back(i.second.first);
 			}
 			for (auto&& i : removeList) {
-				jsonObjs.Remove(i);
+				i->Dispose();
 			}
 		});
 		collectHandle.AddDepend(cleanHandle);
