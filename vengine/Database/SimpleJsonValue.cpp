@@ -11,9 +11,6 @@ SimpleJsonValueDict::SimpleJsonValueDict(
 }
 SimpleJsonValueDict::~SimpleJsonValueDict() {
 }
-void SimpleJsonValueBase::Update() {
-	parent->Update();
-}
 SimpleJsonValueDict::SimpleJsonValueDict(
 	SimpleBinaryJson* db,
 	SimpleJsonObject* parent,
@@ -27,8 +24,6 @@ SimpleJsonValueDict::SimpleJsonValueDict(
 				vars.Emplace(i.first, v);
 			};
 			i.second.value.visit(
-				copyDefault,
-				copyDefault,
 				copyDefault,
 				copyDefault,
 				copyDefault,
@@ -54,11 +49,11 @@ JsonVariant SimpleJsonValueDict::Get(vstd::string_view key) {
 	return JsonVariant();
 }
 void SimpleJsonValueDict::Set(vstd::string key, JsonVariant value) {
-	Update();
+	
 	vars.ForceEmplace(std::move(key), db, value, parent);
 }
 void SimpleJsonValueDict::Remove(vstd::string const& key) {
-	Update();
+	
 	vars.Remove(key);
 }
 vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonValueDict::GetIterator() {
@@ -98,7 +93,7 @@ void SimpleJsonValueDict::Clean() {
 	SimpleJsonLoader::Clean(db->GetParent(), vars);
 }
 void SimpleJsonValueDict::Reset() {
-	Update();
+	
 	vars.Clear();
 }
 
@@ -112,7 +107,7 @@ IJsonValueDict* SimpleJsonValueDict::AddOrGetDict(vstd::string key) {
 		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueDict>>();
 		if (ptr) return ptr->get();
 	}
-	Update();
+	
 	auto result = db->dictValuePool.New(db, parent);
 	ite = vars.ForceEmplace(std::move(key), result);
 	return result;
@@ -123,7 +118,7 @@ IJsonValueArray* SimpleJsonValueDict::AddOrGetArray(vstd::string key) {
 		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueArray>>();
 		if (ptr) return ptr->get();
 	}
-	Update();
+	
 	auto result = db->arrValuePool.New(db, parent);
 	ite = vars.ForceEmplace(std::move(key), result);
 	return result;
@@ -135,14 +130,14 @@ void SimpleJsonValueArray::Dispose() {
 }
 
 IJsonValueDict* SimpleJsonValueArray::AddDict() {
-	Update();
+	
 	auto r = db->dictValuePool.New(db, parent);
 	arr.emplace_back(r);
 	return r;
 }
 
 IJsonValueArray* SimpleJsonValueArray::AddArray() {
-	Update();
+	
 	auto r = db->arrValuePool.New(db, parent);
 	arr.emplace_back(r);
 	return r;
@@ -168,8 +163,6 @@ SimpleJsonValueArray::SimpleJsonValueArray(
 		};
 		for (auto&& i : srcArr->arr) {
 			i.value.visit(
-				copyDefault,
-				copyDefault,
 				copyDefault,
 				copyDefault,
 				copyDefault,
@@ -218,7 +211,7 @@ void SimpleJsonValueArray::Clean() {
 }
 
 void SimpleJsonValueArray::Reset() {
-	Update();
+	
 	arr.clear();
 }
 
@@ -230,20 +223,20 @@ JsonVariant SimpleJsonValueArray::Get(size_t index) {
 
 void SimpleJsonValueArray::Set(size_t index, JsonVariant value) {
 	if (index < arr.size()) {
-		Update();
+		
 		arr[index].Set(db, value, parent);
 	}
 }
 
 void SimpleJsonValueArray::Remove(size_t index) {
 	if (index < arr.size()) {
-		Update();
+		
 		arr.erase(arr.begin() + index);
 	}
 }
 
 void SimpleJsonValueArray::Add(JsonVariant value) {
-	Update();
+	
 	arr.emplace_back(db, value, parent);
 }
 

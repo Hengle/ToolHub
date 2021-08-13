@@ -12,15 +12,10 @@ bool SimpleJsonLoader::Check(IJsonDatabase* parent, SimpleJsonVariant const& var
 	auto setNullCheck = [&](auto&& v) {
 		res = (v.get() != nullptr);
 	};
-	auto setTrack = [&](auto&& obj) {
-		res == (obj.Get() != nullptr);
-	};
 	var.value.visit(
 		setTrue,
 		setTrue,
 		setTrue,
-		setTrack,
-		setTrack,
 		setNullCheck,
 		setNullCheck,
 		setTrue);
@@ -58,26 +53,6 @@ SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleB
 		case ValueType::String: {
 			return SimpleJsonVariant(PopValue<vstd::string>(arr));
 		}
-		case ValueType::Dict: {
-			vstd::Guid dbIndex = PopValue<vstd::Guid>(arr);
-			vstd::Guid instanceID = PopValue<vstd::Guid>(arr);
-			auto db = parent->GetDatabase(dbIndex);
-			auto ite = db->GetJsonObject(instanceID);
-			if (ite) {
-				return SimpleJsonVariant(ite->GetTrackFlag());
-			}
-			return SimpleJsonVariant();
-		}
-		case ValueType::Array: {
-			vstd::Guid dbIndex = PopValue<vstd::Guid>(arr);
-			vstd::Guid instanceID = PopValue<vstd::Guid>(arr);
-			auto db = parent->GetDatabase(dbIndex);
-			auto ite = db->GetJsonArray(instanceID);
-			if (ite) {
-				return SimpleJsonVariant(ite->GetTrackFlag());
-			}
-			return SimpleJsonVariant();
-		}
 		case ValueType::ValueDict: {
 			auto ptr = localDB->dictValuePool.New(localDB, obj);
 			ptr->LoadFromSer(arr);
@@ -111,15 +86,6 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 		}
 	};
 
-	// Call SimpleVariant
-	auto serObjTracker = [&](auto&& d) {
-		auto ptr = d.Get();
-		if (ptr) {
-			addJsonObj(ptr->GetDatabase()->GetGUID(), ptr->GetGUID());
-		} else {
-			data[dataOffset] = v.value.argSize;
-		}
-	};
 	auto serValue = [&](auto&& d) {
 		d->M_GetSerData(data);
 	};
@@ -127,8 +93,6 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 		func,		  //int64
 		func,		  //double
 		func,		  //string
-		serObjTracker,//vstd::ObjectTrackFlag<IJsonRefDict>
-		serObjTracker,// vstd::ObjectTrackFlag<IJsonRefArray>
 		serValue,
 		serValue,
 		func);
@@ -146,15 +110,10 @@ SimpleJsonVariant::SimpleJsonVariant(SimpleBinaryJson* db, JsonVariant const& v,
 	auto func = [&](auto&& v) {
 		value = v;
 	};
-	auto getSer = [&](auto&& d) {
-		value = d->GetTrackFlag();
-	};
 	v.visit(
 		func,
 		func,
 		func,
-		getSer,
-		getSer,
 		[&](auto&& d) {
 			value = db->dictValuePool.New(db, obj, d);
 		},
@@ -168,15 +127,10 @@ JsonVariant SimpleJsonVariant::GetVariant() const {
 	auto func = [&](auto&& v) -> JsonVariant {
 		return v;
 	};
-	auto getTracker = [&](auto const& flag) {
-		return flag.Get();
-	};
 	return value.visit(
 		func,	   //int64
 		func,	   //double
 		func,	   //string
-		getTracker,//vstd::ObjectTrackFlag<IJsonRefDict>
-		getTracker,// vstd::ObjectTrackFlag<IJsonRefArray>
 		[&](vstd::unique_ptr<SimpleJsonValueDict> const& v) -> JsonVariant {
 			return v.get();
 		},

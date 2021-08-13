@@ -15,7 +15,6 @@ public:
 	vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> GetIterator() override;
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;
 	void Clean() override;
-	void MarkDirty() override { Update(); }
 	vstd::vector<uint8_t> GetSerData() override {
 		vstd::vector<uint8_t> v;
 		M_GetSerData(v);

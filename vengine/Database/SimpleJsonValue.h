@@ -13,7 +13,6 @@ protected:
 		SimpleBinaryJson* db,
 		SimpleJsonObject* parent)
 		: db(db), parent(parent) {}
-	void Update();
 };
 class SimpleJsonValueDict final : public IJsonValueDict, public SimpleJsonValueBase {
 public:

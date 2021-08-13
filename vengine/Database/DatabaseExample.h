@@ -15,8 +15,15 @@ void jsonTest(
 	// Generate a database
 	auto dbParent = MakeObjectPtr(database->CreateDatabase());
 	auto db = dbParent->CreateDatabase({});
+	db->NameGUID("Root", vstd::Guid(true));
 	// Get Root Json Object
-	auto rootObj = db->GetRootObject();
+	auto rootObj = db->CreateJsonObject(db->GetNamedGUID("Root"));
+	db->CreateJsonArray();
+	db->CreateJsonArray();
+	db->CreateJsonArray();
+	db->CreateJsonArray();
+	auto ptr = db->CreateJsonArray();
+	ThreadPool tp(std::thread::hardware_concurrency());
 	// Create a json array
 	auto subArr = rootObj->AddOrGetArray("array");
 	subArr->Add(5);
@@ -26,15 +33,17 @@ void jsonTest(
 	auto subObj = rootObj->AddOrGetDict("dict");
 	subObj->Set("number"_sv, 53);
 	subObj->Set("number1"_sv, 12.5);
+	subObj->Set("wrong", rootObj);
 	// Set RootObj
 	//Full Serialize Data
+	subArr->Add(vstd::Guid(true));
+	subObj->Set("number"_sv, 26);
+	subArr->Set(1, 141);
+	subArr->Add(vstd::Guid(true));
+	db->CollectGarbage(&tp, vstd::vector<vstd::Guid>{db->GetNamedGUID("Root")}).Complete();
 	auto vec = db->Serialize();
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
 	//Incremental Serialize Data
-	subObj->Set("number"_sv, 26);
-	subArr->Set(1, 141);
-	auto updateV = db->IncreSerialize();
-	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
 	/////////////// Clone Database by serialize binary
 	auto cloneDB = dbParent->CreateDatabase({});
@@ -54,8 +63,7 @@ void jsonTest(
 	};
 	EventTrigger evtTrigger;
 	cloneDB->Read(vec, &evtTrigger);
-	cloneDB->Read(updateV, &evtTrigger);
-	auto cloneRoot = cloneDB->GetRootObject();
+	auto cloneRoot = *cloneDB->GetNode(cloneDB->GetNamedGUID("Root")).try_get<IJsonRefDict*>();
 	auto rIte = cloneRoot->GetIterator();
 	// cross database link
 	// cloneArr == subArr
@@ -72,12 +80,6 @@ void jsonTest(
 				func,
 				func,
 				func,
-				[](auto&& f) {
-					std::cout << f << '\n';
-				},
-				[](auto&& f) {
-					std::cout << f << '\n';
-				},
 				[](auto&& f) {},
 				[](auto&& f) {},
 				[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
@@ -98,41 +100,10 @@ void jsonTest(
 				func,
 				func,
 				func,
-				[](auto&& f) {
-					std::cout << f << '\n';
-				},
-				[](auto&& f) {
-					std::cout << f << '\n';
-				},
 				[](auto&& f) {},
 				[](auto&& f) {},
 				[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
 		}
 		(*cloneDict)->Dispose();
 	}
-	/*
-	cloneRoot->Set("array1", subArr);
-	auto cloneArr1 = cloneRoot->GetArray("array1"_sv);
-	IJsonSubDatabase* bb = db;
-	if (cloneArr1) {
-		auto ite = (*cloneArr1)->GetIterator();
-		//Iterate and print all elements
-		LINQ_LOOP(i, *ite) {
-			auto func = [](auto&& f) {
-				std::cout << f << '\n';
-			};
-			i->visit(
-				func,
-				func,
-				func,
-				[](auto&& f) {
-					std::cout << f.instanceID << '\n';
-				},
-				[](auto&& f) {
-					std::cout << f.instanceID << '\n';
-				});
-		}
-		(*cloneArr)->Dispose();
-	}
-	*/
 }

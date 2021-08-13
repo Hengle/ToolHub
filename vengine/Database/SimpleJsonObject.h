@@ -16,10 +16,8 @@ protected:
 
 public:
 	HashMap<vstd::Guid, std::pair<SimpleJsonObject*, uint8_t>>::Index dbIndexer;
-	uint64 dirtyID = std::numeric_limits<uint64>::max();
 	SimpleBinaryJson* GetDB() const { return db; }
 	vstd::Guid const& GetGUID() const { return selfGuid; }
-	void Update();
 	virtual void M_GetSerData(vstd::vector<uint8_t>& data) = 0;
 	virtual void LoadFromData(std::span<uint8_t> data) = 0;
 	virtual void AfterAdd(IDatabaseEvtVisitor* visitor) = 0;

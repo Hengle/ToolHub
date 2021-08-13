@@ -838,6 +838,8 @@ public:
 		new (this) variant(std::forward<Args>(args)...);
 	}
 
+	bool valid() const { return switcher < argSize; }
+
 	template<typename Func>
 	void update(size_t typeIndex, Func&& setFunc) {
 		this->~variant();

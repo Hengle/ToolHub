@@ -24,19 +24,21 @@ void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
 	}
 }
 void SimpleJsonArray::Set(size_t index, JsonVariant value) {
+	if (!value.valid()) return;
 	if (index >= arrs.size()) return;
-	Update();
+
 	arrs[index].Set(db, value, static_cast<SimpleJsonObject*>(this));
 }
 void SimpleJsonArray::Remove(size_t index) {
 	if (index >= arrs.size()) return;
-	Update();
+
 	arrs.erase(arrs.begin() + index);
 }
 IJsonSubDatabase* SimpleJsonArray::GetDatabase() { return db; }
 
 void SimpleJsonArray::Add(JsonVariant value) {
-	Update();
+	if (!value.valid()) return;
+
 	arrs.emplace_back(db, value, static_cast<SimpleJsonObject*>(this));
 }
 vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonArray::GetIterator() {
@@ -62,7 +64,7 @@ void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
 }
 void SimpleJsonArray::Reset() {
-	Update();
+
 	arrs.clear();
 }
 SimpleJsonArray::SimpleJsonArray(vstd::Guid const& instanceID, SimpleBinaryJson* db)
@@ -72,14 +74,14 @@ SimpleJsonArray::~SimpleJsonArray() {
 }
 
 IJsonValueDict* SimpleJsonArray::AddDict() {
-	Update();
+
 	auto r = db->dictValuePool.New(db, this);
 	arrs.emplace_back(r);
 	return r;
 }
 
 IJsonValueArray* SimpleJsonArray::AddArray() {
-	Update();
+
 	auto r = db->arrValuePool.New(db, this);
 	arrs.emplace_back(r);
 	return r;

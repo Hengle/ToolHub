@@ -11,7 +11,6 @@ public:
 	void LoadFromData(std::span<uint8_t> data) override;
 
 	void Remove(vstd::string const& key) override;
-	void MarkDirty() override { Update(); }
 	vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> GetIterator() override;
 	size_t Length() override;
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;

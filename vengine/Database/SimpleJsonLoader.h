@@ -4,7 +4,6 @@
 #include <Database/IJsonDatabase.h>
 #include <Database/IJsonObject.h>
 #include <Network/FunctionSerializer.h>
-#include <Utility/ObjectTracker.h>
 namespace toolhub::db {
 class SimpleBinaryJson;
 class SimpleJsonObject;
@@ -16,8 +15,6 @@ enum class ValueType : uint8_t {
 	Int,
 	Float,
 	String,
-	Dict,
-	Array,
 	ValueDict,
 	ValueArray,
 	GUID
@@ -27,8 +24,6 @@ struct SimpleJsonVariant {
 	vstd::variant<int64,
 				  double,
 				  vstd::string,
-				  vstd::ObjectTrackFlag<IJsonRefDict>,
-				  vstd::ObjectTrackFlag<IJsonRefArray>,
 				  vstd::unique_ptr<SimpleJsonValueDict>,
 				  vstd::unique_ptr<SimpleJsonValueArray>,
 				  vstd::Guid>

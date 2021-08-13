@@ -14,7 +14,8 @@ JsonVariant SimpleJsonDict::Get(vstd::string_view key) {
 	return JsonVariant();
 }
 void SimpleJsonDict::Set(vstd::string key, JsonVariant value) {
-	Update();
+	if (!value.valid()) return;
+
 	vars.ForceEmplace(std::move(key), db, value, static_cast<SimpleJsonObject*>(this));
 }
 void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
@@ -33,7 +34,7 @@ void SimpleJsonDict::LoadFromData(std::span<uint8_t> data) {
 	}
 }
 void SimpleJsonDict::Remove(vstd::string const& key) {
-	Update();
+
 	vars.Remove(key);
 }
 vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonDict::GetIterator() {
@@ -84,7 +85,7 @@ IJsonValueDict* SimpleJsonDict::AddOrGetDict(vstd::string key) {
 		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueDict>>();
 		if (ptr) return ptr->get();
 	}
-	Update();
+
 	auto result = db->dictValuePool.New(db, this);
 	ite = vars.ForceEmplace(std::move(key), result);
 	return result;
@@ -95,7 +96,7 @@ IJsonValueArray* SimpleJsonDict::AddOrGetArray(vstd::string key) {
 		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueArray>>();
 		if (ptr) return ptr->get();
 	}
-	Update();
+
 	auto result = db->arrValuePool.New(db, this);
 	ite = vars.ForceEmplace(std::move(key), result);
 	return result;

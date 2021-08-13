@@ -9,7 +9,4 @@ SimpleJsonObject::SimpleJsonObject(
 	: selfGuid(guid),
 	  db(db) {
 }
-void SimpleJsonObject::Update() {
-	db->MarkDirty(this);
-}
 }// namespace toolhub::db

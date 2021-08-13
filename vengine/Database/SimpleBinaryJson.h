@@ -26,35 +26,41 @@ public:
 	void DisposeProperty(std::pair<SimpleJsonObject*, uint8_t> const& data);
 	void Dispose(ObjMap::Index id);
 	void Dispose(ObjMap::Index id, IDatabaseEvtVisitor* evtVisitor);
-	void MarkDirty(SimpleJsonObject* dict);
-	void MarkDelete(SimpleJsonObject* dict);
 
 	ObjMap jsonObjs;
-	vstd::vector<vstd::variant<SimpleJsonObject*, vstd::Guid>> updateVec;
+	HashMap<vstd::string, vstd::Guid> namedGuid;
 	Pool<SimpleJsonArray> arrPool;
 	Pool<SimpleJsonDict> dictPool;
 	Pool<SimpleJsonValueArray> arrValuePool;
 	Pool<SimpleJsonValueDict> dictValuePool;
-	vstd::Guid rootGuid;
 	SimpleBinaryJson(vstd::Guid const& index, IJsonDatabase* parent);
 	~SimpleBinaryJson();
 	IJsonDatabase* GetParent() override { return parent; }
-	IJsonRefDict* GetRootObject() override;
 	IJsonRefDict* CreateJsonObject() override;
 	IJsonRefArray* CreateJsonArray() override;
 	IJsonRefDict* GetJsonObject(vstd::Guid const& id) override;
 	IJsonRefArray* GetJsonArray(vstd::Guid const& id) override;
-	ThreadTaskHandle CollectGarbage(ThreadPool* tPool) override;
+	ThreadTaskHandle CollectGarbage(
+		ThreadPool* tPool,
+		std::span<vstd::Guid> whiteList) override;
+	IJsonRefDict* CreateJsonObject(vstd::Guid const& guid) override;
+	IJsonRefArray* CreateJsonArray(vstd::Guid const& guid) override;
 
+	vstd::unique_ptr<vstd::linq::Iterator<
+		const vstd::variant<IJsonRefDict*, IJsonRefArray*>>>
+	GetAllNode() override;
+	void NameGUID(vstd::string const& name, vstd::Guid const& guid) override;
+	void ClearName(vstd::string const& name) override;
+	vstd::Guid GetNamedGUID(vstd::string const& name) override;
 	void Dispose(IJsonRefDict* jsonObj);
 	void Dispose(IJsonRefArray* jsonArr);
 	void Dispose() override;
-	vstd::vector<uint8_t> IncreSerialize() override;
 	vstd::vector<uint8_t> Serialize() override;
 
 	void Read(
 		std::span<uint8_t> data,
 		IDatabaseEvtVisitor* evtVisitor) override;
+	vstd::variant<IJsonRefDict*, IJsonRefArray*> GetNode(vstd::Guid const& guid) override;
 	KILL_COPY_CONSTRUCT(SimpleBinaryJson)
 	KILL_MOVE_CONSTRUCT(SimpleBinaryJson)
 };

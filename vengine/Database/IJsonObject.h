@@ -1,7 +1,6 @@
 #pragma once
 #include <Common/linq.h>
 #include <Utility/VGuid.h>
-#include <Utility/ObjectTracker.h>
 #include <Database/IJsonDatabase.h>
 namespace toolhub::db {
 class IJsonRefDict;
@@ -12,8 +11,6 @@ class IJsonValueArray;
 using JsonVariant = vstd::variant<int64,
 								  double,
 								  vstd::string_view,
-								  IJsonRefDict*,
-								  IJsonRefArray*,
 								  IJsonValueDict*,
 								  IJsonValueArray*,
 								  vstd::Guid>;
@@ -37,7 +34,6 @@ class IJsonRefType {
 public:
 	virtual vstd::Guid GetGUID() = 0;
 	virtual IJsonSubDatabase* GetDatabase() = 0;
-	virtual void MarkDirty() = 0;
 };
 
 class IJsonDict {
@@ -67,8 +63,8 @@ public:
 	virtual vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> GetIterator() = 0;
 };
 
-class IJsonRefDict : public IJsonDict, public IJsonRefType, public IJsonObject, public vstd::ObjectTracker<IJsonRefDict> {};
-class IJsonRefArray : public IJsonArray, public IJsonRefType, public IJsonObject, public vstd::ObjectTracker<IJsonRefArray> {};
+class IJsonRefDict : public IJsonDict, public IJsonRefType, public IJsonObject {};
+class IJsonRefArray : public IJsonArray, public IJsonRefType, public IJsonObject{};
 
 class IJsonValueDict : public IJsonDict, public IJsonObject {};
 class IJsonValueArray : public IJsonArray, public IJsonObject {};
