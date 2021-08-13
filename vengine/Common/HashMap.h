@@ -76,6 +76,18 @@ public:
 		void operator--(int32_t) noexcept {
 			ii--;
 		}
+		void operator+=(size_t i) noexcept {
+			ii += i;
+		}
+		void operator-=(size_t i) noexcept {
+			ii -= i;
+		}
+		Iterator operator+(size_t i) noexcept {
+			return Iterator(ii + i);
+		}
+		Iterator operator-(size_t i) noexcept {
+			return Iterator(ii - i);
+		}
 
 		NodePair const* operator->() const noexcept {
 			return *ii;

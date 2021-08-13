@@ -15,7 +15,7 @@ private:
 public:
 	friend VENGINE_DLL_COMMON std::ostream& operator<<(std::ostream& out, const Guid& obj) noexcept;
 
-	Guid(bool generate = false);
+	explicit Guid(bool generate);
 	Guid(vstd::string_view strv);
 	Guid(std::span<uint8_t> data);
 	Guid(std::array<uint8_t, sizeof(GuidData)> const& data);

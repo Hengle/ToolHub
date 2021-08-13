@@ -22,7 +22,8 @@ bool SimpleJsonLoader::Check(IJsonDatabase* parent, SimpleJsonVariant const& var
 		setTrack,
 		setTrack,
 		setNullCheck,
-		setNullCheck);
+		setNullCheck,
+		setTrue);
 	return res;
 }
 void SimpleJsonLoader::Clean(IJsonDatabase* db, HashMap<vstd::string, SimpleJsonVariant>& vars) {
@@ -58,9 +59,8 @@ SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleB
 			return SimpleJsonVariant(PopValue<vstd::string>(arr));
 		}
 		case ValueType::Dict: {
-			uint64 dbIndex, instanceID;
-			dbIndex = PopValue<uint64>(arr);
-			instanceID = PopValue<uint64>(arr);
+			vstd::Guid dbIndex = PopValue<vstd::Guid>(arr);
+			vstd::Guid instanceID = PopValue<vstd::Guid>(arr);
 			auto db = parent->GetDatabase(dbIndex);
 			auto ite = db->GetJsonObject(instanceID);
 			if (ite) {
@@ -69,9 +69,8 @@ SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleB
 			return SimpleJsonVariant();
 		}
 		case ValueType::Array: {
-			uint64 dbIndex, instanceID;
-			dbIndex = PopValue<uint64>(arr);
-			instanceID = PopValue<uint64>(arr);
+			vstd::Guid dbIndex = PopValue<vstd::Guid>(arr);
+			vstd::Guid instanceID = PopValue<vstd::Guid>(arr);
 			auto db = parent->GetDatabase(dbIndex);
 			auto ite = db->GetJsonArray(instanceID);
 			if (ite) {
@@ -89,6 +88,9 @@ SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleB
 			ptr->LoadFromSer(arr);
 			return SimpleJsonVariant(ptr);
 		}
+		case ValueType::GUID: {
+			return SimpleJsonVariant(PopValue<vstd::Guid>(arr));
+		}
 		default:
 			return SimpleJsonVariant();
 	}
@@ -99,7 +101,7 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 	auto func = [&]<typename TT>(TT&& f) {
 		PushDataToVector(f, data);
 	};
-	auto addJsonObj = [&](uint64 dbIndex, uint64 instanceID) {
+	auto addJsonObj = [&](vstd::Guid const& dbIndex, vstd::Guid const& instanceID) {
 		auto otherDB = parent->GetDatabase(dbIndex);
 		if (otherDB) {
 			func(dbIndex);
@@ -113,7 +115,7 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 	auto serObjTracker = [&](auto&& d) {
 		auto ptr = d.Get();
 		if (ptr) {
-			addJsonObj(ptr->GetDatabase()->GetIndex(), ptr->GetInstanceID());
+			addJsonObj(ptr->GetDatabase()->GetGUID(), ptr->GetGUID());
 		} else {
 			data[dataOffset] = v.value.argSize;
 		}
@@ -128,14 +130,15 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 		serObjTracker,//vstd::ObjectTrackFlag<IJsonRefDict>
 		serObjTracker,// vstd::ObjectTrackFlag<IJsonRefArray>
 		serValue,
-		serValue);
+		serValue,
+		func);
 }
 
-IJsonRefDict* SimpleJsonLoader::GetDictFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID) {
+IJsonRefDict* SimpleJsonLoader::GetDictFromID(IJsonDatabase* db, vstd::Guid const& dbIndex, vstd::Guid const& instanceID) {
 	auto subDB = db->GetDatabase(dbIndex);
 	return subDB->GetJsonObject(instanceID);
 }
-IJsonRefArray* SimpleJsonLoader::GetArrayFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID) {
+IJsonRefArray* SimpleJsonLoader::GetArrayFromID(IJsonDatabase* db, vstd::Guid const& dbIndex, vstd::Guid const& instanceID) {
 	auto subDB = db->GetDatabase(dbIndex);
 	return subDB->GetJsonArray(instanceID);
 }
@@ -157,7 +160,8 @@ SimpleJsonVariant::SimpleJsonVariant(SimpleBinaryJson* db, JsonVariant const& v,
 		},
 		[&](auto&& d) {
 			value = db->arrValuePool.New(db, obj, d);
-		});
+		},
+		func);
 }
 
 JsonVariant SimpleJsonVariant::GetVariant() const {
@@ -178,7 +182,8 @@ JsonVariant SimpleJsonVariant::GetVariant() const {
 		},
 		[&](vstd::unique_ptr<SimpleJsonValueArray> const& v) -> JsonVariant {
 			return v.get();
-		});
+		},
+		func);
 }
 
 }// namespace toolhub::db

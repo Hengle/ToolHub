@@ -4,9 +4,9 @@
 #include <Database/SimpleBinaryJson.h>
 namespace toolhub::db {
 SimpleJsonObject::SimpleJsonObject(
-	uint64 instanceID,
+	vstd::Guid const& guid,
 	SimpleBinaryJson* db)
-	: instanceID(instanceID),
+	: selfGuid(guid),
 	  db(db) {
 }
 void SimpleJsonObject::Update() {

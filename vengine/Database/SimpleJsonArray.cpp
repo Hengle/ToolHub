@@ -50,7 +50,7 @@ vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonArray::GetIt
 void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto v = ARRAY_TYPE;
 	PushDataToVector<uint8_t&>(v, data);
-	PushDataToVector(instanceID, data);
+	PushDataToVector(selfGuid, data);
 	auto sizeOffset = data.size();
 	data.resize(sizeOffset + sizeof(uint64));
 	auto beginOffset = sizeOffset + sizeof(uint64);
@@ -65,7 +65,7 @@ void SimpleJsonArray::Reset() {
 	Update();
 	arrs.clear();
 }
-SimpleJsonArray::SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db)
+SimpleJsonArray::SimpleJsonArray(vstd::Guid const& instanceID, SimpleBinaryJson* db)
 	: SimpleJsonObject(instanceID, db) {
 }
 SimpleJsonArray::~SimpleJsonArray() {

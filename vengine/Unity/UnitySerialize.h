@@ -6,28 +6,25 @@
 #include <Utility/VGuid.h>
 namespace toolhub {
 using IndexArray = vstd::vector<vstd::variant<vstd::string, uint64>>;
-struct SerializeValue {
+struct Reference {
+	std::array<uint8_t, sizeof(vstd::Guid)> guidData;
 	enum class RefType : uint8_t {
 		Resource,
 		Object,
 	};
-	struct Reference {
-		std::array<uint8_t, sizeof(vstd::Guid)> guidData;
-		RefType refType;
-	};
-	vstd::variant<
-		bool,
-		int64,
-		double,
-		vstd::string,
-		Reference>
-		value;
+	RefType refType;
 };
+using SerializeValue = vstd::variant<
+	bool,
+	int64,
+	double,
+	vstd::string,
+	Reference>;
 }// namespace toolhub
 namespace vstd {
 template<>
-struct SerDe<toolhub::SerializeValue::Reference> {
-	using Value = toolhub::SerializeValue::Reference;
+struct SerDe<toolhub::Reference> {
+	using Value = toolhub::Reference;
 	static Value Get(std::span<uint8_t>& sp) {
 		return Value{vstd::SerDe<decltype(Value::guidData)>::Get(sp), vstd::SerDe<decltype(Value::refType)>::Get(sp)};
 	}

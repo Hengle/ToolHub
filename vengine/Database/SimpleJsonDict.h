@@ -13,7 +13,6 @@ public:
 	void Remove(vstd::string const& key) override;
 	void MarkDirty() override { Update(); }
 	vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> GetIterator() override;
-	uint64 GetInstanceID() override { return instanceID; }
 	size_t Length() override;
 	void M_GetSerData(vstd::vector<uint8_t>& data) override;
 	IJsonSubDatabase* GetDatabase() override;
@@ -24,7 +23,8 @@ public:
 	}
 	void Clean() override;
 	void Reset() override;
-	SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db);
+	vstd::Guid GetGUID() override { return selfGuid; }
+	SimpleJsonDict(vstd::Guid const& instanceID, SimpleBinaryJson* db);
 	~SimpleJsonDict();
 	IJsonValueDict* AddOrGetDict(vstd::string key) override;
 	IJsonValueArray* AddOrGetArray(vstd::string key) override;

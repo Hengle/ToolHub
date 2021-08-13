@@ -42,21 +42,21 @@ void SimpleBinaryJson::MarkDirty(SimpleJsonObject* dict) {
 
 void SimpleBinaryJson::MarkDelete(SimpleJsonObject* dict) {
 	if (dict->dirtyID != std::numeric_limits<uint64>::max()) {
-		updateVec[dict->dirtyID] = dict->InstanceID();
+		updateVec[dict->dirtyID] = dict->GetGUID();
 	} else {
 		dict->dirtyID = updateVec.size();
-		updateVec.emplace_back(dict->InstanceID());
+		updateVec.emplace_back(dict->GetGUID());
 	}
 }
 
-SimpleBinaryJson::SimpleBinaryJson(uint64 index, IJsonDatabase* parent)
+SimpleBinaryJson::SimpleBinaryJson(vstd::Guid const& index, IJsonDatabase* parent)
 	: arrPool(256),
 	  dictPool(256),
 	  dictValuePool(256),
 	  arrValuePool(256),
 	  parent(parent),
 	  index(index),
-	  rootObj(0, this) {
+	  rootGuid(vstd::Guid(true)) {
 }
 
 SimpleBinaryJson::~SimpleBinaryJson() {
@@ -64,23 +64,27 @@ SimpleBinaryJson::~SimpleBinaryJson() {
 }
 
 IJsonRefDict* SimpleBinaryJson::GetRootObject() {
-	return &rootObj;
+	auto ite = jsonObjs.Find(rootGuid);
+	if (ite) return static_cast<SimpleJsonDict*>(ite.Value().first);
+	auto ptr = dictPool.New(rootGuid, this);
+	jsonObjs.Emplace(rootGuid, ptr, DICT_TYPE);
+	return ptr;
 }
 IJsonRefDict* SimpleBinaryJson::CreateJsonObject() {
-	auto id = ++instanceCount;
-	auto v = dictPool.New(id, this);
+	vstd::Guid guid(true);
+	auto v = dictPool.New(guid, this);
 	MarkDirty(v);
-	v->dbIndexer = jsonObjs.Emplace(id, v, DICT_TYPE);
+	v->dbIndexer = jsonObjs.Emplace(guid, v, DICT_TYPE);
 	return v;
 }
 IJsonRefArray* SimpleBinaryJson::CreateJsonArray() {
-	auto id = ++instanceCount;
-	auto v = arrPool.New(id, this);
+	vstd::Guid guid(true);
+	auto v = arrPool.New(guid, this);
 	MarkDirty(v);
-	v->dbIndexer = jsonObjs.Emplace(id, v, ARRAY_TYPE);
+	v->dbIndexer = jsonObjs.Emplace(guid, v, ARRAY_TYPE);
 	return v;
 }
-IJsonRefDict* SimpleBinaryJson::GetJsonObject(uint64 instanceID) {
+IJsonRefDict* SimpleBinaryJson::GetJsonObject(vstd::Guid const& instanceID) {
 	auto ite = jsonObjs.Find(instanceID);
 	if (!ite)
 		return nullptr;
@@ -89,7 +93,7 @@ IJsonRefDict* SimpleBinaryJson::GetJsonObject(uint64 instanceID) {
 		return nullptr;
 	return static_cast<SimpleJsonDict*>(v.first);
 }
-IJsonRefArray* SimpleBinaryJson::GetJsonArray(uint64 instanceID) {
+IJsonRefArray* SimpleBinaryJson::GetJsonArray(vstd::Guid const& instanceID) {
 	auto ite = jsonObjs.Find(instanceID);
 	if (!ite)
 		return nullptr;
@@ -122,10 +126,10 @@ vstd::vector<uint8_t> SimpleBinaryJson::IncreSerialize() {
 		PushDataToVector<T>(std::forward<T>(v), serData);
 	};
 	Push.operator()<uint8_t>(253);
-	Push(GetHeader());
+	Push(rootGuid);
 	vstd::vector<SimpleJsonObject*> addCmds;
 	addCmds.reserve(updateVec.size());
-	vstd::vector<uint64> deleteCmds;
+	vstd::vector<vstd::Guid> deleteCmds;
 	deleteCmds.reserve(updateVec.size());
 	for (auto&& i : updateVec) {
 		i.visit(
@@ -145,9 +149,9 @@ vstd::vector<uint8_t> SimpleBinaryJson::IncreSerialize() {
 	// Delete
 	Push.operator()<uint8_t>(128);
 	for (auto&& i : deleteCmds) {
-		Push.operator()<uint64&>(i);
+		Push.operator()<vstd::Guid&>(i);
 	}
-	Push(std::numeric_limits<uint64>::max());
+	Push(vstd::Guid(false));
 	Push.operator()<uint8_t>(0);
 	updateVec.clear();
 	return serData;
@@ -160,10 +164,7 @@ vstd::vector<uint8_t> SimpleBinaryJson::Serialize() {
 		PushDataToVector<T>(std::forward<T>(v), serData);
 	};
 	Push.operator()<uint8_t>(254);
-	Push(GetHeader());
-	/////////////// Root Obj
-	rootObj.M_GetSerData(serData);
-	rootObj.dirtyID = std::numeric_limits<uint64>::max();
+	Push(rootGuid);
 	for (auto&& i : jsonObjs) {
 		i.second.first->M_GetSerData(serData);
 		i.second.first->dirtyID = std::numeric_limits<uint64>::max();
@@ -174,7 +175,7 @@ vstd::vector<uint8_t> SimpleBinaryJson::Serialize() {
 }
 
 void SimpleBinaryJson::Ser_CreateObj(
-	uint64 instanceID,
+	vstd::Guid const& instanceID,
 	std::span<uint8_t> sp,
 	uint8_t targetType,
 	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>>& vecs) {
@@ -211,92 +212,31 @@ void SimpleBinaryJson::Ser_CreateObj(
 	}
 }
 
-void SimpleBinaryJson::Read(std::span<uint8_t> sp) {
-	//size_t pp = reinterpret_cast<size_t>(sp.data());
-
-	auto serType = PopValue<uint8_t>(sp);
-	std::span<uint8_t> rootChunk;
-	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
-
-	// Header
-	SerializeHeader header = PopValue<SerializeHeader>(sp);
-	instanceCount = header.instanceCount;
-
-	switch (serType) {
-		//Sync Object
-		case 253:
-			[&]() {
-				while (true) {
-					auto cmd = PopValue<uint8_t>(sp);
-					switch (cmd) {
-						case 0:
-							return;
-						case 127:
-							while (Ser_PopValue(sp, rootChunk, vecs)) {}
-							break;
-						case 128:
-							while (true) {
-								uint64 instanceID = PopValue<uint64>(sp);
-								if (instanceID == std::numeric_limits<uint64>::max()) break;
-								Dispose(jsonObjs.Find(instanceID));
-							}
-							break;
-					}
-				}
-			}();
-			break;
-
-		//Rebuild all
-		case 254: {
-			for (auto&& i : jsonObjs) {
-				DisposeProperty(i.second);
-			}
-			jsonObjs.Clear();
-
-			while (Ser_PopValue(sp, rootChunk, vecs)) {}
-		} break;
-	}
-	if (!rootChunk.empty()) {
-		rootObj.LoadFromData(rootChunk);
-	}
-	for (auto&& i : vecs) {
-		i.first->LoadFromData(i.second);
-	}
-}
-
 bool SimpleBinaryJson::Ser_PopValue(
 	std::span<uint8_t>& sp,
-	std::span<uint8_t>& rootChunk,
 	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>>& vecs) {
-	auto CreateObj = [&](uint64 instanceID, std::span<uint8_t> sp, uint8_t targetType) {
+
+	auto CreateObj = [&](vstd::Guid const& instanceID, std::span<uint8_t> sp, uint8_t targetType) {
 		Ser_CreateObj(instanceID, sp, targetType, vecs);
 	};
-	auto CreateRoot = [&](std::span<uint8_t> sp) {
-		rootChunk = sp;
-		return &rootObj;
-	};
+
 	uint8_t type = PopValue<uint8_t>(sp);
 	if (type == std::numeric_limits<uint8_t>::max())
 		return false;
-	uint64 instanceID = PopValue<uint64>(sp);
+	vstd::Guid instanceID = PopValue<vstd::Guid>(sp);
 	uint64 spanSize = PopValue<uint64>(sp);
-	if (instanceID == 0) {
-		if (type != DICT_TYPE)
-			return false;
-		CreateRoot(std::span<uint8_t>(sp.data(), spanSize));
-	} else {
 
-		switch (type) {
-			//Array
-			case ARRAY_TYPE:
-				CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), ARRAY_TYPE);
-				break;
-			//Dict
-			case DICT_TYPE:
-				CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), DICT_TYPE);
-				break;
-		}
+	switch (type) {
+		//Array
+		case ARRAY_TYPE:
+			CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), ARRAY_TYPE);
+			break;
+		//Dict
+		case DICT_TYPE:
+			CreateObj(instanceID, std::span<uint8_t>(sp.data(), spanSize), DICT_TYPE);
+			break;
 	}
+
 	sp = std::span<uint8_t>(sp.data() + spanSize, sp.size() - spanSize);
 	return true;
 }
@@ -305,13 +245,10 @@ void SimpleBinaryJson::Read(
 	std::span<uint8_t> sp,
 	IDatabaseEvtVisitor* evtVisitor) {
 
+	auto oo = sp.data();
 	auto serType = PopValue<uint8_t>(sp);
-	std::span<uint8_t> rootChunk;
+	rootGuid = PopValue<vstd::Guid>(sp);
 	vstd::vector<std::pair<SimpleJsonObject*, std::span<uint8_t>>> vecs;
-
-	// Header
-	SerializeHeader header = PopValue<SerializeHeader>(sp);
-	instanceCount = header.instanceCount;
 
 	switch (serType) {
 		//Sync Object
@@ -323,12 +260,12 @@ void SimpleBinaryJson::Read(
 						case 0:
 							return;
 						case 127:
-							while (Ser_PopValue(sp, rootChunk, vecs)) {}
+							while (Ser_PopValue(sp, vecs)) {}
 							break;
 						case 128:
 							while (true) {
-								uint64 instanceID = PopValue<uint64>(sp);
-								if (instanceID == std::numeric_limits<uint64>::max()) break;
+								vstd::Guid const& instanceID = PopValue<vstd::Guid const&>(sp);
+								if (!instanceID) break;
 								Dispose(jsonObjs.Find(instanceID), evtVisitor);
 							}
 							break;
@@ -344,61 +281,150 @@ void SimpleBinaryJson::Read(
 			}
 			jsonObjs.Clear();
 
-			while (Ser_PopValue(sp, rootChunk, vecs)) {}
+			while (Ser_PopValue(sp, vecs)) {
+			}
 		} break;
-	}
-	if (!rootChunk.empty()) {
-		rootObj.LoadFromData(rootChunk);
-		rootObj.AfterAdd(evtVisitor);
 	}
 	for (auto&& i : vecs) {
 		i.first->LoadFromData(i.second);
 		i.first->AfterAdd(evtVisitor);
 	}
 }
+ThreadTaskHandle SimpleBinaryJson::CollectGarbage(ThreadPool* tPool) {
+	return tPool->GetTask([this, tPool]() {
+		HashMap<vstd::Guid, bool> collectedGuid;
+		Runnable<void(IJsonRefArray*)> iteArr;
+		Runnable<void(IJsonRefDict*)> iteDict;
+		Runnable<void(IJsonValueDict*)> iteValueDict;
+		Runnable<void(IJsonValueArray*)> iteValueArr;
+
+		auto processVariant = [&](JsonVariant const& var) {
+			var.visit(
+				[](auto&&) {},
+				[](auto&&) {},
+				[](auto&&) {},
+				iteDict,
+				iteArr,
+				iteValueDict,
+				iteValueArr,
+				[&](auto&& guid) { collectedGuid.Emplace(guid, true); });
+		};
+		iteArr = [&](IJsonRefArray* arr) {
+			if (!arr) return;
+			if (typeid(*arr) == typeid(SimpleJsonArray)) {
+				SimpleJsonArray* ptr = static_cast<SimpleJsonArray*>(arr);
+				for (auto&& i : ptr->arrs) {
+					processVariant(i.GetVariant());
+				}
+			} else {
+				auto ite = arr->GetIterator();
+				LINQ_LOOP(i, *ite) {
+					processVariant(*i);
+				}
+			}
+		};
+		iteDict = [&](IJsonRefDict* dict) {
+			if (!dict) return;
+			if (typeid(*dict) == typeid(SimpleJsonDict)) {
+				SimpleJsonDict* ptr = static_cast<SimpleJsonDict*>(dict);
+				for (auto&& i : ptr->vars) {
+					processVariant(i.second.GetVariant());
+				}
+			} else {
+				auto ite = dict->GetIterator();
+				LINQ_LOOP(i, *ite) {
+					processVariant(i->value);
+				}
+			}
+		};
+		iteValueDict = [&](IJsonValueDict* dict) {
+			if (typeid(*dict) == typeid(SimpleJsonValueDict)) {
+				SimpleJsonValueDict* ptr = static_cast<SimpleJsonValueDict*>(dict);
+				for (auto&& i : ptr->vars) {
+					processVariant(i.second.GetVariant());
+				}
+			} else {
+				auto ite = dict->GetIterator();
+				LINQ_LOOP(i, *ite) {
+					processVariant(i->value);
+				}
+			}
+		};
+		iteValueArr = [&](IJsonValueArray* arr) {
+			if (typeid(*arr) == typeid(SimpleJsonValueArray)) {
+				SimpleJsonValueArray* ptr = static_cast<SimpleJsonValueArray*>(arr);
+				for (auto&& i : ptr->arr) {
+					processVariant(i.GetVariant());
+				}
+			} else {
+				auto ite = arr->GetIterator();
+				LINQ_LOOP(i, *ite) {
+					processVariant(*i);
+				}
+			}
+		};
+		auto cleanHandle = tPool->GetBeginEndTask(
+			[&](size_t beg, size_t ed) {
+				auto b = jsonObjs.begin() + beg;
+				auto e = jsonObjs.begin() + ed;
+				for (auto ite = b; ite != e; ++ite) {
+					if ((*ite).second.second == DICT_TYPE) {
+						auto ptr = static_cast<SimpleJsonDict*>((*ite).second.first);
+						ptr->Clean();
+						iteDict(ptr);
+
+					} else {
+						auto ptr = static_cast<SimpleJsonArray*>((*ite).second.first);
+						ptr->Clean();
+						iteArr(ptr);
+					}
+				}
+			},
+			jsonObjs.size());
+		auto collectHandle = tPool->GetTask([&]() {
+			vstd::vector<ObjMap::NodePair const*> removeList;
+			for (auto&& i : jsonObjs) {
+				if (!collectedGuid.Find(i.first))
+					removeList.push_back(&i);
+			}
+			for (auto&& i : removeList) {
+				jsonObjs.Remove(i);
+			}
+		});
+		collectHandle.AddDepend(cleanHandle);
+		collectHandle.Complete();
+	});
+}
 
 class SimpleDatabaseParent : public IJsonDatabase, public vstd::IOperatorNewBase {
 public:
-	vstd::vector<IJsonSubDatabase*> subDatabases;
+	HashMap<vstd::Guid, vstd::unique_ptr<IJsonSubDatabase>> subDatabases;
 	~SimpleDatabaseParent() {
-		for (auto i : subDatabases) {
-			i->Dispose();
-		}
 	}
 	void Dispose() override {
 		delete this;
 	}
 	IJsonSubDatabase* CreateDatabase(std::span<uint8_t> command) override {
-		auto js = new SimpleBinaryJson(subDatabases.size(), this);
-		subDatabases.push_back(js);
+		vstd::Guid guid(true);
+		auto js = new SimpleBinaryJson(guid, this);
+		subDatabases.Emplace(guid, js);
 		return js;
 	}
-	IJsonSubDatabase* CreateOrGetDatabase(uint64 targetIndex, std::span<uint8_t> command) override {
+	IJsonSubDatabase* CreateOrGetDatabase(vstd::Guid const& targetIndex, std::span<uint8_t> command) override {
 		auto lastSize = subDatabases.size();
-		subDatabases.resize(targetIndex + 1);
-		if (subDatabases.size() > lastSize) {
-			memset(
-				subDatabases.data() + lastSize,
-				0,
-				(subDatabases.size() - lastSize) * sizeof(IJsonSubDatabase*));
-		}
-		auto&& v = subDatabases[targetIndex];
-		if (!v) {
-			v = new SimpleBinaryJson(targetIndex, this);
-		}
-		return v;
+		auto ite = subDatabases.Find(targetIndex);
+		if (ite) return ite.Value().get();
+		subDatabases.Emplace(targetIndex, new SimpleBinaryJson(targetIndex, this));
 	}
-	void DisposeDatabase(uint64 index) override {
-		if (index < subDatabases.size()) {
-			auto&& v = subDatabases[index];
-			v->Dispose();
-			v = nullptr;
-		}
+	void DisposeDatabase(vstd::Guid const& index) override {
+		auto ite = subDatabases.Find(index);
+		if (ite)
+			subDatabases.Remove(ite);
 	}
-	IJsonSubDatabase* GetDatabase(uint64 index) override {
-		if (index < subDatabases.size()) {
-			return subDatabases[index];
-		}
+	IJsonSubDatabase* GetDatabase(vstd::Guid const& index) override {
+		auto ite = subDatabases.Find(index);
+		if (ite)
+			return ite.Value().get();
 		return nullptr;
 	}
 };

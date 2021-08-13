@@ -16,10 +16,8 @@ protected:
 	void Update();
 };
 class SimpleJsonValueDict final : public IJsonValueDict, public SimpleJsonValueBase {
-private:
-	HashMap<vstd::string, SimpleJsonVariant> vars;
-
 public:
+	HashMap<vstd::string, SimpleJsonVariant> vars;
 	SimpleJsonValueDict(
 		SimpleBinaryJson* db,
 		SimpleJsonObject* parent);
@@ -44,10 +42,9 @@ public:
 };
 
 class SimpleJsonValueArray final : public IJsonValueArray, public SimpleJsonValueBase {
-private:
+public:
 	vstd::vector<SimpleJsonVariant> arr;
 
-public:
 	SimpleJsonValueArray(
 		SimpleBinaryJson* db,
 		SimpleJsonObject* parent);

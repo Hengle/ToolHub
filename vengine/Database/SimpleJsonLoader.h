@@ -19,7 +19,8 @@ enum class ValueType : uint8_t {
 	Dict,
 	Array,
 	ValueDict,
-	ValueArray
+	ValueArray,
+	GUID
 };
 
 struct SimpleJsonVariant {
@@ -29,7 +30,8 @@ struct SimpleJsonVariant {
 				  vstd::ObjectTrackFlag<IJsonRefDict>,
 				  vstd::ObjectTrackFlag<IJsonRefArray>,
 				  vstd::unique_ptr<SimpleJsonValueDict>,
-				  vstd::unique_ptr<SimpleJsonValueArray>>
+				  vstd::unique_ptr<SimpleJsonValueArray>,
+				  vstd::Guid>
 		value;
 	template<typename... Args>
 	SimpleJsonVariant(Args&&... args)
@@ -64,8 +66,8 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 
 class SimpleJsonLoader {
 public:
-	static IJsonRefDict* GetDictFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID);
-	static IJsonRefArray* GetArrayFromID(IJsonDatabase* db, uint64 dbIndex, uint64 instanceID);
+	static IJsonRefDict* GetDictFromID(IJsonDatabase* db, vstd::Guid const& dbIndex, vstd::Guid const& instanceID);
+	static IJsonRefArray* GetArrayFromID(IJsonDatabase* db, vstd::Guid const& dbIndex, vstd::Guid const& instanceID);
 	static bool Check(IJsonDatabase* db, SimpleJsonVariant const& var);
 	static void Clean(IJsonDatabase* db, HashMap<vstd::string, SimpleJsonVariant>& var);
 	static void Clean(IJsonDatabase* db, vstd::vector<SimpleJsonVariant>& var);

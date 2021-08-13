@@ -37,7 +37,8 @@ SimpleJsonValueDict::SimpleJsonValueDict(
 				},
 				[&](vstd::unique_ptr<SimpleJsonValueArray> const& v) {
 					vars.Emplace(i.first, db->arrValuePool.New(db, parent, v.get()));
-				});
+				},
+				copyDefault);
 		}
 	} else {
 		auto iterator = src->GetIterator();
@@ -177,7 +178,8 @@ SimpleJsonValueArray::SimpleJsonValueArray(
 				},
 				[&](vstd::unique_ptr<SimpleJsonValueArray> const& v) {
 					arr.emplace_back(db->arrValuePool.New(db, parent, v.get()));
-				});
+				},
+				copyDefault);
 		}
 	} else {
 		auto ite = src->GetIterator();

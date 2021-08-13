@@ -22,14 +22,14 @@ public:
 		return v;
 	}
 	void Reset() override;
-	SimpleJsonArray(uint64 instanceID, SimpleBinaryJson* db);
+	SimpleJsonArray(vstd::Guid const& instanceID, SimpleBinaryJson* db);
 	~SimpleJsonArray();
+	vstd::Guid GetGUID() override { return selfGuid; }
 	IJsonValueDict* AddDict() override;
 	IJsonValueArray* AddArray() override;
 	void Dispose() override;
 	void AfterAdd(IDatabaseEvtVisitor* visitor) override;
 	void BeforeRemove(IDatabaseEvtVisitor* visitor) override;
-	uint64 GetInstanceID() override { return instanceID; }
 	IJsonSubDatabase* GetDatabase() override;
 };
 }// namespace toolhub::db

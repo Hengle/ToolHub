@@ -53,7 +53,7 @@ size_t SimpleJsonDict::Length() {
 void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto v = DICT_TYPE;
 	PushDataToVector<uint8_t&>(v, data);
-	PushDataToVector(instanceID, data);
+	PushDataToVector(selfGuid, data);
 	auto sizeOffset = data.size();
 	data.resize(sizeOffset + sizeof(uint64));
 	auto beginOffset = sizeOffset + sizeof(uint64);
@@ -71,7 +71,7 @@ void SimpleJsonDict::Clean() {
 void SimpleJsonDict::Reset() {
 	vars.Clear();
 }
-SimpleJsonDict::SimpleJsonDict(uint64 instanceID, SimpleBinaryJson* db)
+SimpleJsonDict::SimpleJsonDict(vstd::Guid const& instanceID, SimpleBinaryJson* db)
 	: SimpleJsonObject(instanceID, db) {
 	//TODO: deser data
 }

@@ -14,7 +14,7 @@ void jsonTest(
 	using namespace toolhub::db;
 	// Generate a database
 	auto dbParent = MakeObjectPtr(database->CreateDatabase());
-	auto db = dbParent->CreateOrGetDatabase(0, {});
+	auto db = dbParent->CreateDatabase({});
 	// Get Root Json Object
 	auto rootObj = db->GetRootObject();
 	// Create a json array
@@ -32,11 +32,12 @@ void jsonTest(
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
 	//Incremental Serialize Data
 	subObj->Set("number"_sv, 26);
+	subArr->Set(1, 141);
 	auto updateV = db->IncreSerialize();
 	std::cout << "Update Size: " << updateV.size() << " bytes\n";
 
 	/////////////// Clone Database by serialize binary
-	auto cloneDB = dbParent->CreateOrGetDatabase(1, {});
+	auto cloneDB = dbParent->CreateDatabase({});
 	struct EventTrigger : public IDatabaseEvtVisitor {
 		void AddDict(IJsonRefDict* newDict) override {
 			std::cout << "Add Dict!" << '\n';
@@ -76,8 +77,10 @@ void jsonTest(
 				},
 				[](auto&& f) {
 					std::cout << f << '\n';
-				},[](auto&& f) {},
-				[](auto&& f) {});
+				},
+				[](auto&& f) {},
+				[](auto&& f) {},
+				[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
 		}
 		(*cloneArr)->Dispose();
 	}
@@ -102,7 +105,8 @@ void jsonTest(
 					std::cout << f << '\n';
 				},
 				[](auto&& f) {},
-				[](auto&& f) {});
+				[](auto&& f) {},
+				[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
 		}
 		(*cloneDict)->Dispose();
 	}

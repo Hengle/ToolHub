@@ -1,23 +1,24 @@
 #pragma once
 #include <Common/Common.h>
 #include <Database/SimpleJsonLoader.h>
+#include <Utility/VGuid.h>
 namespace toolhub::db {
 
 class SimpleJsonLoader;
 class SimpleJsonObject {
 protected:
-	uint64 instanceID = 0;
+	vstd::Guid selfGuid;
 	SimpleBinaryJson* db = nullptr;
 	SimpleJsonObject(
-		uint64 instanceID,
+		vstd::Guid const& guid,
 		SimpleBinaryJson* db);
 	~SimpleJsonObject() {}
 
 public:
-	HashMap<uint64, std::pair<SimpleJsonObject*, uint8_t>>::Index dbIndexer;
+	HashMap<vstd::Guid, std::pair<SimpleJsonObject*, uint8_t>>::Index dbIndexer;
 	uint64 dirtyID = std::numeric_limits<uint64>::max();
 	SimpleBinaryJson* GetDB() const { return db; }
-	uint64 InstanceID() const { return instanceID; }
+	vstd::Guid const& GetGUID() const { return selfGuid; }
 	void Update();
 	virtual void M_GetSerData(vstd::vector<uint8_t>& data) = 0;
 	virtual void LoadFromData(std::span<uint8_t> data) = 0;

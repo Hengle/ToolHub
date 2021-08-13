@@ -22,7 +22,7 @@ std::mutex mtx;
 
 class TestClass : public toolhub::net::IRegistObject {
 public:
-	void Run(vstd::string str) { std::cout << "from remote: " << str << '\n'; }
+	void Run(vstd::string&& str) { std::cout << "from remote: " << str << '\n'; }
 };
 
 void server(uint port) {
@@ -92,8 +92,10 @@ void server(uint port) {
 					continue;
 				}
 				tt = services[0]->CreateClass<TestClass>();
-				for (auto&& i : vstd::ptr_range(&services[1], services.end())) {
-					i->AddExternalClass(tt);
+				if (services.size() > 1) {
+					for (auto&& i : vstd::ptr_range(&services[1], services.end())) {
+						i->AddExternalClass(tt);
+					}
 				}
 			}
 			for (auto&& i : services) {
@@ -112,23 +114,26 @@ void server(uint port) {
 }
 #include <Utility/VGuid.h>
 #include <Utility/StringUtility.h>
-
 int main(int argc, char* argv[]) {
 	vengine_init_malloc();
+	/*
 	if (argc != 2) {
 		std::cout << "error argcount!";
 		system("pause");
 		return 0;
 	}
-	auto port = StringUtil::StringToInteger(vstd::string_view(argv[1]));
+	*/
+	auto port = 2001;
+	//StringUtil::StringToInteger(vstd::string_view(argv[1]));
 
 	DynamicDLL dll("VEngine_Network.dll");
 	DynamicDLL dll1("VEngine_Database.dll");
 	network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
 
 	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
+	jsonTest(database);
 	//jsonTest(database);
-	server(port);
+	//server(port);
 	system("pause");
 
 	return 0;

@@ -15,7 +15,8 @@ using JsonVariant = vstd::variant<int64,
 								  IJsonRefDict*,
 								  IJsonRefArray*,
 								  IJsonValueDict*,
-								  IJsonValueArray*>;
+								  IJsonValueArray*,
+								  vstd::Guid>;
 
 struct JsonKeyPair {
 	vstd::string_view key;
@@ -34,7 +35,7 @@ public:
 };
 class IJsonRefType {
 public:
-	virtual uint64 GetInstanceID() = 0;
+	virtual vstd::Guid GetGUID() = 0;
 	virtual IJsonSubDatabase* GetDatabase() = 0;
 	virtual void MarkDirty() = 0;
 };

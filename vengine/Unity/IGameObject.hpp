@@ -15,5 +15,6 @@ void IGameObject::InitializeService(net::INetworkService* service) {
 	service->NET_REGIST_MEMBER(T, UpdateTagRemote);
 	service->NET_REGIST_MEMBER(T, UpdateLayerRemote);
 	service->NET_REGIST_MEMBER(T, UpdateIsStaticRemote);
+	service->NET_REGIST_MEMBER(T, SetParentRemote);
 }
 }// namespace toolhub
