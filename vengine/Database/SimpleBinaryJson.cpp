@@ -304,8 +304,14 @@ ThreadTaskHandle SimpleBinaryJson::CollectGarbage(ThreadPool* tPool) {
 				[](auto&&) {},
 				[](auto&&) {},
 				[](auto&&) {},
-				iteDict,
-				iteArr,
+				[&](auto&& v) {
+					collectedGuid.Emplace(v->GetGUID(), true);
+					iteDict(v); 
+				}, 
+				[&](auto&& v) {
+					collectedGuid.Emplace(v->GetGUID(), true);
+					iteArr(v);
+				}, 
 				iteValueDict,
 				iteValueArr,
 				[&](auto&& guid) { collectedGuid.Emplace(guid, true); });
