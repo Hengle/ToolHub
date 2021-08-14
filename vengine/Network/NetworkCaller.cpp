@@ -72,39 +72,41 @@ private:
 
 		while (socket->Read(buffer, maxBufferSize)) {
 			std::span<uint8_t> sp = buffer;
-			if (buffer.empty()) continue;
-			FunctionCallCmd callCmd = vstd::SerDe<FunctionCallCmd>::Get(sp);
-			switch (callCmd.funcIndex) {
-				case CONSTRUCTOR_INDEX: {
-					auto&& cls = clsFunctions[callCmd.typeIndex];
-					auto newPtr = objRegister->CreateObjByRemote(cls.constructor, callCmd.guid);
-					InitializeRegistObject(newPtr, callCmd.typeIndex);
-				} break;
+			while (sp.size() > 0) {
+				if (buffer.empty()) break;
+				FunctionCallCmd callCmd = vstd::SerDe<FunctionCallCmd>::Get(sp);
+				switch (callCmd.funcIndex) {
+					case CONSTRUCTOR_INDEX: {
+						auto&& cls = clsFunctions[callCmd.typeIndex];
+						auto newPtr = objRegister->CreateObjByRemote(cls.constructor, callCmd.guid);
+						InitializeRegistObject(newPtr, callCmd.typeIndex);
+					} break;
 
-				case DISPOSE_INDEX: {
-					auto instance = objRegister->GetObject(callCmd.guid);
-					if (!instance) break;
-					instance->netSer = this;
-					instance->Dispose();
-				} break;
-				case UPDATE_GUID: {
-					remoteGuid = callCmd.guid;
-				} break;
-				default: {
-					if (callCmd.typeIndex >= clsFunctions.size()) break;
-					auto&& funcvec = clsFunctions[callCmd.typeIndex].funcs;
-					if (callCmd.funcIndex >= funcvec.size()) break;
-					auto instance = objRegister->GetObject(callCmd.guid);
-					if (!instance) break;
-					instance->netSer = this;
-					auto disp = vstd::create_disposer([&]() {
-						instance->netSer = nullptr;
-					});
-					funcvec[callCmd.funcIndex](instance, sp);
+					case DISPOSE_INDEX: {
+						auto instance = objRegister->GetObject(callCmd.guid);
+						if (!instance) break;
+						instance->netSer = this;
+						instance->Dispose();
+					} break;
+					case UPDATE_GUID: {
+						remoteGuid = callCmd.guid;
+					} break;
+					default: {
+						if (callCmd.typeIndex >= clsFunctions.size()) break;
+						auto&& funcvec = clsFunctions[callCmd.typeIndex].funcs;
+						if (callCmd.funcIndex >= funcvec.size()) break;
+						auto instance = objRegister->GetObject(callCmd.guid);
+						if (!instance) break;
+						instance->netSer = this;
+						auto disp = vstd::create_disposer([&]() {
+							instance->netSer = nullptr;
+						});
+						funcvec[callCmd.funcIndex](instance, sp);
+					}
 				}
-			}
 
-			auto instance = objRegister->GetObject(callCmd.guid);
+				auto instance = objRegister->GetObject(callCmd.guid);
+			}
 		}
 	}
 	void Dispose() override {
@@ -112,7 +114,10 @@ private:
 	}
 	void Write() {
 		while (auto f = writeCmd.Pop()) {
-			if (!socket->Write(*f)) return;
+			if (!socket->Write(*f)) {
+				return;
+			}
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 	}
 

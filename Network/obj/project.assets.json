@@ -16,11 +16,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\ToolHub\\InterfaceGenerator\\InterfaceGenerator.csproj",
-      "projectName": "InterfaceGenerator",
-      "projectPath": "D:\\ToolHub\\InterfaceGenerator\\InterfaceGenerator.csproj",
+      "projectUniqueName": "D:\\ToolHub\\Network\\Network.csproj",
+      "projectName": "Network",
+      "projectPath": "D:\\ToolHub\\Network\\Network.csproj",
       "packagesPath": "C:\\Users\\maxwe\\.nuget\\packages\\",
-      "outputPath": "D:\\ToolHub\\InterfaceGenerator\\obj\\",
+      "outputPath": "D:\\ToolHub\\Network\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",

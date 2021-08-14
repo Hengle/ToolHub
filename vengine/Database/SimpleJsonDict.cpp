@@ -14,7 +14,10 @@ JsonVariant SimpleJsonDict::Get(vstd::string_view key) {
 	return JsonVariant();
 }
 void SimpleJsonDict::Set(vstd::string key, JsonVariant value) {
-	if (!value.valid()) return;
+	if (!value.valid()) {
+		VEngine_Log("Invalid Value\n");
+		VENGINE_EXIT;
+	}
 
 	vars.ForceEmplace(std::move(key), db, value, static_cast<SimpleJsonObject*>(this));
 }

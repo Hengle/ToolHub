@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31515.178
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceGenerator", "InterfaceGenerator.csproj", "{751C2BAA-36D3-4C05-AACB-FEA6F9463449}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InterfaceGenerator", "InterfaceGenerator.csproj", "{751C2BAA-36D3-4C05-AACB-FEA6F9463449}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Network", "..\Network\Network.csproj", "{DA162693-3826-49F8-9FD1-85D5BBFAB60A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{751C2BAA-36D3-4C05-AACB-FEA6F9463449}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{751C2BAA-36D3-4C05-AACB-FEA6F9463449}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{751C2BAA-36D3-4C05-AACB-FEA6F9463449}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA162693-3826-49F8-9FD1-85D5BBFAB60A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA162693-3826-49F8-9FD1-85D5BBFAB60A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA162693-3826-49F8-9FD1-85D5BBFAB60A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA162693-3826-49F8-9FD1-85D5BBFAB60A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

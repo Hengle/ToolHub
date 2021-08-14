@@ -26,5 +26,6 @@ static constexpr size_t MD5_SIZE = 16;
 
 VENGINE_DLL_COMMON std::array<uint8_t, MD5_SIZE> GetMD5FromString(vstd::string const& str);
 VENGINE_DLL_COMMON std::array<uint8_t, MD5_SIZE> GetMD5FromArray(std::span<uint8_t> data);
+//Used for unity
 
 }// namespace vstd

@@ -308,7 +308,7 @@ ThreadTaskHandle SimpleBinaryJson::CollectGarbage(
 				}
 			}
 		};
-		auto cleanHandle = tPool->GetBeginEndTask(
+		ThreadTaskHandle cleanHandle = tPool->GetBeginEndTask(
 			[&](size_t beg, size_t ed) {
 				auto b = jsonObjs.begin() + beg;
 				auto e = jsonObjs.begin() + ed;
@@ -327,7 +327,7 @@ ThreadTaskHandle SimpleBinaryJson::CollectGarbage(
 			},
 			jsonObjs.size());
 
-		auto collectHandle = tPool->GetTask([&]() {
+		ThreadTaskHandle collectHandle = tPool->GetTask([&]() {
 			vstd::vector<SimpleJsonObject*> removeList;
 			for (auto&& i : jsonObjs) {
 				if (!collectedGuid.Find(i.first))

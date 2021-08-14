@@ -26,6 +26,7 @@ public:
 	GuidData const& ToBinary() const { return data; }
 	std::array<uint8_t, sizeof(GuidData)> ToArray() const;
 	vstd::string ToString(bool upper = true) const;
+	void ToString(char* result, bool upper = true) const;
 	inline bool operator==(Guid const& d) const {
 		return data.data0 == d.data.data0 && data.data1 == d.data.data1;
 	}

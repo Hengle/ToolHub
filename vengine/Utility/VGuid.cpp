@@ -86,25 +86,30 @@ std::array<uint8_t, sizeof(Guid::GuidData)> Guid::ToArray() const {
 	memcpy(arr.data(), &data, sizeof(GuidData));
 	return arr;
 }
-
+namespace vguid_detail {
+void toHex(uint64 data, char*& sPtr, bool upper) {
+	char const* hexUpperStr = upper ? "0123456789ABCDEF" : "0123456789abcdef";
+	constexpr size_t hexSize = sizeof(data) * 2;
+	auto ptrEnd = sPtr - hexSize;
+	while (sPtr != ptrEnd) {
+		*sPtr = hexUpperStr[data & 15];
+		data >>= 4;
+		sPtr--;
+	}
+}
+}// namespace vguid_detail
 vstd::string Guid::ToString(bool upper) const {
 	vstd::string s;
 	s.resize(sizeof(GuidData) * 2);
 	auto sPtr = s.data() + sizeof(GuidData) * 2 - 1;
-	char const* hexUpperStr = upper ? "0123456789ABCDEF" : "0123456789abcdef";
-
-	auto toHex = [&](auto data) {
-		constexpr size_t hexSize = sizeof(data) * 2;
-		auto ptrEnd = sPtr - hexSize;
-		while (sPtr != ptrEnd) {
-			*sPtr = hexUpperStr[data & 15];
-			data >>= 4;
-			sPtr--;
-		}
-	};
-	toHex(data.data1);
-	toHex(data.data0);
+	vguid_detail::toHex(data.data1, sPtr, upper);
+	vguid_detail::toHex(data.data0, sPtr, upper);
 	return s;
+}
+void Guid::ToString(char* result, bool upper) const {
+	auto sPtr = result + sizeof(GuidData) * 2 - 1;
+	vguid_detail::toHex(data.data1, sPtr, upper);
+	vguid_detail::toHex(data.data0, sPtr, upper);
 }
 std::ostream& operator<<(std::ostream& out, const Guid& obj) noexcept {
 	out << obj.ToString();
@@ -112,3 +117,21 @@ std::ostream& operator<<(std::ostream& out, const Guid& obj) noexcept {
 }
 
 }// namespace vstd
+#ifdef EXPORT_UNITY_FUNCTION
+VENGINE_UNITY_EXTERN void vguid_get_new(
+	vstd::Guid* guidData) {
+	*guidData = vstd::Guid(true).ToBinary();
+}
+VENGINE_UNITY_EXTERN void vguid_get_from_string(
+	char const* str,
+	int32 strLen,
+	vstd::Guid* guidData) {
+	*guidData = vstd::Guid(vstd::string_view(str, strLen)).ToBinary();
+}
+VENGINE_UNITY_EXTERN void vguid_to_string(
+	vstd::Guid const* guidData,
+	char* result,
+	bool upper) {
+	guidData->ToString(result, upper);
+}
+#endif

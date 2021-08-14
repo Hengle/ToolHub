@@ -1,15 +1,15 @@
 #pragma vengine_package vengine_dll
 
-#include <Utility/md5.h>
+#include <Utility/MD5.h>
 namespace vstd {
 
 class MD5 {
 public:
 	/* Construct a MD5 object with a string. */
-	MD5(std::span<uint8_t> message);
+	MD5(std::span<uint8_t> message, uint8_t* digest);
 
 	/* Generate md5 digest. */
-	std::array<uint8_t, MD5_SIZE> const& GetDigest();
+	void GetDigest();
 
 	static constexpr uint32_t s11 = 7;
 	static constexpr uint32_t s12 = 12;
@@ -51,7 +51,7 @@ public:
 	uint8_t buffer[64];
 
 	/* message digest. */
-	std::array<uint8_t, MD5_SIZE> digest;
+	uint8_t* digest;
 
 	/* padding for calculate. */
 	static const uint8_t PADDING[64];
@@ -60,12 +60,16 @@ public:
 	static const char HEX_NUMBERS[16];
 };
 std::array<uint8_t, MD5_SIZE> GetMD5FromString(vstd::string const& str) {
-	MD5 md5({reinterpret_cast<uint8_t*>(str.data()), str.size()});
-	return md5.GetDigest();
+	std::array<uint8_t, MD5_SIZE> arr;
+	MD5 md5({reinterpret_cast<uint8_t*>(str.data()), str.size()}, arr.data());
+	md5.GetDigest();
+	return arr;
 }
 std::array<uint8_t, MD5_SIZE> GetMD5FromArray(std::span<uint8_t> data) {
-	MD5 md5(data);
-	return md5.GetDigest();
+	std::array<uint8_t, MD5_SIZE> arr;
+	MD5 md5(data, arr.data());
+	md5.GetDigest();
+	return arr;
 }
 
 #define F(x, y, z) (((x) & (y)) | ((~x) & (z)))
@@ -125,7 +129,8 @@ const char MD5::HEX_NUMBERS[16] = {
  * @param {message} the message will be transformed.
  *
  */
-MD5::MD5(std::span<uint8_t> message) {
+MD5::MD5(std::span<uint8_t> message, uint8_t* digest)
+	: digest(digest) {
 	/* Reset number of bits. */
 	count[0] = count[1] = 0;
 	/* Initialization constants. */
@@ -145,7 +150,7 @@ MD5::MD5(std::span<uint8_t> message) {
  *
  */
 
-std::array<uint8_t, MD5_SIZE> const& MD5::GetDigest() {
+void MD5::GetDigest() {
 
 	uint8_t bits[8];
 	uint32_t oldState[4];
@@ -168,13 +173,11 @@ std::array<uint8_t, MD5_SIZE> const& MD5::GetDigest() {
 	init(bits, 8);
 
 	/* Store state in digest */
-	encode(state, digest.data(), MD5_SIZE);
+	encode(state, digest, MD5_SIZE);
 
 	/* Restore current state and count. */
 	memcpy(state, oldState, MD5_SIZE);
 	memcpy(count, oldCount, 8);
-
-	return digest;
 }
 
 /**
@@ -362,3 +365,13 @@ void MD5::decode(const uint8_t* input, uint32_t* output, size_t length) {
 #undef II
 #undef ROTATELEFT
 }// namespace vstd
+
+#ifdef EXPORT_UNITY_FUNCTION
+VENGINE_UNITY_EXTERN void unity_get_md5(
+	uint8_t* data,
+	uint64 dataLength,
+	uint8_t* destData) {
+	vstd::MD5 md5(std::span<uint8_t>(data, dataLength), destData);
+	md5.GetDigest();
+}
+#endif

@@ -700,3 +700,15 @@ vstd::string_view operator"" _sv(char const* str, size_t sz) {
 vstd::wstring_view operator"" _sv(wchar_t const* str, size_t sz) {
 	return vstd::wstring_view(str, sz);
 }
+
+#ifdef EXPORT_UNITY_FUNCTION
+VENGINE_UNITY_EXTERN void vengine_memcpy(void* dest, void* src, uint64 sz) {
+	memcpy(dest, src, sz);
+}
+VENGINE_UNITY_EXTERN void vengine_memset(void* dest, byte b, uint64 sz) {
+	memset(dest, b, sz);
+}
+VENGINE_UNITY_EXTERN void vengine_memmove(void* dest, void* src, uint64 sz) {
+	memmove(dest, src, sz);
+}
+#endif

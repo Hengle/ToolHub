@@ -77,7 +77,7 @@
 			<CallingConvention>FastCall</CallingConvention>
 			<CompileAs>CompileAsCpp</CompileAs>
 			<WholeProgramOptimization>false</WholeProgramOptimization>
-			<MinFilesInUnityFile>8</MinFilesInUnityFile>
+			<MinFilesInUnityFile>4</MinFilesInUnityFile>
 			<LanguageStandard_C>stdc17</LanguageStandard_C>
 			<EnableModules>true</EnableModules>
 			<AdditionalIncludeDirectories>.;</AdditionalIncludeDirectories>
@@ -108,7 +108,7 @@
 			<EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
 			<LanguageStandard>stdcpplatest</LanguageStandard>
 			<CallingConvention>FastCall</CallingConvention>
-			<MinFilesInUnityFile>8</MinFilesInUnityFile>
+			<MinFilesInUnityFile>4</MinFilesInUnityFile>
 			<BufferSecurityCheck>false</BufferSecurityCheck>
 			<ExceptionHandling>false</ExceptionHandling>
 			<IntelJCCErratum>false</IntelJCCErratum>

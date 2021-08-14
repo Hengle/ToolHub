@@ -24,20 +24,32 @@ void SimpleJsonArray::LoadFromData(std::span<uint8_t> data) {
 	}
 }
 void SimpleJsonArray::Set(size_t index, JsonVariant value) {
-	if (!value.valid()) return;
-	if (index >= arrs.size()) return;
+	if (!value.valid()) {
+		VEngine_Log("Invalid Value\n");
+		VENGINE_EXIT;
+	}
+	if (index >= arrs.size()) {
+		VEngine_Log("Index Out Range!\n");
+		VENGINE_EXIT;
+	}
 
 	arrs[index].Set(db, value, static_cast<SimpleJsonObject*>(this));
 }
 void SimpleJsonArray::Remove(size_t index) {
-	if (index >= arrs.size()) return;
+	if (index >= arrs.size()) {
+		VEngine_Log("Index Out Range!\n");
+		VENGINE_EXIT;
+	}
 
 	arrs.erase(arrs.begin() + index);
 }
 IJsonSubDatabase* SimpleJsonArray::GetDatabase() { return db; }
 
 void SimpleJsonArray::Add(JsonVariant value) {
-	if (!value.valid()) return;
+	if (!value.valid()) {
+		VEngine_Log("Invalid Value\n");
+		VENGINE_EXIT;
+	}
 
 	arrs.emplace_back(db, value, static_cast<SimpleJsonObject*>(this));
 }

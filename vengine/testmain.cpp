@@ -22,8 +22,18 @@ std::mutex mtx;
 
 class TestClass : public toolhub::net::IRegistObject {
 public:
+	static TestClass* singleton;
+	TestClass() {
+		std::cout << "create class\n";
+		singleton = this;
+	}
 	void Run(vstd::string&& str) { std::cout << "from remote: " << str << '\n'; }
+	void Dispose() override {
+		std::cout << "Disposed...\n";
+		toolhub::net::IRegistObject::Dispose();
+	}
 };
+TestClass* TestClass::singleton = nullptr;
 
 void server(uint port) {
 	Runnable<toolhub::net::INetworkService*()> getService;
@@ -67,48 +77,46 @@ void server(uint port) {
 		ptr->Run();
 	};
 	if (isServer) {
-		std::cout << "main thread waiting...\n";
-		TestClass* tt = nullptr;
 		std::thread t([&]() {
+			TestClass* tt = nullptr;
 			while (true) {
+
 				auto ptr = getServiceWithDebugInfo();
 				port++;
 				initService(ptr);
-				std::lock_guard lck(mtx);
-				if (tt) {
+				if (!tt) {
+					tt = ptr->CreateClass<TestClass>();
+				} else {
 					ptr->AddExternalClass(tt);
+					std::cout << "add external\n";
 				}
+				std::lock_guard lck(mtx);
 				services.emplace_back(ptr);
 			}
 		});
-		system("pause");
-		vstd::string s;
 		while (true) {
-			std::cin >> s;
-			if (!tt) {
-				std::lock_guard lck(mtx);
-				if (services.empty()) {
-					std::cout << "no connection yet!\n";
-					continue;
-				}
-				tt = services[0]->CreateClass<TestClass>();
-				if (services.size() > 1) {
-					for (auto&& i : vstd::ptr_range(&services[1], services.end())) {
-						i->AddExternalClass(tt);
-					}
-				}
-			}
-			for (auto&& i : services) {
-				i->NET_CALL_FUNC(tt, Run, s);
-			}
+			std::this_thread::sleep_for(std::chrono::years(1000));
 		}
 
 		t.join();
 	} else {
 		vstd::unique_ptr<toolhub::net::INetworkService> service = getServiceWithDebugInfo();
 		initService(service.get());
+		vstd::string s;
 		while (true) {
-			std::this_thread::sleep_for(std::chrono::hours(1000));
+			std::cin >> s;
+			if (!TestClass::singleton) {
+				std::cout << "not instanced!\n";
+				continue;
+			}
+			if (s == "exit") {
+				TestClass::singleton->Dispose();
+			} else {
+
+				for (auto&& i : services) {
+					i->NET_CALL_FUNC(TestClass::singleton, Run, s);
+				}
+			}
 		}
 	}
 }
@@ -116,24 +124,22 @@ void server(uint port) {
 #include <Utility/StringUtility.h>
 int main(int argc, char* argv[]) {
 	vengine_init_malloc();
-	/*
+
 	if (argc != 2) {
 		std::cout << "error argcount!";
 		system("pause");
 		return 0;
 	}
-	*/
-	auto port = 2001;
-	//StringUtil::StringToInteger(vstd::string_view(argv[1]));
+
+	auto port = StringUtil::StringToInteger(vstd::string_view(argv[1]));
 
 	DynamicDLL dll("VEngine_Network.dll");
 	DynamicDLL dll1("VEngine_Database.dll");
 	network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
 
-	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
-	jsonTest(database);
+	//	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
 	//jsonTest(database);
-	//server(port);
+	server(port);
 	system("pause");
 
 	return 0;

@@ -86,5 +86,7 @@
 
 #define VENGINE_UNITY_EXTERN extern "C" _declspec(dllexport)
 
+#define EXPORT_UNITY_FUNCTION
+
 
 /////////////////////// THREAD PAUSE
