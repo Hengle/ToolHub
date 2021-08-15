@@ -12,20 +12,47 @@ using System.Runtime.InteropServices;
 
 namespace client
 {
-    struct DLLInitializer
-    {
-        [DllImport("VEngine_DLL.dll")]
-        static extern void vengine_init_malloc();
-        public DLLInitializer(bool initialize)
-        {
-            if (!initialize) return;
-            vengine_init_malloc();
-        }
-    }
+
     class Program
     {
         static string ipAddress;
-        static DLLInitializer dllInitializer = new DLLInitializer(true);
+        unsafe class ServerProcessor : Network.IStreamerVisitor, IDisposable
+        {
+            TcpListener server = null;
+            NetworkStream stream;
+            TcpClient client;
+            byte[] bytes = new byte[1024];
+            public ServerProcessor()
+            {
+                IPAddress localAddr = IPAddress.Parse(ipAddress);
+
+                // TcpListener server = new TcpListener(port);
+                server = new TcpListener(localAddr, port);
+
+                // Start listening for client requests.
+                server.Start();
+                client = server.AcceptTcpClient();
+                stream = client.GetStream();
+            }
+
+            public void GetNextByteArray(out byte[] byteArr, out ulong usedByteLen)
+            {
+                usedByteLen = (ulong)(stream.Read(bytes, 0, bytes.Length));
+                byteArr = bytes;
+            }
+            public Task Execute(IntPtr data, ulong byteLength)
+            {
+                return Task.Run(() =>
+                {
+                    ulong ofst = 0;
+                    Console.WriteLine(Memory.DeSerString((byte*)data.ToPointer(), ref ofst));
+                });
+            }
+            public void Dispose()
+            {
+                server.Stop();
+            }
+        }
         const int port = 13000;
 
         public static string GetLocalIP()
@@ -49,66 +76,7 @@ namespace client
             }
         }
 
-        static void Server()
-        {
-            TcpListener server = null;
-            try
-            {
-                IPAddress localAddr = IPAddress.Parse(ipAddress);
-
-                // TcpListener server = new TcpListener(port);
-                server = new TcpListener(localAddr, port);
-
-                // Start listening for client requests.
-                server.Start();
-
-                // Buffer for reading data
-                byte[] bytes = new byte[5];
-                string data;
-                while (true)
-                {
-                    Console.Write("Waiting for a connection... ");
-
-                    // Perform a blocking call to accept requests.
-                    // You could also use server.AcceptSocket() here.
-                    TcpClient client = server.AcceptTcpClient();
-
-                    Console.WriteLine("Connected!");
-
-                    data = null;
-
-                    // Get a stream object for reading and writing
-                    NetworkStream stream = client.GetStream();
-
-                    int i;
-
-                    // Loop to receive all the data sent by the client.
-                    while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
-                    {
-                        // Translate data bytes to a ASCII string.
-                        data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                        Console.WriteLine("Received: {0}", data);
-
-                        // Process the data sent by the client.
-                        data = data.ToUpper();
-
-                        byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
-
-                        // Send back a response.
-                        stream.Write(msg, 0, msg.Length);
-                        Console.WriteLine("Sent: {0}", data);
-                    }
-
-                    // Shutdown and end connection
-                    client.Close();
-                }
-            }
-            catch
-            {
-                if (server != null) server.Stop();
-            }
-        }
-        static void Client()
+        unsafe static void Client()
         {
 
             TcpClient client = new TcpClient(ipAddress, port);
@@ -116,10 +84,13 @@ namespace client
             {
 
                 //byte[] bytes = new byte[5];
+
                 while (true)
                 {
                     string s = Console.ReadLine();
-                    stream.Write(Encoding.ASCII.GetBytes(s));
+                    byte[] newBytes = null;
+                    ulong ofst = s.Serialize(ref newBytes);
+                    stream.Write(newBytes, 0, (int)ofst);
                 }
             }
             client.Close();
@@ -129,14 +100,23 @@ namespace client
 
         public static void Main()
         {
-           
-            ipAddress = GetLocalIP();
+            Memory.vengine_init_malloc();
             Console.WriteLine("Server (Y) or Client(N)");
+
+
+            ipAddress = GetLocalIP();
             string s = Console.ReadLine();
             if (s == "Y" || s == "y")
             {
                 Console.WriteLine("Start HTTP Server!");
-                Server();
+                Network.DataStreamer streamer = new Network.DataStreamer();
+                using (var v = new ServerProcessor())
+                {
+                    while (true)
+                    {
+                        streamer.StreamNext_InterSize(v);
+                    }
+                }
             }
             else
             {
