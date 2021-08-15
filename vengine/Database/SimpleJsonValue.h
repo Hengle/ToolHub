@@ -35,6 +35,7 @@ public:
 	void LoadFromSer(std::span<uint8_t>& arr);
 	void Clean() override;
 	void Reset() override;
+	void DisposeAllReference() override;
 	void Dispose() override;
 	IJsonValueDict* AddOrGetDict(vstd::string key) override;
 	IJsonValueArray* AddOrGetArray(vstd::string key) override;
@@ -58,6 +59,8 @@ public:
 	void LoadFromSer(std::span<uint8_t>& arr);
 	void Clean() override;
 	void Reset() override;
+	void DisposeAllReference() override;
+
 	JsonVariant Get(size_t index) override;
 	void Set(size_t index, JsonVariant value) override;
 	void Remove(size_t index) override;

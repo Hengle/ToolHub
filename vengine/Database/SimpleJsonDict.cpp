@@ -72,6 +72,12 @@ void SimpleJsonDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 void SimpleJsonDict::Clean() {
 	SimpleJsonLoader::Clean(db->GetParent(), vars);
 }
+void SimpleJsonDict::DisposeAllReference() {
+	for (auto&& i : vars) {
+		SimpleJsonLoader::RemoveAllGuid(i.second, db);
+	}
+}
+
 void SimpleJsonDict::Reset() {
 	vars.Clear();
 }

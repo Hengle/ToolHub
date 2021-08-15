@@ -75,8 +75,12 @@ void SimpleJsonArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	auto endOffset = data.size();
 	*reinterpret_cast<uint64*>(data.data() + sizeOffset) = endOffset - beginOffset;
 }
+void SimpleJsonArray::DisposeAllReference() {
+	for (auto&& i : arrs) {
+		SimpleJsonLoader::RemoveAllGuid(i, db);
+	}
+}
 void SimpleJsonArray::Reset() {
-
 	arrs.clear();
 }
 SimpleJsonArray::SimpleJsonArray(vstd::Guid const& instanceID, SimpleBinaryJson* db)

@@ -68,6 +68,8 @@ public:
 	static void Clean(IJsonDatabase* db, vstd::vector<SimpleJsonVariant>& var);
 	static SimpleJsonVariant DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db, SimpleJsonObject* obj);
 	static void Serialize(IJsonDatabase* db, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data);
+	static void RemoveAllGuid(SimpleJsonVariant const& v, SimpleBinaryJson* db);
+	static void RemoveAllGuid(vstd::Guid const& guid, SimpleBinaryJson* db);
 };
 template<typename T>
 T PopValue(std::span<uint8_t>& arr) {

@@ -90,12 +90,52 @@ void SimpleJsonLoader::Serialize(IJsonDatabase* parent, SimpleJsonVariant const&
 		d->M_GetSerData(data);
 	};
 	v.value.visit(
-		func,		  //int64
-		func,		  //double
-		func,		  //string
+		func,//int64
+		func,//double
+		func,//string
 		serValue,
 		serValue,
 		func);
+}
+void SimpleJsonLoader::RemoveAllGuid(vstd::Guid const& guid, SimpleBinaryJson* db) {
+	auto ite = db->jsonObjs.Find(guid);
+	if (!ite) return;
+	auto&& obj = ite.Value();
+	if (obj.second == DICT_TYPE) {
+		auto ptr = static_cast<SimpleJsonDict*>(obj.first);
+		for (auto&& i : ptr->vars) {
+			RemoveAllGuid(i.second, db);
+		}
+		db->Dispose(ptr);
+
+	} else {
+		auto ptr = static_cast<SimpleJsonArray*>(obj.first);
+		for (auto&& i : ptr->arrs) {
+			RemoveAllGuid(i, db);
+		}
+		db->Dispose(ptr);
+	}
+}
+
+void SimpleJsonLoader::RemoveAllGuid(SimpleJsonVariant const& v, SimpleBinaryJson* db) {
+	auto doNothing = [](auto&&) {};
+	v.value.visit(
+		doNothing,
+		doNothing,
+		doNothing,
+		[&](vstd::unique_ptr<SimpleJsonValueDict> const& ptr) {
+			for (auto&& i : ptr->vars) {
+				RemoveAllGuid(i.second, db);
+			}
+		},
+		[&](vstd::unique_ptr<SimpleJsonValueArray> const& ptr) {
+			for (auto&& i : ptr->arr) {
+				RemoveAllGuid(i, db);
+			}
+		},
+		[&](vstd::Guid const& guid) {
+			RemoveAllGuid(guid, db);
+		});
 }
 
 IJsonRefDict* SimpleJsonLoader::GetDictFromID(IJsonDatabase* db, vstd::Guid const& dbIndex, vstd::Guid const& instanceID) {
@@ -128,9 +168,9 @@ JsonVariant SimpleJsonVariant::GetVariant() const {
 		return v;
 	};
 	return value.visit(
-		func,	   //int64
-		func,	   //double
-		func,	   //string
+		func,//int64
+		func,//double
+		func,//string
 		[&](vstd::unique_ptr<SimpleJsonValueDict> const& v) -> JsonVariant {
 			return v.get();
 		},

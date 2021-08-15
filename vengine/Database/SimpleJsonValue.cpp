@@ -92,8 +92,13 @@ void SimpleJsonValueDict::LoadFromSer(std::span<uint8_t>& sp) {
 void SimpleJsonValueDict::Clean() {
 	SimpleJsonLoader::Clean(db->GetParent(), vars);
 }
+void SimpleJsonValueDict::DisposeAllReference() {
+	for (auto&& i : vars) {
+		SimpleJsonLoader::RemoveAllGuid(i.second, db);
+	}
+}
+
 void SimpleJsonValueDict::Reset() {
-	
 	vars.Clear();
 }
 
@@ -209,9 +214,13 @@ void SimpleJsonValueArray::LoadFromSer(std::span<uint8_t>& sp) {
 void SimpleJsonValueArray::Clean() {
 	SimpleJsonLoader::Clean(db->GetParent(), arr);
 }
-
+void SimpleJsonValueArray::DisposeAllReference() {
+	for (auto&& i : arr) {
+		SimpleJsonLoader::RemoveAllGuid(i, db);
+	}
+}
 void SimpleJsonValueArray::Reset() {
-	
+	DisposeAllReference();
 	arr.clear();
 }
 

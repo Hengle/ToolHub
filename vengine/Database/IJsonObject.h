@@ -29,6 +29,7 @@ public:
 	virtual vstd::vector<uint8_t> GetSerData() = 0;
 	virtual void Clean() = 0;
 	virtual void Reset() = 0;
+	virtual void DisposeAllReference() = 0;
 };
 class IJsonRefType {
 public:

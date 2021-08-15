@@ -21,6 +21,7 @@ public:
 		return v;
 	}
 	void Reset() override;
+	void DisposeAllReference() override;
 	SimpleJsonArray(vstd::Guid const& instanceID, SimpleBinaryJson* db);
 	~SimpleJsonArray();
 	vstd::Guid GetGUID() override { return selfGuid; }

@@ -18,10 +18,6 @@ void jsonTest(
 	db->NameGUID("Root", vstd::Guid(true));
 	// Get Root Json Object
 	auto rootObj = db->CreateJsonObject(db->GetNamedGUID("Root"));
-	db->CreateJsonArray();
-	db->CreateJsonArray();
-	db->CreateJsonArray();
-	db->CreateJsonArray();
 	auto ptr = db->CreateJsonArray();
 	ThreadPool tp(std::thread::hardware_concurrency());
 	// Create a json array
@@ -30,7 +26,7 @@ void jsonTest(
 	subArr->Add(8.3);
 	subArr->Add("string1"_sv);
 	// Create a json dictionary
-	auto subObj = rootObj->AddOrGetDict("dict");
+	auto subObj = db->CreateJsonObject();
 	subObj->Set("number"_sv, 53);
 	subObj->Set("number1"_sv, 12.5);
 	subObj->Set("wrong", rootObj);
@@ -38,9 +34,9 @@ void jsonTest(
 	//Full Serialize Data
 	subArr->Add(vstd::Guid(true));
 	subObj->Set("number"_sv, 26);
+	rootObj->Set("dict", subObj->GetGUID());
 	subArr->Set(1, 141);
 	subArr->Add(vstd::Guid(true));
-	db->CollectGarbage(&tp, vstd::vector<vstd::Guid>{db->GetNamedGUID("Root")}).Complete();
 	auto vec = db->Serialize();
 	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
 	//Incremental Serialize Data
@@ -87,23 +83,26 @@ void jsonTest(
 		(*cloneArr)->Dispose();
 	}
 
-	auto cloneDict = cloneRoot->Get("dict"_sv).try_get<IJsonValueDict*>();
-	if (cloneDict) {
-		auto ite = (*cloneDict)->GetIterator();
-		//Iterate and print all elements
-		LINQ_LOOP(i, *ite) {
-			auto func = [](auto&& f) {
-				std::cout << f << '\n';
-			};
-			std::cout << "key: " << i->key << " Value: ";
-			i->value.visit(
-				func,
-				func,
-				func,
-				[](auto&& f) {},
-				[](auto&& f) {},
-				[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
+	auto cloneGuid = cloneRoot->Get("dict"_sv).try_get<vstd::Guid>();
+	if (cloneGuid) {
+		auto cloneDict = cloneDB->GetJsonObject(*cloneGuid);
+		if (cloneDict) {
+			auto ite = cloneDict->GetIterator();
+			//Iterate and print all elements
+			LINQ_LOOP(i, *ite) {
+				auto func = [](auto&& f) {
+					std::cout << f << '\n';
+				};
+				std::cout << "key: " << i->key << " Value: ";
+				i->value.visit(
+					func,
+					func,
+					func,
+					[](auto&& f) {},
+					[](auto&& f) {},
+					[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
+			}
+			cloneDict->Dispose();
 		}
-		(*cloneDict)->Dispose();
 	}
 }
