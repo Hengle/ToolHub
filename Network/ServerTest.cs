@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.IO;
+using Native;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
@@ -55,27 +56,7 @@ namespace client
         }
         const int port = 13000;
 
-        public static string GetLocalIP()
-        {
-            try
-            {
-                string HostName = Dns.GetHostName();
-                IPHostEntry IpEntry = Dns.GetHostEntry(HostName);
-                for (int i = 0; i < IpEntry.AddressList.Length; i++)
-                {
-                    if (IpEntry.AddressList[i].AddressFamily == AddressFamily.InterNetwork)
-                    {
-                        return IpEntry.AddressList[i].ToString();
-                    }
-                }
-                return "";
-            }
-            catch
-            {
-                return "";
-            }
-        }
-
+      
         unsafe static void Client()
         {
 
@@ -104,7 +85,7 @@ namespace client
             Console.WriteLine("Server (Y) or Client(N)");
 
 
-            ipAddress = GetLocalIP();
+            ipAddress = Network.NetworkUtility.GetLocalIP();
             string s = Console.ReadLine();
             if (s == "Y" || s == "y")
             {

@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Native;
 
 namespace Network
 {
-    unsafe interface IStreamerVisitor
+    public unsafe interface IStreamerVisitor
     {
         public void GetNextByteArray(out byte[] byteArr, out ulong usedByteLen);
         public Task Execute(IntPtr data, ulong byteLength);
     }
-    class DataStreamer
+    public class DataStreamer
     {
         byte[] currentArr = null;
         ulong leftedBytes = 0;

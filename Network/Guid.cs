@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 namespace vstd
 {
-    unsafe struct Guid
+   public unsafe struct Guid
     {
         ulong data0;
         ulong data1;

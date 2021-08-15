@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-
-unsafe class ArenaAllocator : IDisposable
+using Native;
+public unsafe class ArenaAllocator : IDisposable
 {
     List<IntPtr> allocatedPtr = null;
     struct Pool

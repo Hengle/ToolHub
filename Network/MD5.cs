@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 namespace vstd
 {
-    unsafe struct MD5
+    public unsafe struct MD5
     {
         ulong data0;
         ulong data1;
