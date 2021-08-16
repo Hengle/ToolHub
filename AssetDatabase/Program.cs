@@ -3,22 +3,27 @@ using System.Collections.Generic;
 using Native;
 using MongoDB.Driver;
 using MongoDB.Bson;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace AssetDatabase
 {
     unsafe class Program
     {
-       static  void UpdateFileDict(Dictionary<string, object> dict, in vstd.Guid guid, string name)
+        static void UpdateFileDict(Dictionary<string, object> dict, in vstd.Guid guid, string name)
         {
             dict.Clear();
             dict.Add("guid", guid.ToString());
             dict.Add("name", name);
         }
-        static void Main(string[] args)
+
+        static void RunDB()
         {
-            Memory.vengine_init_malloc();
             MongoClient dbClient = new MongoClient("mongodb://localhost:27017");
+            //dbClient.DropDatabase("fuck");
+
             var db = dbClient.GetDatabase("fuck");
+
             Console.WriteLine("Input '0' to drop last");
             Console.WriteLine("Input '1' to add new");
             string s = Console.ReadLine();
@@ -29,7 +34,6 @@ namespace AssetDatabase
                     return;
                 case "1":
                     {
-                        db.CreateCollection("root");
                         var localRoot = db.GetCollection<BsonDocument>("root");
                         List<BsonDocument> docs = new List<BsonDocument>();
                         Dictionary<string, object> dict = new Dictionary<string, object>();
@@ -46,7 +50,7 @@ namespace AssetDatabase
             /*             
               
              */
-            var findResult = rootDoc.Find(Builders<BsonDocument>.Filter.Eq("guid", "4D530EE0C0CD312000B7C55E1903B88D"));
+            var findResult = rootDoc.Find(Builders<BsonDocument>.Filter.Empty);
             var docCount = findResult.CountDocuments();
             Console.WriteLine("find count: " + docCount);
             //findResult.
@@ -69,6 +73,46 @@ namespace AssetDatabase
             var result = db.RunCommand<BsonDocument>(command);
             var cars = db.GetCollection<BsonDocument>("cars");
             //db.CreateCollection("cars",);*/
+        }
+        [System.Serializable]
+        struct CustomPerson
+        {
+            public int a;
+            public double b;
+            public string c;
+            public List<int> values;
+        }
+        static void RunSerialization()
+        {
+            MemoryStream memorystream = new MemoryStream();
+            BinaryFormatter bf = new BinaryFormatter();
+            CustomPerson person = new CustomPerson
+            {
+                a = 324,
+                b = 1378.1654,
+                c = "fuck!",
+                values = new List<int>()
+            };
+            person.values.Add(5);
+            person.values.Add(43);
+            person.values.Add(2);
+            person.values.Add(56);
+            bf.Serialize(memorystream, person);
+            memorystream.Position = 0;
+            CustomPerson newPerson = (CustomPerson)bf.Deserialize(memorystream);
+            Console.WriteLine(newPerson.a);
+            Console.WriteLine(newPerson.b);
+            Console.WriteLine(newPerson.c);
+            foreach(var i in newPerson.values)
+            {
+                Console.WriteLine(i);
+            }
+
+        }
+        static void Main(string[] args)
+        {
+            Memory.vengine_init_malloc();
+            RunSerialization();
         }
     }
 }

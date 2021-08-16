@@ -2,11 +2,12 @@
 
 #include <Utility/MD5.h>
 namespace vstd {
+namespace detail {
 
-class MD5 {
+class MD5_Impl {
 public:
-	/* Construct a MD5 object with a string. */
-	MD5(std::span<uint8_t> message, uint8_t* digest);
+	/* Construct a MD5_Impl object with a string. */
+	MD5_Impl(std::span<uint8_t> message, uint8_t* digest);
 
 	/* Generate md5 digest. */
 	void GetDigest();
@@ -28,7 +29,7 @@ public:
 	static constexpr uint32_t s43 = 15;
 	static constexpr uint32_t s44 = 21;
 
-	/* MD5 basic transformation. Transforms state based on block. */
+	/* MD5_Impl basic transformation. Transforms state based on block. */
 	void transform(const uint8_t block[64]);
 
 	/* Encodes input (usigned long) into output (uint8_t). */
@@ -59,18 +60,6 @@ public:
 	/* Hex numbers. */
 	static const char HEX_NUMBERS[16];
 };
-std::array<uint8_t, MD5_SIZE> GetMD5FromString(vstd::string const& str) {
-	std::array<uint8_t, MD5_SIZE> arr;
-	MD5 md5({reinterpret_cast<uint8_t*>(str.data()), str.size()}, arr.data());
-	md5.GetDigest();
-	return arr;
-}
-std::array<uint8_t, MD5_SIZE> GetMD5FromArray(std::span<uint8_t> data) {
-	std::array<uint8_t, MD5_SIZE> arr;
-	MD5 md5(data, arr.data());
-	md5.GetDigest();
-	return arr;
-}
 
 #define F(x, y, z) (((x) & (y)) | ((~x) & (z)))
 #define G(x, y, z) (((x) & (z)) | ((y) & (~z)))
@@ -115,21 +104,21 @@ std::array<uint8_t, MD5_SIZE> GetMD5FromArray(std::span<uint8_t> data) {
 		(a) = ROTATELEFT((a), (s));         \
 		(a) += (b);                         \
 	}
-/* Define the static member of MD5. */
-const uint8_t MD5::PADDING[64] = {0x80};
-const char MD5::HEX_NUMBERS[16] = {
+/* Define the static member of MD5_Impl. */
+const uint8_t MD5_Impl::PADDING[64] = {0x80};
+const char MD5_Impl::HEX_NUMBERS[16] = {
 	'0', '1', '2', '3',
 	'4', '5', '6', '7',
 	'8', '9', 'a', 'b',
 	'c', 'd', 'e', 'f'};
 
 /**
- * @Construct a MD5 object with a string.
+ * @Construct a MD5_Impl object with a string.
  *
  * @param {message} the message will be transformed.
  *
  */
-MD5::MD5(std::span<uint8_t> message, uint8_t* digest)
+MD5_Impl::MD5_Impl(std::span<uint8_t> message, uint8_t* digest)
 	: digest(digest) {
 	/* Reset number of bits. */
 	count[0] = count[1] = 0;
@@ -150,7 +139,7 @@ MD5::MD5(std::span<uint8_t> message, uint8_t* digest)
  *
  */
 
-void MD5::GetDigest() {
+void MD5_Impl::GetDigest() {
 
 	uint8_t bits[8];
 	uint32_t oldState[4];
@@ -189,7 +178,7 @@ void MD5::GetDigest() {
  * @param {len} the number btye of message.
  *
  */
-void MD5::init(const uint8_t* input, size_t len) {
+void MD5_Impl::init(const uint8_t* input, size_t len) {
 
 	uint32_t i, index, partLen;
 
@@ -224,11 +213,11 @@ void MD5::init(const uint8_t* input, size_t len) {
 }
 
 /**
- * @MD5 basic transformation. Transforms state based on block.
+ * @MD5_Impl basic transformation. Transforms state based on block.
  *
  * @param {block} the message block.
  */
-void MD5::transform(const uint8_t block[64]) {
+void MD5_Impl::transform(const uint8_t block[64]) {
 
 	uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
 
@@ -322,7 +311,7 @@ void MD5::transform(const uint8_t block[64]) {
 * @param {length} the length of input.
 *
 */
-void MD5::encode(const uint32_t* input, uint8_t* output, size_t length) {
+void MD5_Impl::encode(const uint32_t* input, uint8_t* output, size_t length) {
 
 	for (size_t i = 0, j = 0; j < length; ++i, j += 4) {
 		output[j] = (uint8_t)(input[i] & 0xff);
@@ -342,7 +331,7 @@ void MD5::encode(const uint32_t* input, uint8_t* output, size_t length) {
  * @param {length} the length of input.
  *
  */
-void MD5::decode(const uint8_t* input, uint32_t* output, size_t length) {
+void MD5_Impl::decode(const uint8_t* input, uint32_t* output, size_t length) {
 	for (size_t i = 0, j = 0; j < length; ++i, j += 4) {
 		output[i] = ((uint32_t)input[j]) | (((uint32_t)input[j + 1]) << 8) | (((uint32_t)input[j + 2]) << 16) | (((uint32_t)input[j + 3]) << 24);
 	}
@@ -364,14 +353,83 @@ void MD5::decode(const uint8_t* input, uint32_t* output, size_t length) {
 #undef HH
 #undef II
 #undef ROTATELEFT
-}// namespace vstd
 
+void UInt64ToHex(uint64 data, char*& sPtr, bool upper) {
+	char const* hexUpperStr = upper ? "0123456789ABCDEF" : "0123456789abcdef";
+	constexpr size_t hexSize = sizeof(data) * 2;
+	auto ptrEnd = sPtr + hexSize;
+	while (sPtr != ptrEnd) {
+		*sPtr = hexUpperStr[data & 15];
+		data >>= 4;
+		sPtr++;
+	}
+}
+
+}// namespace detail
+std::array<uint8_t, MD5_SIZE> GetMD5FromString(vstd::string const& str) {
+	using namespace detail;
+	std::array<uint8_t, MD5_SIZE> arr;
+	MD5_Impl md5({reinterpret_cast<uint8_t*>(str.data()), str.size()}, arr.data());
+	md5.GetDigest();
+	return arr;
+}
+std::array<uint8_t, MD5_SIZE> GetMD5FromArray(std::span<uint8_t> data) {
+	using namespace detail;
+	std::array<uint8_t, MD5_SIZE> arr;
+	MD5_Impl md5(data, arr.data());
+	md5.GetDigest();
+	return arr;
+}
+MD5::MD5(vstd::string const& str)
+	: MD5(std::span<uint8_t>(reinterpret_cast<uint8_t*>(str.data()), str.size())) {
+}
+MD5::MD5(vstd::string_view str)
+	: MD5(std::span<uint8_t>(reinterpret_cast<uint8_t*>(const_cast<char*>(str.begin())), str.size())) {
+}
+MD5::MD5(std::span<uint8_t> bin) {
+	using namespace detail;
+	data.binLen = bin.size();
+	using namespace detail;
+	MD5_Impl impl(bin, reinterpret_cast<uint8_t*>(&data));
+	impl.GetDigest();
+}
+MD5::MD5(MD5Data const& data)
+	: data(data) {
+}
+
+bool MD5::operator==(MD5 const& m) const {
+	return data.data0 == m.data.data0
+		   && data.data1 == m.data.data1
+		   && data.binLen == m.data.binLen;
+}
+bool MD5::operator!=(MD5 const& m) const {
+	return data.data0 != m.data.data0
+		   || data.data1 != m.data.data1
+		   || data.binLen != m.data.binLen;
+}
+vstd::string MD5::ToString(bool upper) const {
+	vstd::string str;
+	str.resize(sizeof(uint64) * 2 * 2);
+	char* ptr = str.data();
+	detail::UInt64ToHex(data.data0, ptr, upper);
+	detail::UInt64ToHex(data.data1, ptr, upper);
+	return str;
+}
+}// namespace vstd
 #ifdef EXPORT_UNITY_FUNCTION
 VENGINE_UNITY_EXTERN void unity_get_md5(
 	uint8_t* data,
 	uint64 dataLength,
 	uint8_t* destData) {
-	vstd::MD5 md5(std::span<uint8_t>(data, dataLength), destData);
+	vstd::detail::MD5_Impl md5(std::span<uint8_t>(data, dataLength), destData);
 	md5.GetDigest();
+}
+VENGINE_UNITY_EXTERN void md5_to_string(
+	uint64_t const* md5,
+	char* result,
+	bool upper) {
+	using namespace vstd::detail;
+	UInt64ToHex(md5[0], result, upper);
+	UInt64ToHex(md5[1], result, upper);
 }
 #endif

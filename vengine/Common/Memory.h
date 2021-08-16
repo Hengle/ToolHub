@@ -63,14 +63,13 @@ public:
 };
 }// namespace vstd
 
-using OperatorNewFunctor = typename funcPtr_t<void*(size_t)>;
 
 template<typename T>
 struct DynamicObject {
 	template<typename... Args>
 	static constexpr T* CreateObject(
 		funcPtr_t<T*(
-			OperatorNewFunctor operatorNew,
+			funcPtr_t<void*(size_t)> operatorNew,
 			Args...)>
 			createFunc,
 		Args... args) {

@@ -10,6 +10,11 @@ namespace vstd
         byte* data,
         ulong dataLength,
         byte* destData);
+        [DllImport("VEngine_DLL.dll")]
+        static extern void md5_to_string(
+        ulong* md5,
+        sbyte* result,
+        bool upper);
         public MD5(byte* data, ulong dataLength)
         {
             data0 = 0;
@@ -54,7 +59,7 @@ namespace vstd
         }
         public static bool operator !=(in MD5 g0, in MD5 g1)
         {
-            return !(g0 == g1);
+            return g0.data0 != g1.data0 || g0.data1 != g1.data1;
 
         }
         public override string ToString()
@@ -62,9 +67,24 @@ namespace vstd
             sbyte* bytes = stackalloc sbyte[32];
             fixed (MD5* ptr = &this)
             {
-                Guid.vguid_to_string((Guid*)ptr, bytes, true);
+                md5_to_string((ulong*)ptr, bytes, true);
             }
             return new string(bytes, 0, 32);
+        }
+        public static MD5 FromString(string s)
+        {
+            if (s.Length != 32)
+            {
+                throw new System.ArgumentException("wrong format guid!");
+            }
+            sbyte* bytes = stackalloc sbyte[32];
+            for (int i = 0; i < 32; ++i)
+            {
+                bytes[i] = (sbyte)s[i];
+            }
+            MD5 md5 = new MD5();
+            Guid.vguid_get_from_string(bytes, 32, (Guid*)&md5);
+            return md5;
         }
     }
 }

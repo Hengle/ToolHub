@@ -144,6 +144,7 @@ void MathLib::GetCameraNearPlanePoints(
 	corners[2] = farPoint + upVec - rightVec;
 	corners[3] = farPoint + upVec + rightVec;
 }
+
 /*
 void MathLib::GetCameraNearPlanePoints(
 	const Matrix4& localToWorldMat,

@@ -1,10 +1,15 @@
 using System.Runtime.InteropServices;
 namespace vstd
 {
-   public unsafe struct Guid
+    public unsafe struct Guid
     {
         ulong data0;
         ulong data1;
+        public Guid(ulong data0, ulong data1)
+        {
+            this.data0 = data0;
+            this.data1 = data1;
+        }
         public override int GetHashCode()
         {
             return data0.GetHashCode() ^ (data1.GetHashCode() << 4);
@@ -26,7 +31,7 @@ namespace vstd
         public override string ToString()
         {
             sbyte* bytes = stackalloc sbyte[32];
-       
+
             fixed (Guid* ptr = &this)
             {
                 vguid_to_string(ptr, bytes, true);
@@ -37,7 +42,7 @@ namespace vstd
         static extern void vguid_get_new(
         Guid* guidData);
         [DllImport("VEngine_DLL.dll")]
-        static extern void vguid_get_from_string(
+        public static extern void vguid_get_from_string(
         sbyte* str,
         int strLen,
         Guid* guidData);

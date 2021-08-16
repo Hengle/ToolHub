@@ -56,7 +56,7 @@ struct hash<Guid> {
 		uint const* ptr = reinterpret_cast<uint const*>(&guid.ToBinary().data0);
 		return Hash::Int32ArrayHash(
 			ptr,
-			ptr + 4);
+			ptr + sizeof(Guid::GuidData) / sizeof(uint));
 	}
 };
 template<>
