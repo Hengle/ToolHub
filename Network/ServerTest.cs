@@ -28,7 +28,7 @@ namespace client
                 IPAddress localAddr = IPAddress.Parse(ipAddress);
 
                 // TcpListener server = new TcpListener(port);
-                server = new TcpListener(localAddr, port);
+                server = new TcpListener(IPAddress.Any, port);
 
                 // Start listening for client requests.
                 server.Start();

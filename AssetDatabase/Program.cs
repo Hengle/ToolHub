@@ -8,6 +8,15 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 namespace AssetDatabase
 {
+    [Network.RPC(Network.RPCLayer.All)]
+    public static class RPCTest
+    {
+        public static void PrintString(object str)
+        {
+            string s = (string)str;
+            Console.WriteLine("From Remote: " + s);
+        }
+    }
     unsafe class Program
     {
         static void UpdateFileDict(Dictionary<string, object> dict, in vstd.Guid guid, string name)
@@ -74,40 +83,24 @@ namespace AssetDatabase
             var cars = db.GetCollection<BsonDocument>("cars");
             //db.CreateCollection("cars",);*/
         }
-        [System.Serializable]
-        struct CustomPerson
-        {
-            public int a;
-            public double b;
-            public string c;
-            public List<int> values;
-        }
+
         static void RunSerialization()
         {
-            MemoryStream memorystream = new MemoryStream();
-            BinaryFormatter bf = new BinaryFormatter();
-            CustomPerson person = new CustomPerson
-            {
-                a = 324,
-                b = 1378.1654,
-                c = "fuck!",
-                values = new List<int>()
-            };
-            person.values.Add(5);
-            person.values.Add(43);
-            person.values.Add(2);
-            person.values.Add(56);
-            bf.Serialize(memorystream, person);
-            memorystream.Position = 0;
-            CustomPerson newPerson = (CustomPerson)bf.Deserialize(memorystream);
-            Console.WriteLine(newPerson.a);
-            Console.WriteLine(newPerson.b);
-            Console.WriteLine(newPerson.c);
-            foreach(var i in newPerson.values)
-            {
-                Console.WriteLine(i);
-            }
+            Network.RPCReflector.LoadRPCFunctor(System.Reflection.Assembly.GetExecutingAssembly(), Network.RPCLayer.All);
 
+            BinaryFormatter formatter = new BinaryFormatter();
+            MemoryStream stream = new MemoryStream();
+
+            Network.RPCReflector.CallFunc(
+                stream,
+                formatter,
+                "RPCTest",
+                "PrintString",
+                "Fuck!Fuck!");
+            stream.Position = 0;
+            Network.RPCReflector.ExecuteStream(
+                stream,
+                formatter);
         }
         static void Main(string[] args)
         {
