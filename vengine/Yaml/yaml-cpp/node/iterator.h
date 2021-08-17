@@ -14,19 +14,19 @@
 #include <list>
 #include <utility>
 #include <vector>
+#include <Common/MetaLib.h>
 
 // Assert in place so gcc + libc++ combination properly builds
 static_assert(std::is_constructible<YAML::Node, const YAML::Node&>::value, "Node must be copy constructable");
 
 namespace YAML {
 namespace detail {
-struct iterator_value : public Node, std::pair<Node, Node> {
+struct iterator_value : public std::pair<Node, Node> {
   iterator_value() = default;
   explicit iterator_value(const Node& rhs)
-      : Node(rhs),
-        std::pair<Node, Node>(Node(Node::ZombieNode), Node(Node::ZombieNode)) {}
+      : std::pair<Node, Node>(rhs, Node(Node::ZombieNode)) {}
   explicit iterator_value(const Node& key, const Node& value)
-      : Node(Node::ZombieNode), std::pair<Node, Node>(key, value) {}
+      : std::pair<Node, Node>(key, value) {}
 };
 }
 }

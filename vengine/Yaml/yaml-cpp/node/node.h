@@ -45,6 +45,7 @@ public:
 	explicit Node(const T& rhs);
 	explicit Node(const detail::iterator_value& rhs);
 	Node(const Node& rhs);
+	Node(Node&& rhs);
 	~Node();
 
 	YAML::Mark Mark() const;
@@ -111,12 +112,14 @@ public:
 	template<typename Key, typename Value>
 	void force_insert(const Key& key, const Value& value);
 	bool IsValid() const { return m_isValid; }
+	enum Zombie { ZombieNode };
+	
+	explicit Node(Zombie);
 
 private:
-	enum Zombie { ZombieNode };
-	explicit Node(Zombie);
+
 	explicit Node(Zombie, const std::string&);
-	explicit Node(detail::node& node, detail::shared_memory_holder pMemory);
+	explicit Node(detail::node& node, detail::shared_memory_holder const& pMemory);
 
 	void EnsureNodeExists() const;
 

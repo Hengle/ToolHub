@@ -18,6 +18,7 @@
 #include <Yaml/yaml-cpp/node/iterator.h>
 #include <Yaml/yaml-cpp/node/ptr.h>
 #include <Yaml/yaml-cpp/node/type.h>
+#include <Common/Common.h>
 
 namespace YAML {
 namespace detail {
@@ -39,6 +40,7 @@ class YAML_CPP_API node_data {
   void set_tag(const std::string& tag);
   void set_null();
   void set_scalar(const std::string& scalar);
+  void set_scalar(const vstd::string_view& scalar);
   void set_style(EmitterStyle::value style);
 
   bool is_defined() const { return m_isDefined; }

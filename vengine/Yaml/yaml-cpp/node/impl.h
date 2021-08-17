@@ -14,7 +14,7 @@
 #include <Yaml/yaml-cpp/node/node.h>
 #include <sstream>
 #include <string>
-
+#include <Common/Common.h>
 namespace YAML {
 inline Node::Node()
     : m_isValid(true), m_invalidKey{}, m_pMemory(nullptr), m_pNode(nullptr) {}
@@ -37,12 +37,13 @@ inline Node::Node(const T& rhs)
 }
 
 inline Node::Node(const detail::iterator_value& rhs)
-    : m_isValid(rhs.m_isValid),
-      m_invalidKey(rhs.m_invalidKey),
-      m_pMemory(rhs.m_pMemory),
-      m_pNode(rhs.m_pNode) {}
+    : m_isValid(rhs.first.m_isValid),
+	  m_invalidKey(rhs.first.m_invalidKey),
+	  m_pMemory(rhs.first.m_pMemory),
+	  m_pNode(rhs.first.m_pNode) {}
 
 inline Node::Node(const Node&) = default;
+inline Node::Node(Node&&) = default;
 
 inline Node::Node(Zombie)
     : m_isValid(false), m_invalidKey{}, m_pMemory{}, m_pNode(nullptr) {}
@@ -50,7 +51,7 @@ inline Node::Node(Zombie)
 inline Node::Node(Zombie, const std::string& key)
     : m_isValid(false), m_invalidKey(key), m_pMemory{}, m_pNode(nullptr) {}
 
-inline Node::Node(detail::node& node, detail::shared_memory_holder pMemory)
+inline Node::Node(detail::node& node, detail::shared_memory_holder const& pMemory)
     : m_isValid(true), m_invalidKey{}, m_pMemory(pMemory), m_pNode(&node) {}
 
 inline Node::~Node() = default;
@@ -117,6 +118,19 @@ struct as_if<std::string, S> {
     return node.Scalar();
   }
 };
+template <typename S>
+struct as_if<std::string const*, S> {
+  explicit as_if(const Node& node_) : node(node_) {}
+  const Node& node;
+
+  std::string const* operator()(const S& fallback) const {
+    if (node.Type() == NodeType::Null)
+      return nullptr;
+    if (node.Type() != NodeType::Scalar)
+      return fallback;
+    return &node.Scalar();
+  }
+};
 
 template <typename T>
 struct as_if<T, void> {
@@ -147,7 +161,19 @@ struct as_if<std::string, void> {
     return node.Scalar();
   }
 };
+template<>
+struct as_if<std::string const*, void> {
+	explicit as_if(const Node& node_) : node(node_) {}
+	const Node& node;
 
+	std::string const* operator()() const {
+		if (node.Type() == NodeType::Null)
+			return nullptr;
+		if (node.Type() != NodeType::Scalar)
+			throw TypedBadConversion<std::string>(node.Mark());
+		return &node.Scalar();
+	}
+};
 // access functions
 template <typename T>
 inline T Node::as() const {
@@ -232,15 +258,21 @@ inline void Node::Assign(const std::string& rhs) {
   EnsureNodeExists();
   m_pNode->set_scalar(rhs);
 }
+template<>
+inline void Node::Assign(const vstd::string_view& rhs) {
+	EnsureNodeExists();
+	m_pNode->set_scalar(rhs);
+}
+
 
 inline void Node::Assign(const char* rhs) {
   EnsureNodeExists();
-  m_pNode->set_scalar(rhs);
+  m_pNode->set_scalar(std::string(rhs));
 }
 
 inline void Node::Assign(char* rhs) {
   EnsureNodeExists();
-  m_pNode->set_scalar(rhs);
+	m_pNode->set_scalar(std::string(rhs));
 }
 
 inline void Node::AssignData(const Node& rhs) {

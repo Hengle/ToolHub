@@ -14,6 +14,7 @@
 #include <Yaml/yaml-cpp/node/type.h>
 #include <set>
 #include <atomic>
+#include <Common/Common.h>
 
 namespace YAML {
 namespace detail {
@@ -85,6 +86,10 @@ class node {
   void set_scalar(const std::string& scalar) {
     mark_defined();
     m_pRef->set_scalar(scalar);
+  }
+  void set_scalar(const vstd::string_view& scalar) {
+	  mark_defined();
+	  m_pRef->set_scalar(scalar);
   }
   void set_tag(const std::string& tag) {
     mark_defined();

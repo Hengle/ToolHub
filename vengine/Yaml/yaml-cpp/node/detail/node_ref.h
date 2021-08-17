@@ -11,7 +11,7 @@
 #include <Yaml/yaml-cpp/node/type.h>
 #include <Yaml/yaml-cpp/node/ptr.h>
 #include <Yaml/yaml-cpp/node/detail/node_data.h>
-
+#include <Common/Common.h>
 namespace YAML {
 namespace detail {
 class node_ref {
@@ -35,6 +35,7 @@ class node_ref {
   void set_tag(const std::string& tag) { m_pData->set_tag(tag); }
   void set_null() { m_pData->set_null(); }
   void set_scalar(const std::string& scalar) { m_pData->set_scalar(scalar); }
+  void set_scalar(const vstd::string_view& scalar) { m_pData->set_scalar(scalar); }
   void set_style(EmitterStyle::value style) { m_pData->set_style(style); }
 
   // size/iterator

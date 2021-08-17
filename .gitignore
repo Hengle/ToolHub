@@ -12,6 +12,7 @@ Temp/
 build/VEngine_DLL.dll
 build/VEngine_Compute.dll
 build/VEngine_Network.dll
+build/Yaml_CPP.dll
 *.lnk
 **/*.exp
 **/*.iobj
