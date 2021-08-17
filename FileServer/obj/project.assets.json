@@ -510,11 +510,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\ToolHub\\AssetDatabase\\FileServer.csproj",
+      "projectUniqueName": "D:\\ToolHub\\FileServer\\FileServer.csproj",
       "projectName": "FileServer",
-      "projectPath": "D:\\ToolHub\\AssetDatabase\\FileServer.csproj",
+      "projectPath": "D:\\ToolHub\\FileServer\\FileServer.csproj",
       "packagesPath": "C:\\Users\\maxwe\\.nuget\\packages\\",
-      "outputPath": "D:\\ToolHub\\AssetDatabase\\obj\\",
+      "outputPath": "D:\\ToolHub\\FileServer\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
