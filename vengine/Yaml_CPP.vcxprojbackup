@@ -9,21 +9,17 @@
 			<Platform>x64</Platform>
 		</ProjectConfiguration>
 	</ItemGroup>
-	<ItemGroup>
-		<Library Include="../build/VEngine_DLL.lib" />
-		<Library Include="..\build\Yaml_CPP.lib" />
-	</ItemGroup>
 	<PropertyGroup Label="Globals">
 		<VCProjectVersion>16.0</VCProjectVersion>
 		<Keyword>Win32Proj</Keyword>
-		<ProjectGuid>{8c7cf7c3-7386-478f-8022-496c4599dcbb}</ProjectGuid>
-		<RootNamespace>VEngineCompute</RootNamespace>
+		<ProjectGuid>{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}</ProjectGuid>
+		<RootNamespace>Yaml_CPP</RootNamespace>
 		<WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
 	</PropertyGroup>
 	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-		<ConfigurationType>Application</ConfigurationType>
+		<ConfigurationType>DynamicLibrary</ConfigurationType>
 		<UseDebugLibraries>true</UseDebugLibraries>
 		<PlatformToolset>v142</PlatformToolset>
 		<CharacterSet>Unicode</CharacterSet>
@@ -31,7 +27,7 @@
 		<WholeProgramOptimization>true</WholeProgramOptimization>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-		<ConfigurationType>Application</ConfigurationType>
+		<ConfigurationType>DynamicLibrary</ConfigurationType>
 		<UseDebugLibraries>false</UseDebugLibraries>
 		<PlatformToolset>v142</PlatformToolset>
 		<WholeProgramOptimization>true</WholeProgramOptimization>
@@ -69,7 +65,7 @@
 			<PrecompiledHeader>NotUsing</PrecompiledHeader>
 			<WarningLevel>TurnOffAllWarnings</WarningLevel>
 			<SDLCheck>true</SDLCheck>
-			<PreprocessorDefinitions>_DEBUG;VENGINE_COMPUTE_PROJECT;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+			<PreprocessorDefinitions>YAML_PROJECT;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
 			<ConformanceMode>true</ConformanceMode>
 			<MultiProcessorCompilation>true</MultiProcessorCompilation>
 			<Optimization>Disabled</Optimization>
@@ -86,9 +82,9 @@
 			<MinFilesInUnityFile>8</MinFilesInUnityFile>
 			<LanguageStandard_C>stdc17</LanguageStandard_C>
 			<EnableModules>true</EnableModules>
-			<AdditionalIncludeDirectories>./VectorCompute;.;..;</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>.;..;Yaml;</AdditionalIncludeDirectories>
 			<UseStandardPreprocessor>true</UseStandardPreprocessor>
-			<ProgramDataBaseFileName>$(IntDir)vc_1.pdb</ProgramDataBaseFileName>
+			<ProgramDataBaseFileName>$(IntDir)vc_6.pdb</ProgramDataBaseFileName>
 			<OpenMPSupport>false</OpenMPSupport>
 			<EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
 		</ClCompile>
@@ -121,7 +117,7 @@
 			<CompileAs>CompileAsCpp</CompileAs>
 			<FloatingPointModel>Precise</FloatingPointModel>
 			<RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-			<PreprocessorDefinitions>NDEBUG;VENGINE_COMPUTE_PROJECT;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+			<PreprocessorDefinitions>YAML_PROJECT;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
 			<BasicRuntimeChecks>Default</BasicRuntimeChecks>
 			<SmallerTypeCheck>false</SmallerTypeCheck>
 			<MinimalRebuild>false</MinimalRebuild>
@@ -131,10 +127,10 @@
 			<LanguageStandard_C>stdc17</LanguageStandard_C>
 			<EnableModules>false</EnableModules>
 			<DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-			<AdditionalIncludeDirectories>./VectorCompute;.;..;</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>.;..;Yaml;</AdditionalIncludeDirectories>
 			<UseStandardPreprocessor>true</UseStandardPreprocessor>
 			<DisableLanguageExtensions>false</DisableLanguageExtensions>
-			<ProgramDataBaseFileName>$(IntDir)vc_1.pdb</ProgramDataBaseFileName>
+			<ProgramDataBaseFileName>$(IntDir)vc_6.pdb</ProgramDataBaseFileName>
 			<OpenMPSupport>false</OpenMPSupport>
 		</ClCompile>
 		<Link>
@@ -149,4 +145,7 @@
 	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 	<ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+	<ItemGroup>
+		<Library Include="..\build\VEngine_DLL.lib" />
+	</ItemGroup>
 </Project>

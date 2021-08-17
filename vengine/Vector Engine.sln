@@ -7,6 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VEngine_DLL", "VEngine_DLL.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VEngine_Compute", "VEngine_Compute.vcxproj", "{8C7CF7C3-7386-478F-8022-496C4599DCBB}"
 	ProjectSection(ProjectDependencies) = postProject
+		{77B24AAF-BF06-4D1C-B30F-505AF911A4AD} = {77B24AAF-BF06-4D1C-B30F-505AF911A4AD}
 		{767665BC-162D-443E-B2B4-5F4C7F33FD8B} = {767665BC-162D-443E-B2B4-5F4C7F33FD8B}
 	EndProjectSection
 EndProject
@@ -26,6 +27,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VEngine_Unity", "VEngine_Un
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VEngine_Server", "VEngine_Server.vcxproj", "{81243306-BE4F-4165-B784-DB8766EF18E9}"
+	ProjectSection(ProjectDependencies) = postProject
+		{767665BC-162D-443E-B2B4-5F4C7F33FD8B} = {767665BC-162D-443E-B2B4-5F4C7F33FD8B}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Yaml_CPP", "Yaml_CPP.vcxproj", "{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}"
 	ProjectSection(ProjectDependencies) = postProject
 		{767665BC-162D-443E-B2B4-5F4C7F33FD8B} = {767665BC-162D-443E-B2B4-5F4C7F33FD8B}
 	EndProjectSection
@@ -76,6 +82,12 @@ Global
 		{81243306-BE4F-4165-B784-DB8766EF18E9}.Release|x64.ActiveCfg = Release|x64
 		{81243306-BE4F-4165-B784-DB8766EF18E9}.Release|x64.Build.0 = Release|x64
 		{81243306-BE4F-4165-B784-DB8766EF18E9}.Release|x86.ActiveCfg = Release|x64
+		{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}.Debug|x64.ActiveCfg = Debug|x64
+		{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}.Debug|x64.Build.0 = Debug|x64
+		{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}.Debug|x86.ActiveCfg = Debug|x64
+		{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}.Release|x64.ActiveCfg = Release|x64
+		{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}.Release|x64.Build.0 = Release|x64
+		{77B24AAF-BF06-4D1C-B30F-505AF911A4AD}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

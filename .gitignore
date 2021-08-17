@@ -6,6 +6,7 @@ UserSettings/
 Debug/
 Logs/
 bin/
+obj/
 Release/
 Temp/
 build/VEngine_DLL.dll

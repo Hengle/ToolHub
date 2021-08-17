@@ -5,11 +5,12 @@
     "Platform": "x64",
     "Projects": {
       "VEngine_DLL": [],
-      "VEngine_Compute": ["VEngine_DLL"],
+      "VEngine_Compute": ["VEngine_DLL", "Yaml_CPP"],
       "VEngine_Network": ["VEngine_DLL"],
       "VEngine_Database": ["VEngine_DLL"],
       "VEngine_Unity": ["VEngine_DLL"],
-      "VEngine_Server": ["VEngine_DLL"]
+      "VEngine_Server": ["VEngine_DLL"],
+      "Yaml_CPP": ["VEngine_DLL"]
     }
   }
 }
