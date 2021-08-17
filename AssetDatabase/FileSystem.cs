@@ -8,7 +8,7 @@ using Native;
 using MongoDB.Driver;
 using MongoDB.Bson;
 
-namespace AssetDatabase
+namespace FileServer
 {
     public struct FileData
     {
@@ -19,6 +19,7 @@ namespace AssetDatabase
     }
     public unsafe static class FileSystem
     {
+        static readonly string FILE_FOLDER = "Files/";
         public static vstd.MD5 CalcFileMD5(string filePath, out long fileLen)
         {
             var bytes = File.ReadAllBytes(filePath);
@@ -115,20 +116,53 @@ namespace AssetDatabase
             };
             return true;
         }
-
-        public static void AddFileDataToDB(
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dbCollect"></param>
+        /// <param name="filePath"></param>
+        /// <param name="bytes"></param>
+        /// <returns> update(true) or add(false) </returns>
+        public static bool UpdateFileDataToDB(
             in IMongoCollection<BsonDocument> dbCollect,
-            in vstd.Guid guid,
-            in string filePath)
+            in string filePath,
+            in byte[] bytes)
         {
-            long fileSize;
-            var md5 = CalcFileMD5(filePath, out fileSize);
-            Dictionary<string, object> dict = new Dictionary<string, object>();
-            dict.Add("guid", guid.ToString());
-            dict.Add("path", filePath);
-            dict.Add("size", fileSize);
-            dict.Add("md5", md5.ToString());
-            dbCollect.InsertOne(new BsonDocument(dict));
+            vstd.MD5 md5;
+            fixed (byte* b = bytes)
+            {
+                md5 = new vstd.MD5(b, (ulong)bytes.LongLength);
+            }
+
+            var result = dbCollect.FindOneAndUpdate(
+            Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("path", filePath)
+                ),
+             Builders<BsonDocument>.Update.Combine(
+                Builders<BsonDocument>.Update.Set("md5", md5.ToString()),
+                Builders<BsonDocument>.Update.Set("size", bytes.LongLength)
+                )
+            );
+            string guidStr;
+            bool isUpdate;
+            if (result == null)
+            {
+                guidStr = new vstd.Guid(true).ToString();
+                Dictionary<string, object> dict = new Dictionary<string, object>();
+                dict.Add("guid", guidStr);
+                dict.Add("path", filePath);
+                dict.Add("size", bytes.LongLength);
+                dict.Add("md5", md5.ToString());
+                dbCollect.InsertOne(new BsonDocument(dict));
+                isUpdate = false;
+            }
+            else
+            {
+                guidStr = result.GetValue("guid").AsString;
+                isUpdate = true;
+            }
+            File.WriteAllBytes(FILE_FOLDER + guidStr, bytes);
+            return isUpdate;
         }
         public static void ResetFilePath(
             in IMongoCollection<BsonDocument> dbCollect,
@@ -139,28 +173,26 @@ namespace AssetDatabase
         {
             dbCollect.UpdateOne(
                 Builders<BsonDocument>.Filter.And(
-                     Builders<BsonDocument>.Filter.Eq("md5", tarFileMD5.ToString()),
-                     Builders<BsonDocument>.Filter.Eq("size", tarFileSize),
-                     Builders<BsonDocument>.Filter.Eq("path", oldPath)
+                    Builders<BsonDocument>.Filter.Eq("md5", tarFileMD5.ToString()),
+                    Builders<BsonDocument>.Filter.Eq("size", tarFileSize),
+                    Builders<BsonDocument>.Filter.Eq("path", oldPath)
                     ),
                     Builders<BsonDocument>.Update.Set("path", newPath)
                 );
         }
-        public static void UpdateFileData(
+
+        public static void DeleteFile(
             in IMongoCollection<BsonDocument> dbCollect,
             in string filePath)
         {
-            long fileSize;
-            var newMD5 = CalcFileMD5(filePath, out fileSize);
-            dbCollect.UpdateOne(
+            var doc = dbCollect.FindOneAndDelete(
                 Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq("path", filePath),
-                    Builders<BsonDocument>.Filter.Exists("size"),
-                    Builders<BsonDocument>.Filter.Exists("md5")),
-                Builders<BsonDocument>.Update.Combine(
-                    Builders<BsonDocument>.Update.Set("size", fileSize),
-                    Builders<BsonDocument>.Update.Set("md5", newMD5.ToString())
-             ));
+                    Builders<BsonDocument>.Filter.Exists("md5"),
+                    Builders<BsonDocument>.Filter.Exists("guid"),
+                    Builders<BsonDocument>.Filter.Exists("size")));
+            File.Delete(FILE_FOLDER + doc.GetValue("guid").AsString);
         }
+
     }
 }

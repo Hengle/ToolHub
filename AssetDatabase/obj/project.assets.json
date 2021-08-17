@@ -510,9 +510,9 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\ToolHub\\AssetDatabase\\AssetDatabase.csproj",
-      "projectName": "AssetDatabase",
-      "projectPath": "D:\\ToolHub\\AssetDatabase\\AssetDatabase.csproj",
+      "projectUniqueName": "D:\\ToolHub\\AssetDatabase\\FileServer.csproj",
+      "projectName": "FileServer",
+      "projectPath": "D:\\ToolHub\\AssetDatabase\\FileServer.csproj",
       "packagesPath": "C:\\Users\\maxwe\\.nuget\\packages\\",
       "outputPath": "D:\\ToolHub\\AssetDatabase\\obj\\",
       "projectStyle": "PackageReference",

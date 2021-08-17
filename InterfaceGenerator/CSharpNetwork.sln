@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InterfaceGenerator", "Inter
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Network", "..\Network\Network.csproj", "{DA162693-3826-49F8-9FD1-85D5BBFAB60A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetDatabase", "..\AssetDatabase\AssetDatabase.csproj", "{DE3A725B-B2DB-45F3-9AD3-CE567E0556BA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FileServer", "..\AssetDatabase\FileServer.csproj", "{DE3A725B-B2DB-45F3-9AD3-CE567E0556BA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

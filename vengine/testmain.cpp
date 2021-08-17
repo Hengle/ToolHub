@@ -12,6 +12,7 @@
 #include <Network/INetworkService.h>
 #include <Database/DatabaseInclude.h>
 #include <Database/DatabaseExample.h>
+#include <Utility/MD5.h>
 #include <Network/IRegistObject.h>
 static toolhub::net::NetWork const* network;
 static toolhub::db::Database const* database;
@@ -123,8 +124,22 @@ void server(uint port) {
 #include <Utility/VGuid.h>
 #include <Utility/StringUtility.h>
 int main(int argc, char* argv[]) {
-	vengine_init_malloc();
+	//vengine_init_malloc();
+	vengine_init_malloc_custom(malloc, free);
+	std::cout << "Guid Generator(any key continue)\n";
+	while (true) {
+		vstd::string s;
+		std::cin >> s;
+		vstd::Guid guid(true);
+		std::cout << guid.ToString(true)
+				  << '\n'
+				  << guid.ToBinary().data0
+				  << ", "
+				  << guid.ToBinary().data1
+				  << '\n';
+	}
 
+	/*
 	if (argc != 2) {
 		std::cout << "error argcount!";
 		system("pause");
@@ -132,14 +147,15 @@ int main(int argc, char* argv[]) {
 	}
 
 	auto port = StringUtil::StringToInteger(vstd::string_view(argv[1]));
-
+	
 	DynamicDLL dll("VEngine_Network.dll");
 	DynamicDLL dll1("VEngine_Database.dll");
 	network = dll.GetDLLFunc<toolhub::net::NetWork const*()>("NetWork_GetFactory")();
 
-	//	database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
-	//jsonTest(database);
-	server(port);
+		database = dll1.GetDLLFunc<toolhub::db::Database const*()>("Database_GetFactory")();
+	jsonTest(database);*/
+
+	//server(port);
 	system("pause");
 
 	return 0;

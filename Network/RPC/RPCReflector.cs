@@ -37,7 +37,7 @@ namespace Network
             {
                 var pars = method.GetParameters();
                 if (pars.Length != 1
-                    || pars[0].ParameterType != typeof(object))
+                    || pars[0].ParameterType.GetCustomAttribute(typeof(SerializableAttribute)) == null)
                 {
                     throw new FormatException("Illegal RPC function format: " + clsType.Name + "::" + method.Name);
                 }
@@ -79,11 +79,11 @@ namespace Network
         }
 
         public static void CallFunc(
-               Stream stream,
-               BinaryFormatter formatter,
-               string className,
-               string funcName,
-               object arg)
+            Stream stream,
+            BinaryFormatter formatter,
+            string className,
+            string funcName,
+            object arg)
         {
             int strSize = 4 + className.Length + funcName.Length + 2;
             byte* ptr = stackalloc byte[strSize];
@@ -133,7 +133,11 @@ namespace Network
                 {
                     func(stream, formatter);
                 }
-            }   
+                else
+                {
+                    Console.WriteLine("Erorr: Try call non-exists function " + funcName);
+                }
+            }
         }
     }
 }

@@ -4,9 +4,10 @@ using Native;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using System.IO;
+using Network;
 using System.Runtime.Serialization.Formatters.Binary;
 
-namespace AssetDatabase
+namespace FileServer
 {
     [Network.RPC(Network.RPCLayer.All)]
     public static class RPCTest
@@ -86,26 +87,41 @@ namespace AssetDatabase
 
         static void RunSerialization()
         {
-            Network.RPCReflector.LoadRPCFunctor(System.Reflection.Assembly.GetExecutingAssembly(), Network.RPCLayer.All);
-
-            BinaryFormatter formatter = new BinaryFormatter();
-            MemoryStream stream = new MemoryStream();
-
-            Network.RPCReflector.CallFunc(
-                stream,
-                formatter,
-                "RPCTest",
-                "PrintString",
-                "Fuck!Fuck!");
-            stream.Position = 0;
-            Network.RPCReflector.ExecuteStream(
-                stream,
-                formatter);
+            RPCReflector.LoadRPCFunctor(System.Reflection.Assembly.GetExecutingAssembly(), RPCLayer.All);
+            Console.WriteLine("input y for server, other for client: ");
+            string s = Console.ReadLine();
+            bool isServer = (s == "y");
+            if (isServer)
+            {
+                using (RPCSocket serverSocket = new RPCSocket(2021))
+                {
+                    Console.WriteLine("Connect Success!");
+                    while (true)
+                    {
+                        string inputStr = Console.ReadLine();
+                        if (inputStr == "exit") break;
+                        serverSocket.CallRemoteFunction(
+                            "RPCTest",
+                            "PrintString",
+                            inputStr);
+                    }
+                }
+            }
+            else
+            {
+                using (RPCSocket clientSocket = new RPCSocket("127.0.0.1", 2021))
+                {
+                    Console.WriteLine("Connect Success!");
+                    System.Threading.Thread.Sleep(new TimeSpan(1, 0, 0, 0, 0));
+                   
+                }
+            }
         }
         static void Main(string[] args)
         {
             Memory.vengine_init_malloc();
-            RunSerialization();
+            RunDB();
+           // RunSerialization();
         }
     }
 }
