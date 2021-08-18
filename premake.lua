@@ -1,25 +1,5 @@
 require "vstudio"
 
--- copy file 
-function stream_copy(src, dst)
-	local read_file =""
-	local write_file=""
-	local temp_content ="";
-	-- open read file stream
-	read_file = io.open(src,"r")
-	-- read all content
-	temp_content = read_file:read("*a")
-
-	-- open write file stream
-	write_file = io.open(dst,"w")
-
-	-- write all content
-	write_file:write(temp_content)
-    -- close stream
-	read_file:close()
-	write_file:close()
-end
-
 -- work space path 
 work_space = "./workspace/".._ACTION
 
@@ -39,16 +19,38 @@ isLinuxBuild = _ACTION == "gmake2"
 isWindowsBuild = not isMacBuild and not isLinuxBuild
 
 -- copy files 
-term.pushColor(term.green)
 for i, configuare in ipairs({"Debug/net5.0/", "Release/net5.0/"}) do
 	for k, v in ipairs(copy_dlls) do
 		local src = copy_dll_src_root..v
 		local dst = copy_dll_dst_root..configuare..v
-		print("copy file "..src.." to "..dst)
-		stream_copy(src, dst)
+		
+		-- check src file 
+		if os.isfile(src) then
+			dst_dir = path.getdirectory(dst)
+			
+			-- make dst dir 
+			if not os.isdir(dst_dir) then
+				os.mkdir(dst_dir)
+			end
+			
+			-- print msg 
+			term.pushColor(term.green)
+			print("copy file "..src.." to "..dst)
+			term.popColor()
+			
+			-- copy dir 
+			ok, err = os.copyfile(src, dst)
+			if not ok then
+				print(err)
+			end
+		else 
+			-- print error 
+			term.pushColor(term.red)
+			print("lost file "..src)
+			term.popColor()
+		end
 	end
 end
-term.popColor()
 
 
 -- work space 
