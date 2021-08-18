@@ -109,6 +109,11 @@ project ("FileServer")
 	{
 		"./FileServer/**.cs"
 	}
+	removefiles
+	{
+		"./FileServer/obj/**",
+		"./FileServer/bin/**"
+	}
 
 project ("InterfaceGenerator")
 	-- setup kind 
@@ -127,6 +132,11 @@ project ("InterfaceGenerator")
 	{
 		"./InterfaceGenerator/**.cs"
 	}
+	removefiles
+	{
+		"./InterfaceGenerator/obj/**",
+		"./InterfaceGenerator/bin/**"
+	}
 
 project ("NetWork")
 	-- setup kind 
@@ -144,4 +154,9 @@ project ("NetWork")
 	files
 	{
 		"./Network/**.cs"
+	}
+	removefiles
+	{
+		"./Network/obj/**",
+		"./Network/bin/**"
 	}
