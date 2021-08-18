@@ -94,8 +94,7 @@ project ("FileServer")
 	-- setup nuget 
 	nuget
 	{
-		"MongoDB.Driver:2.13.1",
-		"Newtonsoft.Json:13.0.1"
+		"MongoDB.Driver:2.13.1"
 	}
 
 	-- setup links 
