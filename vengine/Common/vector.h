@@ -159,8 +159,9 @@ public:
 	void push_back_func(Func&& f, size_t count) {
 		ResizeRange(count);
 		auto endPtr = arr + mSize;
-		for (size_t i = 0; i < count; ++i) {
-			T* ptr = endPtr + i;
+
+		for (auto&& i : vstd::ptr_range(endPtr, endPtr + count)) {
+			T* ptr = &i;
 			if constexpr (std::is_invocable_v<std::remove_cvref_t<Func>, size_t>) {
 				new (ptr) T(std::move(f(i)));
 			} else if constexpr (std::is_invocable_v<std::remove_cvref_t<Func>>) {
@@ -237,12 +238,7 @@ public:
 	}
 	~vector() noexcept {
 		if (arr) {
-			if constexpr (!(std::is_trivially_destructible_v<T> || forceTrivial)) {
-				auto ee = end();
-				for (auto i = begin(); i != ee; ++i) {
-					i->~T();
-				}
-			}
+			clear();
 			Free(arr);
 		}
 	}
@@ -288,9 +284,8 @@ public:
 #endif
 		if constexpr (!(std::is_trivially_move_constructible_v<T> || forceTrivial)) {
 			if (index < mSize - 1) {
-				auto ee = end() - 1;
-				for (auto i = begin(); i != ee; ++i) {
-					*i = std::move(i[1]);
+				for (auto&& i : vstd::ptr_range(ite, end() - 1)) {
+					i = std::move((&i)[1]);
 				}
 			}
 			if constexpr (!(std::is_trivially_destructible_v<T> || forceTrivial))
@@ -316,9 +311,8 @@ public:
 	}
 	void clear() noexcept {
 		if constexpr (!(std::is_trivially_destructible_v<T> || forceTrivial)) {
-			auto ee = end();
-			for (auto i = begin(); i != ee; ++i) {
-				i->~T();
+			for (auto&& i : *this) {
+				i.~T();
 			}
 		}
 		mSize = 0;
@@ -336,7 +330,7 @@ public:
 		if constexpr (!(std::is_trivially_constructible_v<T> || forceTrivial)) {
 			auto bb = begin() + mSize;
 			auto ee = begin() + newSize;
-			for (auto i = begin(); i != ee; ++i) {
+			for (auto i = bb; i != ee; ++i) {
 				new (i) T();
 			}
 		}

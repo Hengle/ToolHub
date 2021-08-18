@@ -3,8 +3,6 @@ namespace Native
 {
     public unsafe static class Memory
     {
-        [DllImport("VEngine_DLL.dll")]
-        public static extern void vengine_init_malloc();
 
         [DllImport("VEngine_DLL.dll")]
         public static extern void* vengine_malloc(ulong size);

@@ -23,6 +23,10 @@ public:
 	void ReGenerate();
 	Guid(Guid const&) = default;
 	Guid(Guid&&) = default;
+	void Reset() {
+		data.data0 = 0;
+		data.data1 = 0;
+	}
 	GuidData const& ToBinary() const { return data; }
 	std::array<uint8_t, sizeof(GuidData)> ToArray() const;
 	vstd::string ToString(bool upper = true) const;

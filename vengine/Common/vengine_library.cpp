@@ -21,39 +21,27 @@ struct MAllocator {
 		dll.GetDLLFunc(freeFunc, "mi_free"_sv);
 		dll.GetDLLFunc(reallocFunc, "mi_realloc"_sv);
 	}
+	MAllocator() : MAllocator("mimalloc.dll") {}
 	~MAllocator() {
 		mallocFunc = [](size_t) -> void* { return nullptr; };
 		freeFunc = [](void* ptr) {};
 	}
 };
-static vstd::optional<MAllocator> vengine_malloc_dll;
+static MAllocator vengine_malloc_dll;
 }// namespace v_mimalloc
 
-void vengine_init_malloc() {
-	using namespace v_mimalloc;
-	vengine_malloc_dll.New("mimalloc.dll"_sv);
-}
-void vengine_init_malloc_path(
-	char const* path) {
-	using namespace v_mimalloc;
-	vengine_malloc_dll.New(path);
-}
-void vengine_init_malloc_custom(
-	funcPtr_t<void*(size_t)> mFunc,
-	funcPtr_t<void(void*)> fFunc) {
-	using namespace v_mimalloc;
-	mallocFunc = mFunc;
-	freeFunc = fFunc;
-}
 void* vengine_default_malloc(size_t sz) {
-	return malloc(sz);
+	using namespace v_mimalloc;
+	return mallocFunc(sz);
 }
 void vengine_default_free(void* ptr) {
-	free(ptr);
+	using namespace v_mimalloc;
+	freeFunc(ptr);
 }
 
 void* vengine_default_realloc(void* ptr, size_t size) {
-	return realloc(ptr, size);
+	using namespace v_mimalloc;
+	return reallocFunc(ptr, size);
 }
 
 void* vengine_malloc(size_t size) {

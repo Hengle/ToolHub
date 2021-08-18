@@ -4,12 +4,6 @@
 #include <stdint.h>
 #include <type_traits>
 #include <Common/MetaLib.h>
-VENGINE_C_FUNC_COMMON void vengine_init_malloc();
-VENGINE_C_FUNC_COMMON void vengine_init_malloc_path(
-	char const* path);
-VENGINE_C_FUNC_COMMON void vengine_init_malloc_custom(
-	funcPtr_t<void*(size_t)> mallocFunc,
-	funcPtr_t<void(void*)> freeFunc);
 VENGINE_C_FUNC_COMMON void* vengine_default_malloc(size_t sz);
 VENGINE_C_FUNC_COMMON void vengine_default_free(void* ptr);
 VENGINE_C_FUNC_COMMON void* vengine_default_realloc(void* ptr, size_t size);

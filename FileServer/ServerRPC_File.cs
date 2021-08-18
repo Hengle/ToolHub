@@ -8,7 +8,7 @@ namespace FileServer
         public static RPCSocket rpc = null;
         public static void UploadRequest(UploadCmd uploadCmd)
         {
-            if (FileSystem.UpdateFileDataToDB(db.fileCollect, uploadCmd.filePath, uploadCmd.fileData)){
+           /*if (FileSystem.UpdateFileDataToDB(db.fileCollect, uploadCmd.filePath, uploadCmd.fileData)){
                 rpc.CallRemoteFunction(
                     "ClientRPC_File",
                     "UploadResult",
@@ -29,7 +29,7 @@ namespace FileServer
                         uploadState = FileUploadState.Added,
                         message = "File " + uploadCmd.filePath + " added success!"
                     });
-            }
+            }*/
         }
         //public static void DownloadRequest()
     }

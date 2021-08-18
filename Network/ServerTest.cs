@@ -81,7 +81,6 @@ namespace client
 
         public static void Main()
         {
-            Memory.vengine_init_malloc();
             Console.WriteLine("Server (Y) or Client(N)");
 
 

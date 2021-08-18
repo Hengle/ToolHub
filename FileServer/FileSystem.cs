@@ -125,15 +125,16 @@ namespace FileServer
         /// <returns> update(true) or add(false) </returns>
         public static bool UpdateFileDataToDB(
             in IMongoCollection<BsonDocument> dbCollect,
+            in vstd.Guid fileGuid,
             in string filePath,
-            in byte[] bytes)
+            in byte[] bytes,
+            in byte[] metaBytes)
         {
             vstd.MD5 md5;
             fixed (byte* b = bytes)
             {
                 md5 = new vstd.MD5(b, (ulong)bytes.LongLength);
             }
-
             var result = dbCollect.FindOneAndUpdate(
             Builders<BsonDocument>.Filter.And(
                 Builders<BsonDocument>.Filter.Eq("path", filePath)
@@ -143,11 +144,10 @@ namespace FileServer
                 Builders<BsonDocument>.Update.Set("size", bytes.LongLength)
                 )
             );
-            string guidStr;
+            string guidStr = fileGuid.ToString();
             bool isUpdate;
             if (result == null)
             {
-                guidStr = new vstd.Guid(true).ToString();
                 Dictionary<string, object> dict = new Dictionary<string, object>();
                 dict.Add("guid", guidStr);
                 dict.Add("path", filePath);
@@ -161,7 +161,9 @@ namespace FileServer
                 guidStr = result.GetValue("guid").AsString;
                 isUpdate = true;
             }
-            File.WriteAllBytes(FILE_FOLDER + guidStr, bytes);
+            string path = FILE_FOLDER + guidStr;
+            File.WriteAllBytes(path, bytes);
+            File.WriteAllBytes(path + ".meta", metaBytes);
             return isUpdate;
         }
         public static void ResetFilePath(
@@ -183,16 +185,16 @@ namespace FileServer
 
         public static void DeleteFile(
             in IMongoCollection<BsonDocument> dbCollect,
-            in string filePath)
+            in string guid)
         {
             var doc = dbCollect.FindOneAndDelete(
                 Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("path", filePath),
+                    Builders<BsonDocument>.Filter.Eq("guid", guid),
                     Builders<BsonDocument>.Filter.Exists("md5"),
-                    Builders<BsonDocument>.Filter.Exists("guid"),
+                    Builders<BsonDocument>.Filter.Exists("path"),
                     Builders<BsonDocument>.Filter.Exists("size")));
-            File.Delete(FILE_FOLDER + doc.GetValue("guid").AsString);
+            if (doc != null)
+                File.Delete(FILE_FOLDER + doc.GetValue("guid").AsString);
         }
-
     }
 }

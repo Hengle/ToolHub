@@ -4,8 +4,6 @@
 //#define VENGINE_CLANG_COMPILER
 #define VENGINE_WINDOWS
 
-
-
 #ifdef VENGINE_WINDOWS
 #define MSVC
 #endif
@@ -22,9 +20,8 @@
 #define VENGINE_EXIT throw 0
 #endif
 #ifndef UNICODE
-#define UNICODE //Disable this in non-unicode system
+#define UNICODE//Disable this in non-unicode system
 #endif
-
 
 #ifdef VENGINE_REL_WITH_DEBUG_INFO
 #define DEBUG
@@ -83,10 +80,21 @@
 #define VENGINE_STD_CALL _stdcall
 #define VENGINE_VECTOR_CALL _vectorcall
 #define VENGINE_FAST_CALL _fastcall
-
-#define VENGINE_UNITY_EXTERN extern "C" _declspec(dllexport)
-
 #define EXPORT_UNITY_FUNCTION
-
+#ifdef EXPORT_UNITY_FUNCTION
+#define VENGINE_UNITY_EXTERN extern "C" _declspec(dllexport)
+#else
+#define VENGINE_UNITY_EXTERN
+#endif
 
 /////////////////////// THREAD PAUSE
+#include <stdint.h>
+VENGINE_C_FUNC_COMMON void* vengine_malloc(size_t size);
+VENGINE_C_FUNC_COMMON void vengine_free(void* ptr);
+inline void* operator new(size_t n) {
+
+	return vengine_malloc(n);
+}
+inline void operator delete(void* p) {
+	vengine_free(p);
+}

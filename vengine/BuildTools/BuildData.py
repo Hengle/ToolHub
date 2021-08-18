@@ -24,10 +24,6 @@ SubProj = [
     {
         "Name": "VEngine_Server",
         "RemoveHeader": 1
-    }, 
-    {
-        "Name": "Yaml_CPP",
-        "RemoveHeader": 1
     }
 ]
 

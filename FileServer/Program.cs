@@ -119,8 +119,15 @@ namespace FileServer
         }
         static void Main(string[] args)
         {
-            Memory.vengine_init_malloc();
-            RunDB();
+            var v = File.ReadAllBytes("Binaries.meta");
+            fixed (byte* b = v)
+            {
+                var guid = vstd.Guid.GetGuidFromUnityMeta(b, (ulong)v.LongLength);
+                Console.WriteLine(guid.data0);
+                Console.WriteLine(guid.data1);
+                Console.WriteLine(guid.ToString());
+            }
+         //   RunDB();
            // RunSerialization();
         }
     }

@@ -3,8 +3,8 @@ namespace vstd
 {
     public unsafe struct Guid
     {
-        ulong data0;
-        ulong data1;
+        public ulong data0 { get; private set; }
+        public ulong data1 { get; private set; }
         public Guid(ulong data0, ulong data1)
         {
             this.data0 = data0;
@@ -34,7 +34,7 @@ namespace vstd
 
             fixed (Guid* ptr = &this)
             {
-                vguid_to_string(ptr, bytes, true);
+                vguid_to_string(ptr, bytes, false);
             }
             return new string(bytes, 0, 32);
         }
@@ -51,6 +51,18 @@ namespace vstd
         Guid* guidData,
         sbyte* result,
         bool upper);
+
+        [DllImport("VEngine_DLL.dll")]
+        static extern void parse_unity_metafile(
+        byte* fileData,
+        ulong fileSize,
+        Guid* guid);
+        public static Guid GetGuidFromUnityMeta(byte* fileData, ulong fileSize)
+        {
+            Guid g;
+            parse_unity_metafile(fileData, fileSize, &g);
+            return g;
+        }
         public Guid(bool generate)
         {
             data0 = 0;
