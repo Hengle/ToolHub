@@ -26,3 +26,5 @@ build/Yaml_CPP.dll
 __pycache__/
 build/VEngine_Database.dll
 build/VEngine_Unity.dll
+workspace/**
+!premake/**
