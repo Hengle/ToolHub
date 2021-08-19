@@ -12,6 +12,14 @@ namespace Network
 {
     public class RPCSocket : IDisposable
     {
+        private static ThreadLocal<RPCSocket> localRpc = new ThreadLocal<RPCSocket>();
+        public static RPCSocket ThreadLocalRPC
+        {
+            get
+            {
+                return localRpc.Value;
+            }
+        }
         TcpListener listener = null;
         NetworkStream stream;
         TcpClient client;
@@ -42,6 +50,7 @@ namespace Network
             formatter = new BinaryFormatter();
             readTask = Task.Run(() =>
             {
+                localRpc.Value = this;
                 try
                 {
                     while (classEnabled)
@@ -51,17 +60,24 @@ namespace Network
                             formatter);
                     }
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     Console.WriteLine(e.Message);
                 }
                 finally
                 {
+                    classEnabled = false;
+                    stream.Dispose();
+                    client.Dispose();
 
+                    writeThreadLocker.Set();
+                    writeTask.Wait();
+                    writeThreadLocker.Dispose();
                 }
             });
             writeTask = Task.Run(() =>
             {
+                localRpc.Value = this;
                 while (classEnabled)
                 {
                     writeThreadLocker.WaitOne();
@@ -78,10 +94,9 @@ namespace Network
                 }
             });
         }
-        public RPCSocket(int port)
+        public RPCSocket(TcpListener listener, int port)
         {
-            listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
+            this.listener = listener;
             client = listener.AcceptTcpClient();
             stream = client.GetStream();
             StartThread();
@@ -100,7 +115,7 @@ namespace Network
         }
         public void CallRemoteFunctions(IEnumerable<CallCmd> cmds)
         {
-            foreach(var i in cmds)
+            foreach (var i in cmds)
             {
                 writeCmd.Enqueue(i);
             }
@@ -108,19 +123,17 @@ namespace Network
         }
         public void Dispose()
         {
-            classEnabled = false;
-            stream.Dispose();
-            client.Dispose();
-            if (listener != null)
+            if (classEnabled)
             {
-                listener.Stop();
-                listener = null;
-            }
+                classEnabled = false;
+                stream.Dispose();
+                client.Dispose();
 
-            writeThreadLocker.Set();
-            readTask.Wait();
-            writeTask.Wait();
-            writeThreadLocker.Dispose();
+                writeThreadLocker.Set();
+                readTask.Wait();
+                writeTask.Wait();
+                writeThreadLocker.Dispose();
+            }
         }
     }
 }

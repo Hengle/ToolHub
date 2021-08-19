@@ -31,13 +31,14 @@ namespace Network
             }
         }
         static Dictionary<string, Action<Stream, BinaryFormatter>> executableFuncs = new Dictionary<string, Action<Stream, BinaryFormatter>>();
+        static object[] emptyArr = new object[] { null };
         public static void LoadRPCFunctor(Assembly assembly, RPCLayer layer)
         {
             void MakeMethods(MethodInfo method, Type clsType)
             {
                 var pars = method.GetParameters();
-                if (pars.Length != 1
-                    || pars[0].ParameterType.GetCustomAttribute(typeof(SerializableAttribute)) == null)
+                if (pars.Length != 0 && (pars.Length != 1
+                    || pars[0].ParameterType.GetCustomAttribute(typeof(SerializableAttribute)) == null))
                 {
                     throw new FormatException("Illegal RPC function format: " + clsType.Name + "::" + method.Name);
                 }
@@ -45,14 +46,16 @@ namespace Network
                 {
                     throw new FormatException("Currently RPC do not support return value: " + clsType.Name + "::" + method.Name);
                 }
-
                 Action<Stream, BinaryFormatter> callable = (stream, fmt) =>
                 {
                     byte isObjectContained = 0;
                     stream.Read(new Span<byte>(&isObjectContained, 1));
                     if (isObjectContained == 0)
                     {
-                        method.Invoke(null, null);
+                        if (pars.Length == 0)
+                            method.Invoke(null, null);
+                        else
+                            method.Invoke(null, emptyArr);
                     }
                     else
                     {
@@ -123,6 +126,7 @@ namespace Network
             int strLen = 0;
             Span<byte> lenSpan = new Span<byte>((byte*)&strLen, 4);
             stream.Read(lenSpan);
+            if (strLen == 0) return;
             sbyte* funcNamePtr = stackalloc sbyte[strLen];
             stream.Read(new Span<byte>(funcNamePtr, strLen));
             string funcName = new string(funcNamePtr, 0, strLen);
@@ -136,6 +140,7 @@ namespace Network
                 else
                 {
                     Console.WriteLine("Erorr: Try call non-exists function " + funcName);
+                    throw new Exception();
                 }
             }
         }

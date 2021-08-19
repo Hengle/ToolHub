@@ -1,11 +1,12 @@
 using Network;
+using System.Threading;
+using System;
 namespace FileServer
 {
     [RPC(RPCLayer.Layer0)]
     public static class ServerRPC_File
     {
         public static MongoDatabase db = null;
-        public static RPCSocket rpc = null;
         public static void UploadRequest(UploadCmd uploadCmd)
         {
             UploadResult result;
@@ -32,6 +33,7 @@ namespace FileServer
                     message = "File " + uploadCmd.filePath + " added success!"
                 };
             }
+            var rpc = RPCSocket.ThreadLocalRPC;
             rpc.CallRemoteFunction(
                   "ClientRPC_File",
                   "UploadCallback",
@@ -70,10 +72,21 @@ namespace FileServer
                     }
                     break;
             }
+            var rpc = RPCSocket.ThreadLocalRPC;
             rpc.CallRemoteFunction(
                 "ClientRPC_File",
                 "DownloadCallback",
                 callback);
+        }
+
+        public static void TestRPC(string value)
+        {
+            Console.WriteLine("Get: " + value);
+            var rpc = RPCSocket.ThreadLocalRPC;
+            rpc.CallRemoteFunction(
+                "ClientRPC_File",
+                "TestRPC",
+                "fuck " + value);
         }
         //public static void DownloadRequest()
     }
