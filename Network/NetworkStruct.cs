@@ -3,13 +3,24 @@ namespace Network
     [System.Serializable]
     public struct UploadCmd
     {
+        public vstd.Guid guid;
         public string filePath;
         public byte[] fileData;
+        public byte[] metaData;
     }
     [System.Serializable]
     public struct DownloadCmd
     {
-        //public string targetFilePath;
+        public vstd.Guid tarGuid;
+    }
+    [System.Serializable]
+    public struct DownloadResult
+    {
+        public bool success;
+        public string message;
+        public string filePath;
+        public byte[] fileResult;
+        public byte[] metaFileResult;
     }
     [System.Serializable]
     public enum FileUploadState : byte

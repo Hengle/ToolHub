@@ -9,6 +9,7 @@ copy_dlls = {
 	, "VEngine_DLL.dll"
 	, "VEngine_Database.dll"
 	, "mimalloc.dll"
+	, "Yaml_CPP.dll"
 }
 copy_dll_src_root = "./build/"
 copy_dll_dst_root = work_space.."/bin/"
@@ -114,6 +115,41 @@ project ("FileServer")
 	{
 		"./FileServer/obj/**",
 		"./FileServer/bin/**"
+	}
+
+project ("FileClient")
+	-- setup kind 
+	kind("ConsoleApp")
+
+	-- enable unsafe 
+	clr("Unsafe")
+	
+	-- setup language 
+	language("C#")
+	dotnetframework("net5.0")
+	csversion("9.0")
+
+	-- setup nuget 
+	nuget
+	{
+		"MongoDB.Driver:2.13.1"
+	}
+
+	-- setup links 
+	links
+	{
+		"Network"
+	}
+	
+	-- add project file
+	files
+	{
+		"./FileClient/**.cs"
+	}
+	removefiles
+	{
+		"./FileClient/obj/**",
+		"./FileClient/bin/**"
 	}
 
 project ("InterfaceGenerator")

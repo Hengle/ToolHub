@@ -33,4 +33,8 @@ public:
 	static vstd::string ToUpper(vstd::string_view str);
 	static bool EqualIgnoreCapital(vstd::string_view a, vstd::string_view b);
 	static vstd::string_view GetExtension(vstd::string const& path);
+	static void TransformWCharToChar(
+		wchar_t const* src,
+		char* dst,
+		size_t sz);
 };

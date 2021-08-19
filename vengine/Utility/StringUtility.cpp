@@ -330,3 +330,12 @@ vstd::string_view StringUtil::GetExtension(vstd::string const& path) {
 	}
 	return vstd::string_view(path);
 }
+
+void StringUtil::TransformWCharToChar(
+	wchar_t const* src,
+	char* dst,
+	size_t sz) {
+	for (size_t i = 0; i < sz; ++i) {
+		dst[i] = static_cast<char>(src[i]);
+	}
+}

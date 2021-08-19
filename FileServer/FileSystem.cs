@@ -19,7 +19,8 @@ namespace FileServer
     }
     public unsafe static class FileSystem
     {
-        static readonly string FILE_FOLDER = "Files/";
+        static object locker = new object();
+
         public static vstd.MD5 CalcFileMD5(string filePath, out long fileLen)
         {
             var bytes = File.ReadAllBytes(filePath);
@@ -36,20 +37,24 @@ namespace FileServer
             in long fileSize,
             out FileData result)
         {
-            var v = dbCollect.Find(
-                Builders<BsonDocument>.Filter.And(
-                        Builders<BsonDocument>.Filter.Eq("md5", md5.ToString()),
-                        Builders<BsonDocument>.Filter.Eq("size", fileSize),
-                        Builders<BsonDocument>.Filter.Exists("path"),
-                        Builders<BsonDocument>.Filter.Exists("guid")
-                    ));
-            if (v.CountDocuments() != 1)
+            BsonDocument doc;
+            lock (locker)
             {
-                result = new FileData();
-                return false;
-            }
-            BsonDocument doc = v.First();
+                var v = dbCollect.Find(
+                    Builders<BsonDocument>.Filter.And(
+                            Builders<BsonDocument>.Filter.Eq("md5", md5.ToString()),
+                            Builders<BsonDocument>.Filter.Eq("size", fileSize),
+                            Builders<BsonDocument>.Filter.Exists("path"),
+                            Builders<BsonDocument>.Filter.Exists("guid")
+                        ));
+                if (v.CountDocuments() != 1)
+                {
+                    result = new FileData();
+                    return false;
+                }
 
+                doc = v.First();
+            }
             result = new FileData
             {
                 fileMD5 = md5,
@@ -66,20 +71,24 @@ namespace FileServer
             in vstd.Guid guid,
             out FileData result)
         {
-            string guidStr = guid.ToString();
-            var v = dbCollect.Find(
-               Builders<BsonDocument>.Filter.And(
-                        Builders<BsonDocument>.Filter.Eq("guid", guidStr),
-                        Builders<BsonDocument>.Filter.Exists("md5"),
-                        Builders<BsonDocument>.Filter.Exists("path"),
-                        Builders<BsonDocument>.Filter.Exists("size")
-                   ));
-            if (v.CountDocuments() != 1)
+            BsonDocument doc;
+            lock (locker)
             {
-                result = new FileData();
-                return false;
+                string guidStr = guid.ToString();
+                var v = dbCollect.Find(
+                   Builders<BsonDocument>.Filter.And(
+                            Builders<BsonDocument>.Filter.Eq("guid", guidStr),
+                            Builders<BsonDocument>.Filter.Exists("md5"),
+                            Builders<BsonDocument>.Filter.Exists("path"),
+                            Builders<BsonDocument>.Filter.Exists("size")
+                       ));
+                if (v.CountDocuments() != 1)
+                {
+                    result = new FileData();
+                    return false;
+                }
+                doc = v.First();
             }
-            BsonDocument doc = v.First();
             result = new FileData
             {
                 fileGuid = guid,
@@ -94,19 +103,23 @@ namespace FileServer
             in string filePath,
             out FileData result)
         {
-            var v = dbCollect.Find(
+            BsonDocument doc;
+            lock (locker)
+            {
+                var v = dbCollect.Find(
               Builders<BsonDocument>.Filter.And(
                         Builders<BsonDocument>.Filter.Eq("path", filePath),
                         Builders<BsonDocument>.Filter.Exists("md5"),
                         Builders<BsonDocument>.Filter.Exists("guid"),
                         Builders<BsonDocument>.Filter.Exists("size")
                   ));
-            if (v.CountDocuments() != 1)
-            {
-                result = new FileData();
-                return false;
+                if (v.CountDocuments() != 1)
+                {
+                    result = new FileData();
+                    return false;
+                }
+                doc = v.First();
             }
-            BsonDocument doc = v.First();
             result = new FileData
             {
                 fileGuid = new vstd.Guid(doc.GetValue("guid").AsString),
@@ -135,66 +148,104 @@ namespace FileServer
             {
                 md5 = new vstd.MD5(b, (ulong)bytes.LongLength);
             }
-            var result = dbCollect.FindOneAndUpdate(
-            Builders<BsonDocument>.Filter.And(
+            bool isUpdate;
+            lock (locker)
+            {
+                var result = dbCollect.FindOneAndUpdate(
+                Builders<BsonDocument>.Filter.And(
                 Builders<BsonDocument>.Filter.Eq("path", filePath)
                 ),
-             Builders<BsonDocument>.Update.Combine(
-                Builders<BsonDocument>.Update.Set("md5", md5.ToString()),
-                Builders<BsonDocument>.Update.Set("size", bytes.LongLength)
-                )
-            );
-            string guidStr = fileGuid.ToString();
-            bool isUpdate;
-            if (result == null)
-            {
-                Dictionary<string, object> dict = new Dictionary<string, object>();
-                dict.Add("guid", guidStr);
-                dict.Add("path", filePath);
-                dict.Add("size", bytes.LongLength);
-                dict.Add("md5", md5.ToString());
-                dbCollect.InsertOne(new BsonDocument(dict));
-                isUpdate = false;
+                Builders<BsonDocument>.Update.Combine(
+                    Builders<BsonDocument>.Update.Set("md5", md5.ToString()),
+                    Builders<BsonDocument>.Update.Set("size", bytes.LongLength)
+                ));
+                string guidStr = fileGuid.ToString();
+                if (result == null)
+                {
+                    Dictionary<string, object> dict = new Dictionary<string, object>();
+                    dict.Add("guid", guidStr);
+                    dict.Add("path", filePath);
+                    dict.Add("size", bytes.LongLength);
+                    dict.Add("md5", md5.ToString());
+                    dbCollect.InsertOne(new BsonDocument(dict));
+                    isUpdate = false;
+                }
+                else
+                {
+                    guidStr = result.GetValue("guid").AsString;
+                    isUpdate = true;
+                }
+                Network.FileUtility.WriteFile(filePath, bytes);
+                File.WriteAllBytes(filePath + ".meta", metaBytes);
             }
-            else
-            {
-                guidStr = result.GetValue("guid").AsString;
-                isUpdate = true;
-            }
-            string path = FILE_FOLDER + guidStr;
-            File.WriteAllBytes(path, bytes);
-            File.WriteAllBytes(path + ".meta", metaBytes);
             return isUpdate;
         }
         public static void ResetFilePath(
             in IMongoCollection<BsonDocument> dbCollect,
-            in vstd.MD5 tarFileMD5,
-            in long tarFileSize,
-            in string oldPath,
+            in vstd.Guid guid,
             in string newPath)
         {
-            dbCollect.UpdateOne(
+            lock (locker)
+            {
+                var doc = dbCollect.FindOneAndUpdate(
                 Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("md5", tarFileMD5.ToString()),
-                    Builders<BsonDocument>.Filter.Eq("size", tarFileSize),
-                    Builders<BsonDocument>.Filter.Eq("path", oldPath)
+                    Builders<BsonDocument>.Filter.Eq("guid", guid.ToString())
                     ),
                     Builders<BsonDocument>.Update.Set("path", newPath)
                 );
+                var oldPath = doc.GetValue("path").AsString;
+                File.Move(oldPath, newPath);
+            }
         }
 
         public static void DeleteFile(
             in IMongoCollection<BsonDocument> dbCollect,
             in string guid)
         {
-            var doc = dbCollect.FindOneAndDelete(
+            lock (locker)
+            {
+                var doc = dbCollect.FindOneAndDelete(
                 Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq("guid", guid),
                     Builders<BsonDocument>.Filter.Exists("md5"),
                     Builders<BsonDocument>.Filter.Exists("path"),
                     Builders<BsonDocument>.Filter.Exists("size")));
-            if (doc != null)
-                File.Delete(FILE_FOLDER + doc.GetValue("guid").AsString);
+                if (doc != null)
+                    File.Delete(doc.GetValue("path").AsString);
+            }
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dbCollect"></param>
+        /// <param name="guid"></param>
+        /// <param name="fileBytes"></param>
+        /// <param name="fileMetaBytes"></param>
+        /// <returns>0: success, 1: empty guid, 2: error path</returns>
+        public static int TryDownload(
+            in IMongoCollection<BsonDocument> dbCollect,
+            in vstd.Guid guid,
+            out string filePath,
+            out byte[] fileBytes,
+            out byte[] fileMetaBytes)
+        {
+            lock (locker)
+            {
+                var doc = dbCollect.Find(
+                Builders<BsonDocument>.Filter.Eq("guid", guid.ToString()));
+                var bson = doc.First();
+                if (bson == null)
+                {
+                    filePath = null;
+                    fileBytes = null;
+                    fileMetaBytes = null;
+                    return 1;
+                }
+                filePath = bson.GetValue("path").AsString;
+                fileBytes = File.ReadAllBytes(filePath);
+                fileMetaBytes = File.ReadAllBytes(filePath + ".meta");
+                return (fileBytes == null || fileMetaBytes == null) ? 2 : 0;
+            }
         }
     }
 }

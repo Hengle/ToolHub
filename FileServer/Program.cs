@@ -6,6 +6,7 @@ using MongoDB.Bson;
 using System.IO;
 using Network;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Runtime.InteropServices;
 
 namespace FileServer
 {
@@ -113,22 +114,13 @@ namespace FileServer
                 {
                     Console.WriteLine("Connect Success!");
                     System.Threading.Thread.Sleep(new TimeSpan(1, 0, 0, 0, 0));
-                   
+
                 }
             }
         }
         static void Main(string[] args)
         {
-            var v = File.ReadAllBytes("Binaries.meta");
-            fixed (byte* b = v)
-            {
-                var guid = vstd.Guid.GetGuidFromUnityMeta(b, (ulong)v.LongLength);
-                Console.WriteLine(guid.data0);
-                Console.WriteLine(guid.data1);
-                Console.WriteLine(guid.ToString());
-            }
-         //   RunDB();
-           // RunSerialization();
+            RPCReflector.LoadRPCFunctor(System.Reflection.Assembly.GetExecutingAssembly(), RPCLayer.All);
         }
     }
 }

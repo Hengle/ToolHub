@@ -1,10 +1,15 @@
 using System.Runtime.InteropServices;
+using System;
+using System.Threading;
+using System.Collections;
+using System.Collections.Generic;
 namespace vstd
 {
+    [Serializable]
     public unsafe struct Guid
     {
-        public ulong data0 { get; private set; }
-        public ulong data1 { get; private set; }
+        public ulong data0;
+        public ulong data1;
         public Guid(ulong data0, ulong data1)
         {
             this.data0 = data0;
@@ -57,11 +62,49 @@ namespace vstd
         byte* fileData,
         ulong fileSize,
         Guid* guid);
+
+        [DllImport("Yaml_CPP.dll")]
+        static extern uint read_unity_file(
+        IntPtr callBack,
+        char* filePath,
+        uint filePathLen);
+        static ThreadLocal<List<string>> localGuidList = new ThreadLocal<List<string>>();
+        delegate void GetGuidCallBackType(IntPtr ptr, uint sz);
+        static GetGuidCallBackType getGuidCallback = (charPtr, charSize) =>
+        {
+            var value = localGuidList.Value;
+            sbyte* bytes = (sbyte*)charPtr.ToPointer();
+            value.Add(new string(bytes, 0, (int)charSize));
+        };
+        public static uint TryReadUnityAssetRefGuid(
+            string filePath,
+            List<string> result)
+        {
+            result.Clear();
+            localGuidList.Value = result;
+            fixed (char* ptr = filePath)
+            {
+                uint i;
+                if ((i = read_unity_file(Marshal.GetFunctionPointerForDelegate(getGuidCallback), ptr, (uint)filePath.Length)) != 0)
+                    return i;
+            }
+            localGuidList.Value = null;
+            return 0;
+        }
+
         public static Guid GetGuidFromUnityMeta(byte* fileData, ulong fileSize)
         {
             Guid g;
             parse_unity_metafile(fileData, fileSize, &g);
             return g;
+        }
+        public static Guid GetGuidFromUnityMeta(string filePath)
+        {
+            var bytes = System.IO.File.ReadAllBytes(filePath);
+            fixed (byte* bs = bytes)
+            {
+                return GetGuidFromUnityMeta(bs, (ulong)bytes.LongLength);
+            }
         }
         public Guid(bool generate)
         {
