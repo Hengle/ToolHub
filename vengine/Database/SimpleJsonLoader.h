@@ -6,7 +6,6 @@
 #include <Network/FunctionSerializer.h>
 namespace toolhub::db {
 class SimpleBinaryJson;
-class SimpleJsonObject;
 class SimpleJsonValueArray;
 class SimpleJsonValueDict;
 static constexpr uint8_t DICT_TYPE = 0;
@@ -21,25 +20,22 @@ enum class ValueType : uint8_t {
 };
 
 struct SimpleJsonVariant {
-	vstd::variant<int64,
-				  double,
-				  vstd::string,
-				  vstd::unique_ptr<SimpleJsonValueDict>,
-				  vstd::unique_ptr<SimpleJsonValueArray>,
-				  vstd::Guid>
-		value;
+	WriteJsonVariant value;
 	template<typename... Args>
 	SimpleJsonVariant(Args&&... args)
 		: value(std::forward<Args>(args)...) {
 	}
-	SimpleJsonVariant(SimpleJsonVariant const& v) = delete;
-	SimpleJsonVariant(SimpleJsonVariant& v) = delete;
+	SimpleJsonVariant(SimpleJsonVariant const& v);
+	SimpleJsonVariant(SimpleJsonVariant& v) : SimpleJsonVariant((SimpleJsonVariant const&)v) {}
 	SimpleJsonVariant(SimpleJsonVariant&& v) : value(std::move(v.value)) {}
 	SimpleJsonVariant(SimpleJsonVariant const&& v) = delete;
 
-	SimpleJsonVariant(SimpleBinaryJson* db, JsonVariant const& v, SimpleJsonObject* obj);
-	SimpleJsonVariant(SimpleBinaryJson* db, JsonVariant& v, SimpleJsonObject* obj) : SimpleJsonVariant(db, (JsonVariant const&)v, obj) {}
-	JsonVariant GetVariant() const;
+	SimpleJsonVariant(ReadJsonVariant const& v);
+	SimpleJsonVariant( ReadJsonVariant& v) : SimpleJsonVariant((ReadJsonVariant const&)v) {}
+	SimpleJsonVariant( ReadJsonVariant&& v) : SimpleJsonVariant((ReadJsonVariant const&)v) {}
+
+
+	ReadJsonVariant GetVariant() const;
 	template<typename... Args>
 	void Set(Args&&... args) {
 		this->~SimpleJsonVariant();
@@ -61,15 +57,9 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 
 class SimpleJsonLoader {
 public:
-	static IJsonRefDict* GetDictFromID(IJsonDatabase* db, vstd::Guid const& dbIndex, vstd::Guid const& instanceID);
-	static IJsonRefArray* GetArrayFromID(IJsonDatabase* db, vstd::Guid const& dbIndex, vstd::Guid const& instanceID);
 	static bool Check(IJsonDatabase* db, SimpleJsonVariant const& var);
-	static void Clean(IJsonDatabase* db, HashMap<vstd::string, SimpleJsonVariant>& var);
-	static void Clean(IJsonDatabase* db, vstd::vector<SimpleJsonVariant>& var);
-	static SimpleJsonVariant DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db, SimpleJsonObject* obj);
-	static void Serialize(IJsonDatabase* db, SimpleJsonVariant const& v, vstd::vector<uint8_t>& data);
-	static void RemoveAllGuid(SimpleJsonVariant const& v, SimpleBinaryJson* db);
-	static void RemoveAllGuid(vstd::Guid const& guid, SimpleBinaryJson* db);
+	static SimpleJsonVariant DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db);
+	static void Serialize(SimpleJsonVariant const& v, vstd::vector<uint8_t>& data);
 };
 template<typename T>
 T PopValue(std::span<uint8_t>& arr) {

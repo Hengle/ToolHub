@@ -1,21 +1,33 @@
 #pragma vengine_package vengine_compute
 #include <Common/Common.h>
-#include <Yaml/IYamlNode.h>
 #include <Common/DynamicDLL.h>
 #include <Utility/BinaryReader.h>
+#include <Database/DatabaseInclude.h>
+#include <Database/DatabaseExample.h>
+template<typename FactoryType>
+struct DllFactoryLoader {
+private:
+	vstd::optional<DynamicDLL> dll;
+	funcPtr_t<FactoryType*()> funcPtr;
+
+public:
+	DllFactoryLoader(
+		char const* dllName,
+		char const* factoryFuncName) {
+		dll.New(dllName);
+		funcPtr = dll->GetDLLFunc<FactoryType*()>(factoryFuncName);
+	}
+	void UnloadDll() {
+		dll.Delete();
+	}
+	FactoryType* operator()() const {
+		return funcPtr();
+	}
+};
+
 int main() {
-	DynamicDLL dll("Yaml_CPP.dll");
-	auto funcPtr = dll.GetDLLFunc<uint(funcPtr_t<void(vstd::string_view)> , char const*, uint)>("read_unity_file");
-	vstd::string_view strv = "PostProcessResources.asset"_sv;
-	uint v = funcPtr(
-		[](vstd::string_view sv) {
-			std::cout << "guid: " << sv << '\n';
-		},
-		strv.c_str(), strv.size());
-	std::cout << "Result: " << v << '\n';
-
-	//*node->Get("guid") = "fuck";
-	//std::cout << node->ToString() << '\n';
-
+	DllFactoryLoader<toolhub::db::Database> loader("VEngine_Database.dll", "Database_GetFactory");
+	auto factory = loader();
+	jsonTest(factory);
 	return 0;
 }

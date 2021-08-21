@@ -5,7 +5,9 @@ namespace Network
     {
         public static void WriteFile(string path, byte[] bytes)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            string dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
             File.WriteAllBytes(path, bytes);
         }
     }

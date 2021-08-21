@@ -27,6 +27,7 @@ namespace FileServer
         const int PORT = 2002;
         static void Main(string[] args)
         {
+            ServerRPC_File.db = new MongoDatabase();
             RPCReflector.LoadRPCFunctor(System.Reflection.Assembly.GetExecutingAssembly(), RPCLayer.All);
             Console.WriteLine("Start server");
             TcpListener listener = new TcpListener(System.Net.IPAddress.Any, PORT);

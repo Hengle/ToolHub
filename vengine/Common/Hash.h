@@ -5,13 +5,17 @@ class Hash {
 public:
 	static constexpr size_t FNV_offset_basis = 14695981039346656037ULL;
 	static constexpr size_t FNV_prime = 1099511628211ULL;
+	static size_t GetNextHash(
+		size_t curHash,
+		size_t lastHash = FNV_offset_basis) {
+		return (lastHash ^ curHash) * FNV_prime;
+	}
 	static size_t Int32ArrayHash(
 		const uint32_t* const First,
 		const uint32_t* const End) noexcept {// accumulate range [_First, First + Count) into partial FNV-1a hash Val
 		size_t Val = FNV_offset_basis;
 		for (const uint32_t* i = First; i != End; ++i) {
-			Val ^= static_cast<size_t>(*i);
-			Val *= FNV_prime;
+			Val = GetNextHash(*i, Val);
 		}
 		return Val;
 	}
@@ -27,8 +31,7 @@ public:
 			const uint32_t* IntPtr = (const uint32_t*)First;
 			IntPtrEnd = IntPtr + (Count / sizeof(uint32_t));
 			for (; IntPtr != IntPtrEnd; ++IntPtr) {
-				Val ^= static_cast<size_t>(*IntPtr);
-				Val *= FNV_prime;
+				Val = GetNextHash(*IntPtr, Val);
 			}
 		}
 		const char* End = First + Count;

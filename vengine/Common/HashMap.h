@@ -1,7 +1,6 @@
 #pragma once
 #include <VEngineConfig.h>
 #include <type_traits>
-#include <tuple>
 #include <stdint.h>
 #include <memory>
 #include <Common/Pool.h>
@@ -320,7 +319,7 @@ public:
 	}
 	//
 	template<typename Key, typename... ARGS>
-	std::tuple<Index, bool> TryEmplace(Key&& key, ARGS&&... args) {
+	std::pair<Index, bool> TryEmplace(Key&& key, ARGS&&... args) {
 		size_t hashOriginValue = hsFunc(key);
 		size_t hashValue;
 
@@ -328,7 +327,7 @@ public:
 		hashValue = GetHash(hashOriginValue, nodeVec.size());
 		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
 			if (eqFunc(node->first, key)) {
-				return std::make_tuple(Index(this, node), false);
+				return std::pair<Index, bool>(Index(this, node), false);
 			}
 		}
 
@@ -340,7 +339,7 @@ public:
 		}
 		LinkNode* newNode = GetNewLinkNode(hashOriginValue, std::forward<Key>(key), std::forward<ARGS>(args)...);
 		LinkNode::Add(nodeVec[hashValue], newNode);
-		return std::make_tuple(Index(this, newNode), true);
+		return std::pair<Index, bool>(Index(this, newNode), true);
 	}
 
 	void Reserve(size_t capacity) noexcept {

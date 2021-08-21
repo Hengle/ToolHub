@@ -73,6 +73,11 @@
 #else
 #define VENGINE_DLL_TOOLKIT _declspec(dllimport)
 #endif
+#ifdef YAML_PROJECT
+#define VENGINE_DLL_YAML _declspec(dllexport)
+#else
+#define VENGINE_DLL_YAML _declspec(dllimport)
+#endif
 
 #endif//DLL_DEBUG
 

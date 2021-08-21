@@ -47,7 +47,7 @@ void AddFunc(
 			name,
 			funcType,
 			std::move(funcPtr));
-		if (!std::get<1>(ite)) {
+		if (!ite.second) {
 			VEngine_Log(
 				{"Functor Name Conflict: ",
 				 name});

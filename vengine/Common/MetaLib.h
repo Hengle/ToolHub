@@ -673,7 +673,7 @@ private:
 		template<typename Ret, typename F, typename... Funcs>
 		static void Set(funcPtr_t<Ret(void*, void*)>* funcPtr, void** funcP, F&& f, Funcs&&... fs) {
 			if constexpr (idx == c) return;
-			*funcPtr = [](void* ptr, void* arg) -> Ret{
+			*funcPtr = [](void* ptr, void* arg) -> Ret {
 				return (*reinterpret_cast<std::remove_reference_t<F>*>(ptr))(*reinterpret_cast<std::remove_reference_t<T>*>(arg));
 			};
 			*funcP = &f;
@@ -768,7 +768,7 @@ private:
 			if constexpr (v == 0) {
 				return vstd::get_lvalue(*reinterpret_cast<B const*>(ptr));
 			} else {
-				return Constructor<Args...>::template Get<v - 1>(ptr);
+				return vstd::get_lvalue(Constructor<Args...>::template Get<v - 1>(ptr));
 			}
 		}
 	};
@@ -805,7 +805,7 @@ public:
 	template<size_t i>
 	using TypeOf = typename Iterator<0, i, AA...>::Type;
 	template<typename TarT>
-	static constexpr size_t IndexOf = IndexOfStruct<0, TarT, AA...>::Index;
+	static constexpr size_t IndexOf = IndexOfStruct<0, std::remove_cvref_t<TarT>, AA...>::Index;
 	variant() {
 		switcher = argSize;
 	}
@@ -903,6 +903,19 @@ public:
 		}
 		return &Constructor<AA...>::template Get<tarIdx>(&placeHolder);
 	}
+	template<typename T>
+	T const& force_get() const {
+		static constexpr auto tarIdx = IndexOf<T>;
+		static_assert(tarIdx < argSize, "Illegal target type!");
+		return Constructor<AA...>::template Get<tarIdx>(&placeHolder);
+	}
+
+	template<typename T>
+	T& force_get() {
+		static constexpr auto tarIdx = IndexOf<T>;
+		static_assert(tarIdx < argSize, "Illegal target type!");
+		return Constructor<AA...>::template Get<tarIdx>(&placeHolder);
+	}
 	template<typename Arg>
 	variant& operator=(Arg&& arg) {
 		this->~variant();
@@ -929,6 +942,24 @@ public:
 		funcPtr_t<RetType(void*, void const*)> ftype[argSize];
 		void* funcPs[argSize];
 		Iterator<0, argSize, AA const...>::template Set_Const<RetType, Funcs...>(ftype, funcPs, std::forward<Funcs>(funcs)...);
+		return ftype[switcher](funcPs[switcher], &placeHolder);
+	}
+	template<typename T, typename... Funcs>
+	T visit_with_default(T const& defaultValue, Funcs&&... funcs) const {
+		static_assert(argSize == sizeof...(Funcs), "functor size not equal!");
+		if (switcher >= argSize) return defaultValue;
+		funcPtr_t<T(void*, void const*)> ftype[argSize];
+		void* funcPs[argSize];
+		Iterator<0, argSize, AA const...>::template Set_Const<T, Funcs...>(ftype, funcPs, std::forward<Funcs>(funcs)...);
+		return ftype[switcher](funcPs[switcher], &placeHolder);
+	}
+	template<typename T, typename... Funcs>
+	T visit_with_default(T const& defaultValue, Funcs&&... funcs) {
+		static_assert(argSize == sizeof...(Funcs), "functor size not equal!");
+		if (switcher >= argSize) return defaultValue;
+		funcPtr_t<T(void*, void*)> ftype[argSize];
+		void* funcPs[argSize];
+		Iterator<0, argSize, AA...>::template Set<T, Funcs...>(ftype, funcPs, std::forward<Funcs>(funcs)...);
 		return ftype[switcher](funcPs[switcher], &placeHolder);
 	}
 };

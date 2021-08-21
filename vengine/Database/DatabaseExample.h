@@ -13,96 +13,97 @@ void jsonTest(
 	toolhub::db::Database const* database) {
 	using namespace toolhub::db;
 	// Generate a database
-	auto dbParent = MakeObjectPtr(database->CreateDatabase());
-	auto db = dbParent->CreateDatabase({});
-	db->NameGUID("Root", vstd::Guid(true));
-	// Get Root Json Object
-	auto rootObj = db->CreateJsonObject(db->GetNamedGUID("Root"));
-	auto ptr = db->CreateJsonArray();
-	ThreadPool tp(std::thread::hardware_concurrency());
-	// Create a json array
-	auto subArr = rootObj->AddOrGetArray("array");
-	subArr->Add(5);
-	subArr->Add(8.3);
-	subArr->Add("string1"_sv);
-	// Create a json dictionary
-	auto subObj = db->CreateJsonObject();
-	subObj->Set("number"_sv, 53);
-	subObj->Set("number1"_sv, 12.5);
-	subObj->Set("wrong", rootObj);
-	// Set RootObj
-	//Full Serialize Data
-	subArr->Add(vstd::Guid(true));
-	subObj->Set("number"_sv, 26);
-	rootObj->Set("dict", subObj->GetGUID());
-	subArr->Set(1, 141);
-	subArr->Add(vstd::Guid(true));
-	auto vec = db->Serialize();
-	std::cout << "Serialize Size: " << vec.size() << " bytes\n";
-	//Incremental Serialize Data
+	auto db = database->CreateDatabase();
+	size_t binaryKey = 234641372;
+	{
+		auto rootObj = db->GetRootNode();
+		// Create a json array
+		auto subArr = db->CreateArray();
+		subArr->Add(5);
+		subArr->Add(8.3);
+		subArr->Add("string1"_sv);
+		subArr->Add(vstd::Guid(true));
+		subArr->Set(1, 141);
+		subArr->Add(vstd::Guid(true));
+		rootObj->Set("array", std::move(subArr));
+		// Create a json dictionary
+		{
+			auto subObj = db->CreateDict();
 
-	/////////////// Clone Database by serialize binary
-	auto cloneDB = dbParent->CreateDatabase({});
-	struct EventTrigger : public IDatabaseEvtVisitor {
-		void AddDict(IJsonRefDict* newDict) override {
-			std::cout << "Add Dict!" << '\n';
-		}
-		void RemoveDict(IJsonRefDict* removedDict) override {
-			std::cout << "Remove Dict!" << '\n';
-		}
-		void AddArray(IJsonRefArray* newDict) override {
-			std::cout << "Add Array!" << '\n';
-		}
-		void RemoveArray(IJsonRefArray* newDict) override {
-			std::cout << "Remove Array!" << '\n';
-		}
-	};
-	EventTrigger evtTrigger;
-	cloneDB->Read(vec, &evtTrigger);
-	auto cloneRoot = *cloneDB->GetNode(cloneDB->GetNamedGUID("Root")).try_get<IJsonRefDict*>();
-	auto rIte = cloneRoot->GetIterator();
-	// cross database link
-	// cloneArr == subArr
-	auto cloneArrVariant = cloneRoot->Get("array"_sv);
-	auto cloneArr = cloneArrVariant.try_get<IJsonValueArray*>();
-	if (cloneArr) {
-		auto ite = (*cloneArr)->GetIterator();
-		//Iterate and print all elements
-		LINQ_LOOP(i, *ite) {
-			auto func = [](auto&& f) {
-				std::cout << f << '\n';
-			};
-			i->visit(
-				func,
-				func,
-				func,
-				[](auto&& f) {},
-				[](auto&& f) {},
-				[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
-		}
-		(*cloneArr)->Dispose();
-	}
+			subObj->Set("number"_sv, 53);
+			subObj->Set("number1"_sv, 14);
+			// Set RootObj
+			//Full Serialize Data
+			subObj->Set("number2"_sv, 26);
+			subObj->Set(binaryKey, 656);
 
-	auto cloneGuid = cloneRoot->Get("dict"_sv).try_get<vstd::Guid>();
-	if (cloneGuid) {
-		auto cloneDict = cloneDB->GetJsonObject(*cloneGuid);
-		if (cloneDict) {
-			auto ite = cloneDict->GetIterator();
-			//Iterate and print all elements
-			LINQ_LOOP(i, *ite) {
-				auto func = [](auto&& f) {
-					std::cout << f << '\n';
-				};
-				std::cout << "key: " << i->key << " Value: ";
-				i->value.visit(
-					func,
-					func,
-					func,
-					[](auto&& f) {},
-					[](auto&& f) {},
-					[](auto&& f) { std::cout << f.ToString(true) << '\n'; });
+			auto middleObj = db->CreateDict();
+
+			middleObj->Set("subDict", std::move(subObj));
+			rootObj->Set("dict", std::move(middleObj));
+		}
+		{
+			auto subDict = (*rootObj->Get("dict").try_get<IJsonDict*>())->Get("subDict").try_get<IJsonDict*>();
+			auto kv = (*subDict)->GetAndSet("number1", 37.432);
+			int64* ptr = kv.try_get<int64>();
+			if (ptr) {
+				std::cout << "removed value: " << *ptr << '\n';
 			}
-			cloneDict->Dispose();
+		}
+	}
+	auto cloneDB = database->CreateDatabase();
+	cloneDB->Read(db->Serialize());
+	db->Dispose();
+	{
+		auto rootObj = cloneDB->GetRootNode();
+		auto ite = rootObj->GetIterator();
+		LINQ_LOOP(i, *ite) {
+			auto strv = i->key.try_get<vstd::string_view>();
+			if (strv) {
+				std::cout << *strv << '\n';
+			}
+		}
+		auto printVariant = [](ReadJsonVariant const& var) {
+			auto func = [](auto&& v) { std::cout << v << '\n'; };
+			var.visit(
+				func,
+				func,
+				func,
+				[](auto&&) {},
+				[](auto&&) {},
+				[](vstd::Guid const& v) {
+					std::cout << v.ToString() << '\n';
+				});
+		};
+		auto printKey = [](Key const& k) {
+			auto func = [](auto&& v) { std::cout << v << ' '; };
+			k.visit(
+				func,
+				func,
+				func,
+				[](auto&&) {},
+				[](vstd::Guid const& v) {
+					std::cout << v.ToString() << ' ';
+				});
+		};
+		auto subArr = rootObj->Get("array").try_get<IJsonArray*>();
+		if (subArr) {
+			auto arrIte = (*subArr)->GetIterator();
+			LINQ_LOOP(i, *arrIte) {
+				printVariant(*i);
+			}
+		}
+		auto subDict = (*rootObj->Get("dict").try_get<IJsonDict*>())->Get("subDict").try_get<IJsonDict*>();
+		std::cout << "searched binary: ";
+
+		printVariant((*subDict)->Get(binaryKey));
+		std::cout << '\n';
+		if (subDict) {
+			auto dictIte = (*subDict)->GetIterator();
+			LINQ_LOOP(i, *dictIte) {
+				printKey(i->key);
+				printVariant(i->value);
+			}
 		}
 	}
 }

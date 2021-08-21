@@ -1,5 +1,6 @@
 using Network;
 using System;
+using System.IO;
 namespace FileClient
 {
     class Program
@@ -10,18 +11,25 @@ namespace FileClient
             Console.WriteLine("Start client");
             RPCSocket rpc = new RPCSocket("127.0.0.1", 2002);
             Console.WriteLine("Connected to server!");
+            Console.WriteLine("Input 0: upload file");
+            Console.WriteLine("Input 1: download file");
             while (true)
             {
                 string s = Console.ReadLine();
-                if (s == "exit") {
-                    rpc.Dispose();
-                }
-                else
+                if (s == "0")
                 {
+                    Console.WriteLine("Input file path: ");
+                    string filePath = Console.ReadLine();
                     rpc.CallRemoteFunction(
-                    "ServerRPC_File",
-                    "TestRPC",
-                    s);
+                        "ServerRPC_File",
+                        "UploadRequest",
+                        new UploadCmd
+                        {
+                            fileData = File.ReadAllBytes(filePath),
+                            metaData = File.ReadAllBytes(filePath + ".meta"),
+                            guid = vstd.Guid.GetGuidFromUnityMeta(filePath + ".meta"),
+                            filePath = filePath
+                        });
                 }
             }
             Console.WriteLine("finished");

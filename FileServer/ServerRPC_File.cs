@@ -41,6 +41,7 @@ namespace FileServer
         }
         public static void DownloadRequest(DownloadCmd cmd)
         {
+            //Console.WriteLine("Get Download Cmd: " + cmd.f)
             DownloadResult callback = new DownloadResult();
             int result = FileSystem.TryDownload(db.fileCollect, cmd.tarGuid, out callback.filePath, out callback.fileResult, out callback.metaFileResult);
             switch (result)
@@ -77,16 +78,6 @@ namespace FileServer
                 "ClientRPC_File",
                 "DownloadCallback",
                 callback);
-        }
-
-        public static void TestRPC(string value)
-        {
-            Console.WriteLine("Get: " + value);
-            var rpc = RPCSocket.ThreadLocalRPC;
-            rpc.CallRemoteFunction(
-                "ClientRPC_File",
-                "TestRPC",
-                "fuck " + value);
         }
         //public static void DownloadRequest()
     }

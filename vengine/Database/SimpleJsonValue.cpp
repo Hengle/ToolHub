@@ -4,63 +4,71 @@
 #include <Database/SimpleJsonValue.h>
 #include <Common/Common.h>
 namespace toolhub::db {
-SimpleJsonValueDict::SimpleJsonValueDict(
-	SimpleBinaryJson* db,
-	SimpleJsonObject* parent)
-	: SimpleJsonValueBase(db, parent) {
+SimpleJsonValueDict::SimpleJsonValueDict(SimpleBinaryJson* db) {
+	this->db = db;
 }
 SimpleJsonValueDict::~SimpleJsonValueDict() {
 }
 SimpleJsonValueDict::SimpleJsonValueDict(
 	SimpleBinaryJson* db,
-	SimpleJsonObject* parent,
-	IJsonValueDict* src)
-	: SimpleJsonValueBase(db, parent) {
-	if (typeid(*src) == typeid(SimpleJsonValueDict)) {
-		SimpleJsonValueDict* srcDict = static_cast<SimpleJsonValueDict*>(src);
-		vars.reserve(srcDict->vars.size());
-		for (auto&& i : srcDict->vars) {
-			auto copyDefault = [&](auto&& v) {
-				vars.Emplace(i.first, v);
-			};
-			i.second.value.visit(
-				copyDefault,
-				copyDefault,
-				copyDefault,
-				[&](vstd::unique_ptr<SimpleJsonValueDict> const& v) {
-					vars.Emplace(i.first, db->dictValuePool.New(db, parent, v.get()));
-				},
-				[&](vstd::unique_ptr<SimpleJsonValueArray> const& v) {
-					vars.Emplace(i.first, db->arrValuePool.New(db, parent, v.get()));
-				},
-				copyDefault);
-		}
-	} else {
-		auto iterator = src->GetIterator();
-		LINQ_LOOP(i, *iterator) {
-			vars.Emplace(i->key, db, i->value, parent);
-		}
+	IJsonDict* src) {
+	if (src->IsEmpty()) return;
+	SimpleJsonValueDict* srcDict = static_cast<SimpleJsonValueDict*>(src);
+	vars.reserve(srcDict->vars.size());
+	for (auto&& i : srcDict->vars) {
+		auto copyDefault = [&](auto&& v) {
+			vars.Emplace(i.first, v);
+		};
+		i.second.value.visit(
+			copyDefault,
+			copyDefault,
+			copyDefault,
+			[&](vstd::unique_ptr<IJsonDict> const& v) {
+				vars.Emplace(i.first, db->dictValuePool.New(db, static_cast<SimpleJsonValueDict*>(v.get())));
+			},
+			[&](vstd::unique_ptr<IJsonArray> const& v) {
+				vars.Emplace(i.first, db->arrValuePool.New(db, static_cast<SimpleJsonValueArray*>(v.get())));
+			},
+			copyDefault);
 	}
 }
-JsonVariant SimpleJsonValueDict::Get(vstd::string_view key) {
+ReadJsonVariant SimpleJsonValueDict::Get(Key const& key) {
 	auto ite = vars.Find(key);
 	if (ite)
 		return ite.Value().GetVariant();
-	return JsonVariant();
+	return ReadJsonVariant();
 }
-void SimpleJsonValueDict::Set(vstd::string key, JsonVariant value) {
-	
-	vars.ForceEmplace(std::move(key), db, value, parent);
+WriteJsonVariant SimpleJsonValueDict::GetAndSet(Key const& key, WriteJsonVariant&& newValue) {
+	auto ite = vars.Find(key);
+	if (ite) {
+		auto result = std::move(ite.Value().value);
+		ite.Value().value = std::move(newValue);
+		return result;
+	} else {
+		vars.ForceEmplace(key, std::move(newValue));
+		return WriteJsonVariant();
+	}
 }
-void SimpleJsonValueDict::Remove(vstd::string const& key) {
-	
-	vars.Remove(key);
+WriteJsonVariant SimpleJsonValueDict::GetAndRemove(Key const& key) {
+	auto ite = vars.Find(key);
+	if (ite) {
+		auto result = std::move(ite.Value().value);
+		vars.Remove(ite);
+		return result;
+	} else
+		return WriteJsonVariant();
+}
+void SimpleJsonValueDict::Set(Key const& key, WriteJsonVariant&& value) {
+	vars.ForceEmplace(key, std::move(value));
+}
+void SimpleJsonValueDict::Remove(Key const& key) {
+	vars.Remove(SimpleJsonKey(key));
 }
 vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonValueDict::GetIterator() {
 	return vstd::linq::ConstIEnumerator(vars)
 		.make_transformer(
 			[](auto&& value) -> const JsonKeyPair {
-				return JsonKeyPair{value.first, value.second.GetVariant()};
+				return JsonKeyPair(value.first.GetKey(), value.second.GetVariant());
 			})
 		.MoveNew();
 }
@@ -75,8 +83,8 @@ vstd::vector<uint8_t> SimpleJsonValueDict::GetSerData() {
 void SimpleJsonValueDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	PushDataToVector<uint64>(vars.size(), data);
 	for (auto&& kv : vars) {
-		PushDataToVector(kv.first, data);
-		SimpleJsonLoader::Serialize(db->GetParent(), kv.second, data);
+		PushDataToVector(kv.first.value, data);
+		SimpleJsonLoader::Serialize(kv.second, data);
 	}
 }
 
@@ -84,17 +92,8 @@ void SimpleJsonValueDict::LoadFromSer(std::span<uint8_t>& sp) {
 	auto sz = PopValue<uint64>(sp);
 	vars.reserve(sz);
 	for (auto i : vstd::range(sz)) {
-		auto key = PopValue<vstd::string>(sp);
-		vars.Emplace(std::move(key), SimpleJsonLoader::DeSerialize(sp, db, parent));
-	}
-}
-
-void SimpleJsonValueDict::Clean() {
-	SimpleJsonLoader::Clean(db->GetParent(), vars);
-}
-void SimpleJsonValueDict::DisposeAllReference() {
-	for (auto&& i : vars) {
-		SimpleJsonLoader::RemoveAllGuid(i.second, db);
+		auto key = PopValue<SimpleJsonKey::ValueType>(sp);
+		vars.Emplace(std::move(key), SimpleJsonLoader::DeSerialize(sp, db));
 	}
 }
 
@@ -103,87 +102,40 @@ void SimpleJsonValueDict::Reset() {
 }
 
 void SimpleJsonValueDict::Dispose() {
-	if (db->Enabled())
-		db->dictValuePool.Delete(this);
+	db->dictValuePool.Delete(this);
 }
-IJsonValueDict* SimpleJsonValueDict::AddOrGetDict(vstd::string key) {
-	auto ite = vars.Find(key);
-	if (ite) {
-		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueDict>>();
-		if (ptr) return ptr->get();
-	}
-	
-	auto result = db->dictValuePool.New(db, parent);
-	ite = vars.ForceEmplace(std::move(key), result);
-	return result;
-}
-IJsonValueArray* SimpleJsonValueDict::AddOrGetArray(vstd::string key) {
-	auto ite = vars.Find(key);
-	if (ite) {
-		auto ptr = ite.Value().value.try_get<vstd::unique_ptr<SimpleJsonValueArray>>();
-		if (ptr) return ptr->get();
-	}
-	
-	auto result = db->arrValuePool.New(db, parent);
-	ite = vars.ForceEmplace(std::move(key), result);
-	return result;
-}
-
 void SimpleJsonValueArray::Dispose() {
-	if (db->Enabled())
-		db->arrValuePool.Delete(this);
-}
-
-IJsonValueDict* SimpleJsonValueArray::AddDict() {
-	
-	auto r = db->dictValuePool.New(db, parent);
-	arr.emplace_back(r);
-	return r;
-}
-
-IJsonValueArray* SimpleJsonValueArray::AddArray() {
-	
-	auto r = db->arrValuePool.New(db, parent);
-	arr.emplace_back(r);
-	return r;
+	db->arrValuePool.Delete(this);
 }
 
 SimpleJsonValueArray::SimpleJsonValueArray(
-	SimpleBinaryJson* db,
-	SimpleJsonObject* parent)
-	: SimpleJsonValueBase(db, parent) {
+	SimpleBinaryJson* db) {
+	this->db = db;
 }
 SimpleJsonValueArray::~SimpleJsonValueArray() {
 }
 
 SimpleJsonValueArray::SimpleJsonValueArray(
 	SimpleBinaryJson* db,
-	SimpleJsonObject* parent, IJsonValueArray* src)
-	: SimpleJsonValueBase(db, parent) {
-	if (typeid(*src) == typeid(SimpleJsonValueArray)) {
-		SimpleJsonValueArray* srcArr = static_cast<SimpleJsonValueArray*>(src);
-		arr.reserve(srcArr->arr.size());
-		auto copyDefault = [&](auto&& v) {
-			arr.emplace_back(v);
-		};
-		for (auto&& i : srcArr->arr) {
-			i.value.visit(
-				copyDefault,
-				copyDefault,
-				copyDefault,
-				[&](vstd::unique_ptr<SimpleJsonValueDict> const& v) {
-					arr.emplace_back(db->dictValuePool.New(db, parent, v.get()));
-				},
-				[&](vstd::unique_ptr<SimpleJsonValueArray> const& v) {
-					arr.emplace_back(db->arrValuePool.New(db, parent, v.get()));
-				},
-				copyDefault);
-		}
-	} else {
-		auto ite = src->GetIterator();
-		LINQ_LOOP(i, *ite) {
-			arr.emplace_back(db, *i, parent);
-		}
+	IJsonArray* src) {
+	this->db = db;
+	SimpleJsonValueArray* srcArr = static_cast<SimpleJsonValueArray*>(src);
+	arr.reserve(srcArr->arr.size());
+	auto copyDefault = [&](auto&& v) {
+		arr.emplace_back(v);
+	};
+	for (auto&& i : srcArr->arr) {
+		i.value.visit(
+			copyDefault,
+			copyDefault,
+			copyDefault,
+			[&](vstd::unique_ptr<IJsonDict> const& v) {
+				arr.emplace_back(db->dictValuePool.New(db, static_cast<SimpleJsonValueDict*>(v.get())));
+			},
+			[&](vstd::unique_ptr<IJsonArray> const& v) {
+				arr.emplace_back(db->arrValuePool.New(db, static_cast<SimpleJsonValueArray*>(v.get())));
+			},
+			copyDefault);
 	}
 }
 
@@ -199,7 +151,7 @@ vstd::vector<uint8_t> SimpleJsonValueArray::GetSerData() {
 void SimpleJsonValueArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	PushDataToVector<uint64>(arr.size(), data);
 	for (auto&& v : arr) {
-		SimpleJsonLoader::Serialize(db->GetParent(), v, data);
+		SimpleJsonLoader::Serialize(v, data);
 	}
 }
 
@@ -207,52 +159,41 @@ void SimpleJsonValueArray::LoadFromSer(std::span<uint8_t>& sp) {
 	auto sz = PopValue<uint64>(sp);
 	arr.reserve(sz);
 	for (auto i : vstd::range(sz)) {
-		arr.emplace_back(SimpleJsonLoader::DeSerialize(sp, db, parent));
+		arr.emplace_back(SimpleJsonLoader::DeSerialize(sp, db));
 	}
 }
 
-void SimpleJsonValueArray::Clean() {
-	SimpleJsonLoader::Clean(db->GetParent(), arr);
-}
-void SimpleJsonValueArray::DisposeAllReference() {
-	for (auto&& i : arr) {
-		SimpleJsonLoader::RemoveAllGuid(i, db);
-	}
-}
 void SimpleJsonValueArray::Reset() {
-	DisposeAllReference();
 	arr.clear();
 }
 
-JsonVariant SimpleJsonValueArray::Get(size_t index) {
+ReadJsonVariant SimpleJsonValueArray::Get(size_t index) {
 	if (index >= arr.size())
-		return JsonVariant();
+		return ReadJsonVariant();
 	return arr[index].GetVariant();
 }
 
-void SimpleJsonValueArray::Set(size_t index, JsonVariant value) {
+void SimpleJsonValueArray::Set(size_t index, WriteJsonVariant&& value) {
 	if (index < arr.size()) {
-		
-		arr[index].Set(db, value, parent);
+		arr[index].Set(std::move(value));
 	}
 }
 
 void SimpleJsonValueArray::Remove(size_t index) {
 	if (index < arr.size()) {
-		
 		arr.erase(arr.begin() + index);
 	}
 }
 
-void SimpleJsonValueArray::Add(JsonVariant value) {
-	
-	arr.emplace_back(db, value, parent);
+void SimpleJsonValueArray::Add(WriteJsonVariant&& value) {
+
+	arr.emplace_back(std::move(value));
 }
 
-vstd::unique_ptr<vstd::linq::Iterator<const JsonVariant>> SimpleJsonValueArray::GetIterator() {
+vstd::unique_ptr<vstd::linq::Iterator<const ReadJsonVariant>> SimpleJsonValueArray::GetIterator() {
 	return vstd::linq::ConstIEnumerator(arr)
 		.make_transformer(
-			[](auto&& var) -> JsonVariant const {
+			[](auto&& var) -> ReadJsonVariant const {
 				return var.GetVariant();
 			})
 		.MoveNew();

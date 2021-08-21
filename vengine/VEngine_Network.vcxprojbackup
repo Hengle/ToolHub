@@ -115,7 +115,7 @@
 			<CallingConvention>FastCall</CallingConvention>
 			<MinFilesInUnityFile>8</MinFilesInUnityFile>
 			<BufferSecurityCheck>false</BufferSecurityCheck>
-			<ExceptionHandling>false</ExceptionHandling>
+			<ExceptionHandling>Sync</ExceptionHandling>
 			<IntelJCCErratum>false</IntelJCCErratum>
 			<CompileAs>CompileAsCpp</CompileAs>
 			<FloatingPointModel>Precise</FloatingPointModel>

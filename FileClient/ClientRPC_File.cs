@@ -18,9 +18,5 @@ namespace FileClient
             FileUtility.WriteFile(result.filePath + ".meta", result.metaFileResult);
             //Console.WriteLine()
         }
-        public static void TestRPC(string value)
-        {
-            Console.WriteLine("Get: " + value);
-        }
     }
 }
