@@ -8,18 +8,10 @@ namespace toolhub::net {
 class TCPIOBase {
 public:
 	asio::io_service* service;
-	asio::ip::tcp::endpoint ep;
 	asio::ip::tcp::socket socket;
 	TCPIOBase(
-		asio::io_service* service, uint16_t port, asio::ip::tcp&& tcp)
+		asio::io_service* service)
 		: service(service),
-		  ep(std::move(tcp), port),
-		  socket(*service) {
-	}
-	TCPIOBase(
-		asio::io_service* service, uint16_t port, asio::ip::address&& add)
-		: service(service),
-		  ep(std::move(add), port),
 		  socket(*service) {
 	}
 	bool Read(
@@ -38,22 +30,45 @@ public:
 		return socket.try_write_some(errorMsg, asio::buffer(data.data(), data.size()));
 	}
 };
+class TCPSocketAcceptor : public ISocketAcceptor, public vstd::IOperatorNewBase {
+public:
+	StackObject<asio::ip::tcp::endpoint> ep;
+	StackObject<asio::ip::tcp::acceptor> acceptor;
+	TCPSocketAcceptor(
+		asio::io_service* service,
+		uint16_t port) {
+		ep.New(asio::ip::tcp::v4(), port);
+		acceptor.New(*service, *ep);
+	}
+	~TCPSocketAcceptor() {
+		ep.Delete();
+		acceptor.Delete();
+	}
+	bool Accept(vstd::string& errorMsg, ISocket* socket) override;
+	void Dispose() override {
+		delete this;
+	}
+};
 
-class TCPServer_Impl final : public ISocket , public vstd::IOperatorNewBase{
+class TCPServer_Impl final : public ISocket, public vstd::IOperatorNewBase {
 public:
 	vstd::string errorMsg;
-	vstd::optional<asio::ip::tcp::acceptor> acc;
+	//vstd::optional<> acc;
 	vstd::optional<TCPIOBase> io;
 	bool successAccept = false;
+	ISocketAcceptor* acc;
 	//Server
-	TCPServer_Impl(asio::io_service* service, uint16_t port) {
-		io.New(service, port, asio::ip::tcp::v4());
-		acc.New(*io->service, io->ep);
+	TCPServer_Impl(
+		asio::io_service* service,
+		ISocketAcceptor* acceptor) {
+		io.New(service);
+		acc = acceptor;
+		//acc.New(*io->service, io->ep);
 	}
 
 	bool Connect() override {
 		if (successAccept) return true;
-		successAccept = acc->try_accept(errorMsg, io->socket);
+		successAccept = acc->Accept(errorMsg, this);
 		return successAccept;
 	}
 	vstd::string const& ErrorMessage() override {
@@ -74,9 +89,14 @@ public:
 	}
 };
 
+bool TCPSocketAcceptor::Accept(vstd::string& errorMsg, ISocket* socket) {
+	return acceptor->try_accept(errorMsg, static_cast<TCPServer_Impl*>(socket)->io->socket);
+}
+
 class TCPClient_Impl final : public ISocket, public vstd::IOperatorNewBase {
 public:
 	TCPIOBase io;
+	asio::ip::tcp::endpoint ep;
 	bool successAccept;
 	//Server
 	vstd::string errorMsg;
@@ -85,11 +105,12 @@ public:
 	}
 
 	TCPClient_Impl(asio::io_service* service, uint16_t port, asio::ip::address&& add)
-		: io(service, port, std::move(add)) {
+		: io(service),
+		  ep(std::move(add), port) {
 	}
 	bool Connect() override {
 		if (successAccept) return true;
-		successAccept = io.socket.try_connect(errorMsg, io.ep);
+		successAccept = io.socket.try_connect(errorMsg, ep);
 		return successAccept;
 	}
 
@@ -107,14 +128,18 @@ public:
 		delete this;
 	}
 };
-
-ISocket* NetWorkImpl::GenServerTCPSock(
+ISocketAcceptor* NetWorkImpl::GenServerAcceptor(
 	uint16_t port) const {
-	return new TCPServer_Impl(
+	return new TCPSocketAcceptor(
 		reinterpret_cast<asio::io_service*>(service),
 		port);
 }
-
+ISocket* NetWorkImpl::GenServerTCPSock(
+	ISocketAcceptor* acceptor) const {
+	return new TCPServer_Impl(
+		reinterpret_cast<asio::io_service*>(service),
+		acceptor);
+}
 ISocket* NetWorkImpl::GenClientTCPSock(
 	uint16_t port,
 	char const* address) const {

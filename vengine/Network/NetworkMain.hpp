@@ -14,7 +14,7 @@ toolhub::net::NetWorkImpl::~NetWorkImpl() {
 	delete reinterpret_cast<asio::io_service*>(service);
 }
 
-VENGINE_UNITY_EXTERN toolhub::net::NetWork const* NetWork_GetFactory() {
+VENGINE_UNITY_EXTERN toolhub::net::NetWork* NetWork_GetFactory() {
 	using namespace toolhub::net;
 	return &network;
 }

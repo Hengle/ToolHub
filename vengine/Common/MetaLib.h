@@ -963,5 +963,4 @@ public:
 		return ftype[switcher](funcPs[switcher], &placeHolder);
 	}
 };
-
 }// namespace vstd

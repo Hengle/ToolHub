@@ -14,4 +14,12 @@ public:
 	virtual bool Connect() = 0;
 	virtual vstd::string const& ErrorMessage() = 0;
 };
+class ISocketAcceptor : public vstd::IDisposable {
+protected:
+	ISocketAcceptor() = default;
+	virtual ~ISocketAcceptor() = default;
+
+public:
+	virtual bool Accept(vstd::string& errorMsg, ISocket* socket) = 0;
+};
 }// namespace toolhub::net

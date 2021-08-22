@@ -50,3 +50,24 @@ public:
 		return reinterpret_cast<funcPtr_t<T>>(ptr);
 	}
 };
+
+template<typename FactoryType>
+struct DllFactoryLoader {
+private:
+	vstd::optional<DynamicDLL> dll;
+	funcPtr_t<FactoryType*()> funcPtr;
+
+public:
+	DllFactoryLoader(
+		char const* dllName,
+		char const* factoryFuncName) {
+		dll.New(dllName);
+		funcPtr = dll->GetDLLFunc<FactoryType*()>(factoryFuncName);
+	}
+	void UnloadDll() {
+		dll.Delete();
+	}
+	FactoryType* operator()() const {
+		return funcPtr();
+	}
+};
