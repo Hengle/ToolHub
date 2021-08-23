@@ -19,7 +19,7 @@ public:
 	SimpleBinaryJson* GetDB() const { return db; }
 	vstd::Guid const& GetGUID() const { return selfGuid; }
 	virtual void M_GetSerData(vstd::vector<uint8_t>& data) = 0;
-	virtual void LoadFromData(std::span<uint8_t> data) = 0;
+	virtual void LoadFromData(std::span<uint8_t const> data) = 0;
 	virtual void AfterAdd(IDatabaseEvtVisitor* visitor) = 0;
 	virtual void BeforeRemove(IDatabaseEvtVisitor* visitor) = 0;
 };

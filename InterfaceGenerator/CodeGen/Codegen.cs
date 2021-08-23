@@ -25,7 +25,7 @@ class Codegen
             }
         }
     }
-    static readonly string csharpStr = "D:/ToolHub/UnityProject/Assets/";
+    static readonly string csharpStr = "D:/ToolHub/InterfaceGenerator/CodeGen";
     static readonly string cppStr = "D:/ToolHub/vengine/Unity/";
     static void GenerateAll()
     {

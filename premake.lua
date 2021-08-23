@@ -9,7 +9,6 @@ copy_dlls = {
 	, "VEngine_DLL.dll"
 	, "VEngine_Database.dll"
 	, "mimalloc.dll"
-	, "Yaml_CPP.dll"
 }
 copy_dll_src_root = "./build/"
 copy_dll_dst_root = work_space.."/bin/"

@@ -33,23 +33,32 @@ SimpleJsonValueDict::SimpleJsonValueDict(
 	}
 }
 ReadJsonVariant SimpleJsonValueDict::Get(Key const& key) {
+	if (!key.valid()) return ReadJsonVariant();
 	auto ite = vars.Find(key);
 	if (ite)
 		return ite.Value().GetVariant();
 	return ReadJsonVariant();
 }
 WriteJsonVariant SimpleJsonValueDict::GetAndSet(Key const& key, WriteJsonVariant&& newValue) {
+	if (!key.valid()) return WriteJsonVariant();
 	auto ite = vars.Find(key);
 	if (ite) {
 		auto result = std::move(ite.Value().value);
-		ite.Value().value = std::move(newValue);
+		if (newValue.valid()) {
+			ite.Value().value = std::move(newValue);
+		} else {
+			vars.Remove(ite);
+		}
 		return result;
 	} else {
-		vars.ForceEmplace(key, std::move(newValue));
+		if (newValue.valid()) {
+			vars.ForceEmplace(key, std::move(newValue));
+		}
 		return WriteJsonVariant();
 	}
 }
 WriteJsonVariant SimpleJsonValueDict::GetAndRemove(Key const& key) {
+	if (!key.valid()) return WriteJsonVariant();
 	auto ite = vars.Find(key);
 	if (ite) {
 		auto result = std::move(ite.Value().value);
@@ -59,10 +68,12 @@ WriteJsonVariant SimpleJsonValueDict::GetAndRemove(Key const& key) {
 		return WriteJsonVariant();
 }
 void SimpleJsonValueDict::Set(Key const& key, WriteJsonVariant&& value) {
-	vars.ForceEmplace(key, std::move(value));
+	if (key.valid() && value.valid())
+		vars.ForceEmplace(key, std::move(value));
 }
 void SimpleJsonValueDict::Remove(Key const& key) {
-	vars.Remove(SimpleJsonKey(key));
+	if (key.valid())
+		vars.TRemove(key);
 }
 vstd::unique_ptr<vstd::linq::Iterator<const JsonKeyPair>> SimpleJsonValueDict::GetIterator() {
 	return vstd::linq::ConstIEnumerator(vars)
@@ -88,7 +99,7 @@ void SimpleJsonValueDict::M_GetSerData(vstd::vector<uint8_t>& data) {
 	}
 }
 
-void SimpleJsonValueDict::LoadFromSer(std::span<uint8_t>& sp) {
+void SimpleJsonValueDict::LoadFromSer(std::span<uint8_t const>& sp) {
 	auto sz = PopValue<uint64>(sp);
 	vars.reserve(sz);
 	for (auto i : vstd::range(sz)) {
@@ -155,7 +166,7 @@ void SimpleJsonValueArray::M_GetSerData(vstd::vector<uint8_t>& data) {
 	}
 }
 
-void SimpleJsonValueArray::LoadFromSer(std::span<uint8_t>& sp) {
+void SimpleJsonValueArray::LoadFromSer(std::span<uint8_t const>& sp) {
 	auto sz = PopValue<uint64>(sp);
 	arr.reserve(sz);
 	for (auto i : vstd::range(sz)) {
@@ -175,7 +186,10 @@ ReadJsonVariant SimpleJsonValueArray::Get(size_t index) {
 
 void SimpleJsonValueArray::Set(size_t index, WriteJsonVariant&& value) {
 	if (index < arr.size()) {
-		arr[index].Set(std::move(value));
+		if (value.valid())
+			arr[index].Set(std::move(value));
+		else
+			arr[index].value.dispose();
 	}
 }
 
@@ -186,8 +200,26 @@ void SimpleJsonValueArray::Remove(size_t index) {
 }
 
 void SimpleJsonValueArray::Add(WriteJsonVariant&& value) {
-
+	if (value.valid())
 	arr.emplace_back(std::move(value));
+}
+
+WriteJsonVariant SimpleJsonValueArray::GetAndSet(size_t index, WriteJsonVariant&& newValue) {
+	if (index >= arr.size())
+		return WriteJsonVariant();
+	WriteJsonVariant result = std::move(arr[index].value);
+	if (newValue.valid())
+		arr[index] = std::move(newValue);
+	else
+		arr[index].value.dispose();
+	return result;
+}
+WriteJsonVariant SimpleJsonValueArray::GetAndRemove(size_t index) {
+	if (index >= arr.size())
+		return WriteJsonVariant();
+	WriteJsonVariant result = std::move(arr[index].value);
+	arr.erase(arr.begin() + index);
+	return result;
 }
 
 vstd::unique_ptr<vstd::linq::Iterator<const ReadJsonVariant>> SimpleJsonValueArray::GetIterator() {

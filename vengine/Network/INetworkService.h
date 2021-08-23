@@ -14,7 +14,7 @@ protected:
 	virtual void AddFunc(
 		Type tarType,
 		vstd::string&& name,
-		Runnable<void(IRegistObject*, std::span<uint8_t>)> func) = 0;
+		Runnable<void(IRegistObject*, std::span<uint8_t const>)> func) = 0;
 	virtual void SetConstructor(
 		Type tarType,
 		Runnable<IRegistObject*()> constructor) = 0;
@@ -24,7 +24,7 @@ protected:
 	virtual bool CallMemberFunc(
 		IRegistObject* ptr,
 		vstd::string const& name,
-		std::span<uint8_t> arg) = 0;
+		std::span<uint8_t const> arg) = 0;
 	virtual IRegistObject* m_GetObject(vstd::Guid const& id) = 0;
 	virtual ~INetworkService() = default;
 	template<typename T>
@@ -76,7 +76,7 @@ public:
 		AddFunc(
 			typeid(ClassT),
 			std::move(name),
-			[func](IRegistObject* originPtr, std::span<uint8_t> data) {
+			[func](IRegistObject* originPtr, std::span<uint8_t const> data) {
 				ClassT* ptr = static_cast<ClassT*>(originPtr);
 				vstd::SerDeAll_Member<Func>::template CallMemberFunc(ptr, func, data);
 			});

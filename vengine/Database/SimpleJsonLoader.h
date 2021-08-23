@@ -58,11 +58,11 @@ void PushDataToVector(T&& v, vstd::vector<uint8_t>& serData) {
 class SimpleJsonLoader {
 public:
 	static bool Check(IJsonDatabase* db, SimpleJsonVariant const& var);
-	static SimpleJsonVariant DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db);
+	static SimpleJsonVariant DeSerialize(std::span<uint8_t const>& arr, SimpleBinaryJson* db);
 	static void Serialize(SimpleJsonVariant const& v, vstd::vector<uint8_t>& data);
 };
 template<typename T>
-T PopValue(std::span<uint8_t>& arr) {
+T PopValue(std::span<uint8_t const>& arr) {
 	using TT = std::remove_cvref_t<T>;
 	return vstd::SerDe<TT>::Get(arr);
 }

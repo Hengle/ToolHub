@@ -13,7 +13,7 @@ protected:
 public:
 	virtual vstd::vector<uint8_t> Serialize() = 0;
 	virtual void Read(
-		std::span<uint8_t> data) = 0;
+		std::span<uint8_t const> data) = 0;
 	virtual IJsonDict* GetRootNode() = 0;
 	virtual vstd::unique_ptr<IJsonDict> CreateDict() = 0;
 	virtual vstd::unique_ptr<IJsonArray> CreateArray() = 0;

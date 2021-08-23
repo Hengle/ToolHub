@@ -26,7 +26,7 @@ public:
 	}
 	bool Write(
 		vstd::string& errorMsg,
-		std::span<uint8_t> data) {
+		std::span<uint8_t const> data) {
 		return socket.try_write_some(errorMsg, asio::buffer(data.data(), data.size()));
 	}
 };
@@ -80,7 +80,7 @@ public:
 		if (!successAccept) return false;
 		return io->Read(errorMsg, data, maxSize);
 	}
-	bool Write(std::span<uint8_t> data) override {
+	bool Write(std::span<uint8_t const> data) override {
 		if (!successAccept) return false;
 		return io->Write(errorMsg, data);
 	}
@@ -120,7 +120,7 @@ public:
 		if (!successAccept) return false;
 		return io.Read(errorMsg, data, maxSize);
 	}
-	bool Write(std::span<uint8_t> data) override {
+	bool Write(std::span<uint8_t const> data) override {
 		if (!successAccept) return false;
 		return io.Write(errorMsg, data);
 	}

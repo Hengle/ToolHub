@@ -66,7 +66,7 @@ struct hash<Guid> {
 template<>
 struct SerDe<Guid> {
 	using Value = Guid;
-	static Value Get(std::span<uint8_t>& sp) {
+	static Value Get(std::span<uint8_t const>& sp) {
 		return vstd::SerDe<Guid::GuidData>::Get(sp);
 	}
 	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {

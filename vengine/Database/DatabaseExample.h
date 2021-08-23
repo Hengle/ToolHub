@@ -18,14 +18,7 @@ void jsonTest(
 	{
 		auto rootObj = db->GetRootNode();
 		// Create a json array
-		auto subArr = db->CreateArray();
-		subArr->Add(5);
-		subArr->Add(8.3);
-		subArr->Add("string1"_sv);
-		subArr->Add(vstd::Guid(true));
-		subArr->Set(1, 141);
-		subArr->Add(vstd::Guid(true));
-		rootObj->Set("array", std::move(subArr));
+		
 		// Create a json dictionary
 		{
 			auto subObj = db->CreateDict();
@@ -37,23 +30,22 @@ void jsonTest(
 			subObj->Set("number2"_sv, 26);
 			subObj->Set(binaryKey, 656);
 
-			auto middleObj = db->CreateDict();
+			auto middleArr = db->CreateArray();
 
-			middleObj->Set("subDict", std::move(subObj));
-			rootObj->Set("dict", std::move(middleObj));
-		}
-		{
-			auto subDict = (*rootObj->Get("dict").try_get<IJsonDict*>())->Get("subDict").try_get<IJsonDict*>();
-			auto kv = (*subDict)->GetAndSet("number1", 37.432);
-			int64* ptr = kv.try_get<int64>();
-			if (ptr) {
-				std::cout << "removed value: " << *ptr << '\n';
-			}
+			auto subArr = db->CreateArray();
+			subArr->Add(5);
+			subArr->Add(8.3);
+			subArr->Add("string1"_sv);
+			subArr->Add(vstd::Guid(true));
+			subArr->Add(vstd::Guid(true));
+			middleArr->Add(std::move(subArr));
+			middleArr->Add(std::move(subObj));
+
+			rootObj->Set("dict", std::move(middleArr));
 		}
 	}
 	auto cloneDB = database->CreateDatabase();
 	cloneDB->Read(db->Serialize());
-	db->Dispose();
 	{
 		auto rootObj = cloneDB->GetRootNode();
 		auto ite = rootObj->GetIterator();
@@ -80,20 +72,18 @@ void jsonTest(
 			k.visit(
 				func,
 				func,
-				func,
-				[](auto&&) {},
 				[](vstd::Guid const& v) {
 					std::cout << v.ToString() << ' ';
 				});
 		};
-		auto subArr = rootObj->Get("array").try_get<IJsonArray*>();
+		auto subArr = (*rootObj->Get("dict").try_get<IJsonArray*>())->Get(0).try_get<IJsonArray*>();
 		if (subArr) {
 			auto arrIte = (*subArr)->GetIterator();
 			LINQ_LOOP(i, *arrIte) {
 				printVariant(*i);
 			}
 		}
-		auto subDict = (*rootObj->Get("dict").try_get<IJsonDict*>())->Get("subDict").try_get<IJsonDict*>();
+		auto subDict = (*rootObj->Get("dict").try_get<IJsonArray*>())->Get(1).try_get<IJsonDict*>();
 		std::cout << "searched binary: ";
 
 		printVariant((*subDict)->Get(binaryKey));

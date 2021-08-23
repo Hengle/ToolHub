@@ -3,27 +3,35 @@
 #include <Database/DatabaseInclude.h>
 namespace toolhub::db {
 SimpleBinaryJson::SimpleBinaryJson()
-	: root(this), arrValuePool(256, false), dictValuePool(256, false) {
+	: arrValuePool(256, false), dictValuePool(256, false) {
+	root.New(this);
 }
 vstd::vector<uint8_t> SimpleBinaryJson::Serialize() {
 	vstd::vector<uint8_t> data;
-	root.M_GetSerData(data);
+	root->M_GetSerData(data);
 	return data;
 }
 void SimpleBinaryJson::Read(
-	std::span<uint8_t> data) {
-	root.Reset();
-	root.LoadFromSer(data);
+	std::span<uint8_t const> data) {
+	root->Reset();
+	root->LoadFromSer(data);
 }
 IJsonDict* SimpleBinaryJson::GetRootNode() {
-	return &root;
+	return root;
 }
 SimpleBinaryJson ::~SimpleBinaryJson() {
+	root.Delete();
 }
 vstd::unique_ptr<IJsonDict> SimpleBinaryJson::CreateDict() {
 	return dictValuePool.New(this);
 }
 vstd::unique_ptr<IJsonArray> SimpleBinaryJson::CreateArray() {
+	return arrValuePool.New(this);
+}
+SimpleJsonValueDict* SimpleBinaryJson::CreateDict_Nake() {
+	return dictValuePool.New(this);
+}
+SimpleJsonValueArray* SimpleBinaryJson::CreateArray_Nake() {
 	return arrValuePool.New(this);
 }
 IJsonDatabase* Database_Impl::CreateDatabase() const {

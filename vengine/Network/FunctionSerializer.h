@@ -6,9 +6,9 @@ template<typename T>
 struct SerDe {
 	static_assert(std::is_trivial_v<T>, "only trivial type can be serialized!");
 	static_assert(!std::is_pointer_v<T>, "pointer can not be serialized!");
-	static T Get(std::span<uint8_t>& data) {
+	static T Get(std::span<uint8_t const>& data) {
 		T const* ptr = reinterpret_cast<T const*>(data.data());
-		data = std::span<uint8_t>(data.data() + sizeof(T), data.size() - sizeof(T));
+		data = std::span<uint8_t const>(data.data() + sizeof(T), data.size() - sizeof(T));
 		return *ptr;
 	}
 	static void Set(T const& data, vstd::vector<uint8_t>& vec) {
@@ -17,10 +17,10 @@ struct SerDe {
 };
 template<>
 struct SerDe<vstd::string> {
-	static vstd::string Get(std::span<uint8_t>& sp) {
+	static vstd::string Get(std::span<uint8_t const>& sp) {
 		auto strLen = SerDe<uint>::Get(sp);
 		auto ptr = sp.data();
-		sp = std::span<uint8_t>(ptr + strLen, sp.size() - strLen);
+		sp = std::span<uint8_t const>(ptr + strLen, sp.size() - strLen);
 		return vstd::string(vstd::string_view(
 			reinterpret_cast<char const*>(ptr),
 			strLen));
@@ -32,10 +32,10 @@ struct SerDe<vstd::string> {
 };
 template<>
 struct SerDe<vstd::string_view> {
-	static vstd::string_view Get(std::span<uint8_t>& sp) {
+	static vstd::string_view Get(std::span<uint8_t const>& sp) {
 		auto strLen = SerDe<uint>::Get(sp);
 		auto ptr = sp.data();
-		sp = std::span<uint8_t>(ptr + strLen, sp.size() - strLen);
+		sp = std::span<uint8_t const>(ptr + strLen, sp.size() - strLen);
 		return vstd::string_view(
 			reinterpret_cast<char const*>(ptr),
 			strLen);
@@ -49,7 +49,7 @@ struct SerDe<vstd::string_view> {
 template<typename T, VEngine_AllocType alloc, bool tri>
 struct SerDe<vstd::vector<T, alloc, tri>> {
 	using Value = vstd::vector<T, alloc, tri>;
-	static Value Get(std::span<uint8_t>& sp) {
+	static Value Get(std::span<uint8_t const>& sp) {
 		Value sz;
 		auto s = SerDe<uint>::Get(sp);
 		sz.push_back_func(
@@ -70,7 +70,7 @@ struct SerDe<vstd::vector<T, alloc, tri>> {
 template<typename K, typename V, typename Hash, typename Equal, VEngine_AllocType alloc>
 struct SerDe<HashMap<K, V, Hash, Equal, alloc>> {
 	using Value = HashMap<K, V, Hash, Equal, alloc>;
-	static Value Get(std::span<uint8_t>& sp) {
+	static Value Get(std::span<uint8_t const>& sp) {
 		Value sz;
 		auto capa = SerDe<uint>::Get(sp);
 		sz.reserve(capa);
@@ -95,16 +95,16 @@ template<typename... Args>
 struct SerDe<vstd::variant<Args...>> {
 	using Value = vstd::variant<Args...>;
 	template<typename T>
-	static void ExecuteGet(void* placePtr, std::span<uint8_t>& sp) {
+	static void ExecuteGet(void* placePtr, std::span<uint8_t const>& sp) {
 		new (placePtr) Value(SerDe<T>::Get(sp));
 	}
 	template<typename T>
 	static void ExecuteSet(void const* placePtr, vstd::vector<uint8_t>& sp) {
 		SerDe<T>::Set(*reinterpret_cast<T const*>(placePtr), sp);
 	}
-	static Value Get(std::span<uint8_t>& sp) {
+	static Value Get(std::span<uint8_t const>& sp) {
 		auto type = SerDe<uint8_t>::Get(sp);
-		funcPtr_t<void(void*, std::span<uint8_t>&)> ptrs[sizeof...(Args)] = {
+		funcPtr_t<void(void*, std::span<uint8_t const>&)> ptrs[sizeof...(Args)] = {
 			ExecuteGet<Args>...};
 		Value v;
 		v.update(type, [&](void* ptr) {
@@ -123,7 +123,7 @@ struct SerDe<vstd::variant<Args...>> {
 template<typename A, typename B>
 struct SerDe<std::pair<A, B>> {
 	using Value = std::pair<A, B>;
-	static Value Get(std::span<uint8_t>& sp) {
+	static Value Get(std::span<uint8_t const>& sp) {
 		return Value{SerDe<A>::Get(sp), SerDe<B>::Get(sp)};
 	}
 	static void Set(Value const& data, vstd::vector<uint8_t>& arr) {
@@ -133,8 +133,8 @@ struct SerDe<std::pair<A, B>> {
 };
 
 template<>
-struct SerDe<std::span<uint8_t>> {
-	using Value = std::span<uint8_t>;
+struct SerDe<std::span<uint8_t const>> {
+	using Value = std::span<uint8_t const>;
 	static Value Get(Value& sp) {
 		auto sz = SerDe<uint>::Get(sp);
 		Value v(sp.data(), sz);
@@ -149,7 +149,7 @@ struct SerDe<std::span<uint8_t>> {
 template<typename T, size_t sz>
 struct SerDe<std::array<T, sz>> {
 	using Value = std::array<T, sz>;
-	static Value Get(std::span<uint8_t>& sp) {
+	static Value Get(std::span<uint8_t const>& sp) {
 		Value v;
 		for (auto&& i : v) {
 			i = vstd::SerDe<T>::Get(sp);
@@ -171,13 +171,13 @@ struct SerDeAll_Impl<Ret(Args...)> {
 	template<typename Func>
 	static decltype(auto) Call(
 		Func&& func) {
-		return [f = std::forward<Func>(func)](std::span<uint8_t> data) {
+		return [f = std::forward<Func>(func)](std::span<uint8_t const> data) {
 			return std::apply(f, std::tuple<Args...>{SerDe<std::remove_cvref_t<Args>>::Get(data)...});
 		};
 	}
 
 	template<typename Class, typename Func>
-	static Ret CallMemberFunc(Class* ptr, Func func, std::span<uint8_t> data) {
+	static Ret CallMemberFunc(Class* ptr, Func func, std::span<uint8_t const> data) {
 		auto closureFunc = [&](Args&&... args) {
 			(ptr->*func)(std::forward<Args>(args)...);
 		};

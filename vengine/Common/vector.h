@@ -13,6 +13,7 @@ namespace vstd {
 template<typename T, VEngine_AllocType allocType = VEngine_AllocType::VEngine, bool forceTrivial = false>
 class vector : public vstd::IOperatorNewBase {
 private:
+	static_assert(!std::is_const_v<T>, "vector element cannot be constant!");
 	using SelfType = vector<T, allocType, forceTrivial>;
 	T* arr;
 	size_t mSize;
@@ -155,6 +156,9 @@ public:
 	void push_back_all(std::span<T> sp) noexcept {
 		push_back_all(sp.data(), sp.size());
 	}
+	void push_back_all(std::span<T const> sp) noexcept {
+		push_back_all(sp.data(), sp.size());
+	}
 	template<typename Func>
 	void push_back_func(Func&& f, size_t count) {
 		ResizeRange(count);
@@ -210,6 +214,9 @@ public:
 	}
 	operator std::span<T>() const {
 		return std::span<T>(begin(), end());
+	}
+	operator std::span<T const>() const {
+		return std::span<T const>(begin(), end());
 	}
 	void push_back_all(const std::initializer_list<T>& list) noexcept {
 		push_back_all(&static_cast<T const&>(*list.begin()), list.size());

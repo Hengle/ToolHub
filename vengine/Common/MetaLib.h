@@ -606,7 +606,10 @@ private:
 };
 template<typename T>
 struct disposer {
-	T t;
+	std::remove_reference_t<T> t;
+	template<typename A>
+	disposer(A&& a)
+		: t(std::forward<A>(a)) {}
 	~disposer() {
 		t();
 	}
@@ -614,7 +617,7 @@ struct disposer {
 
 template<typename T>
 disposer<T> create_disposer(T&& t) {
-	return disposer<T>{std::forward<T>(t)};
+	return disposer<T>(std::forward<T>(t));
 }
 
 template<typename T>
@@ -854,6 +857,11 @@ public:
 	~variant() {
 		if (switcher >= argSize) return;
 		Constructor<AA...>::Dispose(switcher, &placeHolder);
+	}
+	void dispose() {
+		if (switcher >= argSize) return;
+		Constructor<AA...>::Dispose(switcher, &placeHolder);
+		switcher = argSize;
 	}
 	void* GetPlaceHolder() { return &placeHolder; }
 	void const* GetPlaceHolder() const { return &placeHolder; }

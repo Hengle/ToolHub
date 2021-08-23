@@ -21,7 +21,7 @@ bool SimpleJsonLoader::Check(IJsonDatabase* parent, SimpleJsonVariant const& var
 		setTrue);
 	return res;
 }
-SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t>& arr, SimpleBinaryJson* db) {
+SimpleJsonVariant SimpleJsonLoader::DeSerialize(std::span<uint8_t const>& arr, SimpleBinaryJson* db) {
 	ValueType type = PopValue<ValueType>(arr);
 	switch (type) {
 		case ValueType::Int: {

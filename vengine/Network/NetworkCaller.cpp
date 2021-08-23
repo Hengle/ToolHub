@@ -13,7 +13,7 @@ static constexpr uint8_t REGIST_MESSAGE_FLAG = 1;
 static constexpr uint8_t CALL_FUNC_FLAG = 2;
 
 template<typename T>
-T PopValue(std::span<uint8_t>& sp) {
+T PopValue(std::span<uint8_t const>& sp) {
 	return vstd::SerDe<std::remove_cvref_t<T>>::Get(sp);
 };
 template<typename T>
@@ -22,7 +22,7 @@ void PushValue(T const& data, vstd::vector<uint8_t>& arr) {
 }
 class NetworkCaller final : public INetworkService, public vstd::IOperatorNewBase {
 public:
-	using Function = std::pair<Runnable<void(std::span<uint8_t>)>, vstd::string>;
+	using Function = std::pair<Runnable<void(std::span<uint8_t const>)>, vstd::string>;
 
 private:
 	struct ClassMemberFunctions {
@@ -31,7 +31,7 @@ private:
 			vstd::string,
 			uint64>
 			memberFuncs;
-		vstd::vector<Runnable<void(IRegistObject*, std::span<uint8_t>)>> funcs;
+		vstd::vector<Runnable<void(IRegistObject*, std::span<uint8_t const>)>> funcs;
 		ClassMemberFunctions() {}
 	};
 	static constexpr uint CONSTRUCTOR_INDEX = std::numeric_limits<uint>::max();
@@ -71,7 +71,7 @@ private:
 		buffer.reserve(maxBufferSize);
 
 		while (socket->Read(buffer, maxBufferSize)) {
-			std::span<uint8_t> sp = buffer;
+			std::span<uint8_t const> sp = buffer;
 			while (sp.size() > 0) {
 				if (buffer.empty()) break;
 				FunctionCallCmd callCmd = vstd::SerDe<FunctionCallCmd>::Get(sp);
@@ -154,7 +154,7 @@ public:
 	void AddFunc(
 		Type tarType,
 		vstd::string&& name,
-		Runnable<void(IRegistObject*, std::span<uint8_t>)> func) override {
+		Runnable<void(IRegistObject*, std::span<uint8_t const>)> func) override {
 		auto ite = rpcClassIndices.Find(tarType);
 		if (!ite) {
 			ite = rpcClassIndices.Emplace(tarType, clsFunctions.size());
@@ -249,7 +249,7 @@ public:
 	bool CallMemberFunc(
 		IRegistObject* ptr,
 		vstd::string const& name,
-		std::span<uint8_t> arg) override {
+		std::span<uint8_t const> arg) override {
 		if (!ptr->GetGUID()) {
 			VEngine_Log("Illegal Network Object!\n");
 			VENGINE_EXIT;

@@ -8,8 +8,22 @@
 #include <Common/Hash.h>
 #include <Common/MetaLib.h>
 #include <Common/VAllocator.h>
-
-template<typename K, typename V, typename Hash = vstd::hash<K>, typename Equal = std::equal_to<K>, VEngine_AllocType allocType = VEngine_AllocType::VEngine>
+namespace vstd {
+struct HashEqual {
+	template<typename A, typename B>
+	bool operator()(A const& a, B const& b) const {
+		return a == b;
+	}
+};
+struct HashValue {
+	template <typename T>
+	size_t operator()(T const& t) const {
+		vstd::hash<std::remove_cvref_t<T>> h;
+		return h(t);
+	}
+};
+}// namespace vstd
+template<typename K, typename V, typename Hash = vstd::HashValue, typename Equal = vstd::HashEqual, VEngine_AllocType allocType = VEngine_AllocType::VEngine>
 class HashMap : public vstd::IOperatorNewBase {
 public:
 	static_assert(allocType != VEngine_AllocType::Stack, "Hashmap do not support stack!");
@@ -271,13 +285,13 @@ public:
 	///////////////////////
 	template<typename Key, typename... ARGS>
 	Index ForceEmplace(Key&& key, ARGS&&... args) {
-		size_t hashOriginValue = hsFunc(key);
+		size_t hashOriginValue = hsFunc(std::forward<Key>(key));
 		size_t hashValue;
 
 		auto a = nodeVec.size();
 		hashValue = GetHash(hashOriginValue, nodeVec.size());
 		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
+			if (eqFunc(node->first, std::forward<Key>(key))) {
 				node->second.~V();
 				new (&node->second) V(std::forward<ARGS>(args)...);
 				return Index(this, node);
@@ -296,13 +310,13 @@ public:
 	}
 	template<typename Key, typename... ARGS>
 	Index Emplace(Key&& key, ARGS&&... args) {
-		size_t hashOriginValue = hsFunc(key);
+		size_t hashOriginValue = hsFunc(std::forward<Key>(key));
 		size_t hashValue;
 
 		auto a = nodeVec.size();
 		hashValue = GetHash(hashOriginValue, nodeVec.size());
 		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
+			if (eqFunc(node->first, std::forward<Key>(key))) {
 				return Index(this, node);
 			}
 		}
@@ -320,13 +334,13 @@ public:
 	//
 	template<typename Key, typename... ARGS>
 	std::pair<Index, bool> TryEmplace(Key&& key, ARGS&&... args) {
-		size_t hashOriginValue = hsFunc(key);
+		size_t hashOriginValue = hsFunc(std::forward<Key>(key));
 		size_t hashValue;
 
 		auto a = nodeVec.size();
 		hashValue = GetHash(hashOriginValue, nodeVec.size());
 		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
+			if (eqFunc(node->first, std::forward<Key>(key))) {
 				return std::pair<Index, bool>(Index(this, node), false);
 			}
 		}
@@ -349,23 +363,43 @@ public:
 	void reserve(size_t capacity) noexcept {
 		Reserve(capacity);
 	}
-	Index Find(const K& key) const noexcept {
-		size_t hashOriginValue = hsFunc(key);
+	template<typename Key>
+	Index Find(Key&& key) const noexcept {
+		size_t hashOriginValue = hsFunc(std::forward<Key>(key));
 		size_t hashValue = GetHash(hashOriginValue, nodeVec.size());
 		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
+			if (eqFunc(node->first, std::forward<Key>(key))) {
 				return Index(this, node);
 			}
 		}
 
 		return EmptyIndex();
 	}
-	void Remove(const K& key) noexcept {
+	void Remove(K const& key) noexcept {
 		size_t hashOriginValue = hsFunc(key);
 		size_t hashValue = GetHash(hashOriginValue, nodeVec.size());
 		LinkNode*& startNode = nodeVec[hashValue];
 		for (LinkNode* node = startNode; node != nullptr; node = node->next) {
 			if (eqFunc(node->first, key)) {
+				if (startNode == node) {
+					startNode = node->next;
+				}
+				if (node->next)
+					node->next->last = node->last;
+				if (node->last)
+					node->last->next = node->next;
+				DeleteLinkNode(node);
+				return;
+			}
+		}
+	}
+	template<typename Key>
+	void TRemove(Key&& key) noexcept {
+		size_t hashOriginValue = hsFunc(std::forward<Key>(key));
+		size_t hashValue = GetHash(hashOriginValue, nodeVec.size());
+		LinkNode*& startNode = nodeVec[hashValue];
+		for (LinkNode* node = startNode; node != nullptr; node = node->next) {
+			if (eqFunc(node->first, std::forward<Key>(key))) {
 				if (startNode == node) {
 					startNode = node->next;
 				}
@@ -386,24 +420,26 @@ public:
 		Remove(const_cast<LinkNode*>(static_cast<LinkNode const*>(&ite)));
 	}
 	//void Remove(NodePair*)
-	V& operator[](const K& key) noexcept {
+	template<typename Key>
+	V& operator[](Key&& key) noexcept {
 
-		size_t hashOriginValue = hsFunc(key);
+		size_t hashOriginValue = hsFunc(std::forward<Key>(key));
 		size_t hashValue = GetHash(hashOriginValue, nodeVec.size());
 		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
+			if (eqFunc(node->first, std::forward<Key>(key))) {
 				return node->second;
 			}
 		}
 
 		return *(V*)nullptr;
 	}
-	V const& operator[](const K& key) const noexcept {
+	template<typename Key>
+	V const& operator[](Key&& key) const noexcept {
 
-		size_t hashOriginValue = hsFunc(key);
+		size_t hashOriginValue = hsFunc(std::forward<Key>(key));
 		size_t hashValue = GetHash(hashOriginValue, nodeVec.size());
 		for (LinkNode* node = nodeVec[hashValue]; node != nullptr; node = node->next) {
-			if (eqFunc(node->first, key)) {
+			if (eqFunc(node->first, std::forward<Key>(key))) {
 				return node->second;
 			}
 		}

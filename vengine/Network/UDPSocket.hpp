@@ -35,7 +35,7 @@ class UDPIOBase {
 	}
 	bool Write(
 		vstd::string& errorMsg,
-		std::span<uint8_t> data) {
+		std::span<uint8_t const> data) {
 		socket.send_to(asio::buffer(data.data(), data.size()), ep);
 
 	}

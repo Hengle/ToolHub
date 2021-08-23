@@ -1,10 +1,17 @@
 #pragma vengine_package vengine_dll
 
 #include <Utility/VGuid.h>
+
+#ifdef _WIN32
 #include <objbase.h>
+#elif defined(__linux__) || defined(__unix__)
+#include <uuid/uuid.h>
+#elif defined(__APPLE__)
+#include <CoreFoundation/CFUUID.h>
+#endif
+
 namespace vstd {
 Guid::Guid(bool generate) {
-	static_assert(sizeof(GuidData) == sizeof(_GUID), "GUID size incorrect!");
 	if (generate) {
 		ReGenerate();
 	} else {
@@ -75,11 +82,25 @@ Guid::Guid(std::array<uint8_t, sizeof(GuidData)> const& data) {
 }
 
 void Guid::ReGenerate() {
-	HRESULT h = CoCreateGuid(reinterpret_cast<_GUID*>(&data));
+#ifdef _WIN32
+	static_assert(sizeof(data) == sizeof(_GUID), "Size mismatch");
+	HRESULT h = ::CoCreateGuid(reinterpret_cast<_GUID*>(&data));
+#ifdef DEBUG
 	if (h != S_OK) {
 		VEngine_Log("GUID Generate Failed!\n"_sv);
 		VENGINE_EXIT;
 	}
+#endif
+#elif defined(__linux__) || defined(__unix__)
+	static_assert(sizeof(data) == sizeof(uuid_t), "Size mismatch");
+	uuid_generate(reinterpret_cast<uuid_t&>(data));
+#elif defined(__APPLE__)
+	auto newId = CFUUIDCreate(NULL);
+	auto bytes = CFUUIDGetUUIDBytes(newId);
+	static_assert(sizeof(data) == sizeof(bytes), "Size mismatch");
+	memcpy(&data, &bytes, sizeof(data));
+	CFRelease(newId);
+#endif
 }
 std::array<uint8_t, sizeof(Guid::GuidData)> Guid::ToArray() const {
 	std::array<uint8_t, sizeof(GuidData)> arr;

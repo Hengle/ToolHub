@@ -18,7 +18,7 @@ private:
 	static void ReturnHeap(LinkHeap* value) noexcept;
 
 public:
-	void* ptr;
+	std::atomic<void*> ptr;
 };
 
 class VEngine;
@@ -110,7 +110,7 @@ public:
 		if (link.heapPtr == nullptr) {
 			return 0;
 		}
-		return reinterpret_cast<size_t>(link.heapPtr->ptr);
+		return reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire));
 	}
 	inline void operator=(const SharedWeakFlag& other) noexcept;
 	inline void operator=(const SharedFlag& other) noexcept {
@@ -145,7 +145,7 @@ public:
 		if (link.heapPtr == nullptr) {
 			return 0;
 		}
-		return reinterpret_cast<size_t>(link.heapPtr->ptr);
+		return reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire));
 	}
 };
 
@@ -167,7 +167,7 @@ private:
 	inline ObjectPtr(T* ptr, funcPtr_t<void(void*)> disposer) noexcept : link(ptr, disposer) {
 	}
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
 	}
 
 public:
@@ -214,7 +214,7 @@ public:
 	static ObjectPtr<T> MakePtr(ObjectPtr<T>) noexcept = delete;
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
 	}
 	inline bool operator!() const {
 		return !operator bool();
@@ -312,7 +312,7 @@ private:
 	inline ObjectPtr(T* ptr, funcPtr_t<void(void*)> disposer) noexcept : link(ptr, disposer) {
 	}
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
 	}
 
 public:
@@ -345,7 +345,7 @@ public:
 	static ObjectPtr<T[]> MakePtr(ObjectPtr<T[]>) noexcept = delete;
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
 	}
 	bool operator!() const {
 		return !operator bool();
@@ -430,7 +430,7 @@ private:
 	friend class ObjectPtr<T>;
 	PtrWeakLink link;
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
 	}
 
 public:
@@ -451,7 +451,7 @@ public:
 	}
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
 	}
 	bool operator!() const {
 		return !operator bool();
@@ -550,7 +550,7 @@ private:
 	friend class ObjectPtr<T[]>;
 	PtrWeakLink link;
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
 	}
 
 public:
@@ -571,7 +571,7 @@ public:
 	}
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
 	}
 	bool operator!() const {
 		return !operator bool();

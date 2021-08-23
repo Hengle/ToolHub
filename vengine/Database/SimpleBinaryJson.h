@@ -7,17 +7,20 @@ namespace toolhub::db {
 class SimpleBinaryJson final : public IJsonDatabase, public vstd::IOperatorNewBase {
 protected:
 public:
-	SimpleJsonValueDict root;
+	StackObject<SimpleJsonValueDict> root;
+	//SimpleJsonValueDict root: error
 	SimpleBinaryJson();
 	~SimpleBinaryJson();
 	Pool<SimpleJsonValueArray, VEngine_AllocType::VEngine, true> arrValuePool;
 	Pool<SimpleJsonValueDict, VEngine_AllocType::VEngine, true> dictValuePool;
 	vstd::vector<uint8_t> Serialize() override;
 	void Read(
-		std::span<uint8_t> data) override;
+		std::span<uint8_t const> data) override;
 	IJsonDict* GetRootNode() override;
 	vstd::unique_ptr<IJsonDict> CreateDict() override;
 	vstd::unique_ptr<IJsonArray> CreateArray() override;
+	SimpleJsonValueDict* CreateDict_Nake();
+	SimpleJsonValueArray* CreateArray_Nake();
 	void Dispose() override {
 		delete this;
 	}
