@@ -1,5 +1,6 @@
 #pragma once
 #include <Common/Memory.h>
+#include <Common/Pool.h>
 class PtrLink;
 class PtrWeakLink;
 class VObject;
@@ -8,29 +9,34 @@ struct VENGINE_DLL_COMMON LinkHeap {
 	friend class PtrWeakLink;
 
 private:
-	static void Resize() noexcept;
 	funcPtr_t<void(void*)> disposer;
-	std::atomic<int32_t> refCount;
-	std::atomic<int32_t> looseRefCount;
-	static ArrayList<LinkHeap*, VEngine_AllocType::Default> heapPtrs;
-	static spin_mutex mtx;
-	static LinkHeap* GetHeap(void* obj, void (*disp)(void*)) noexcept;
+	static LinkHeap* GetHeap(void* obj, funcPtr_t<void(void*)> disp) noexcept;
 	static void ReturnHeap(LinkHeap* value) noexcept;
 
 public:
-	std::atomic<void*> ptr;
+	uint32_t refCount = 1;
+	uint32_t looseRefCount = 1;
+	spin_mutex mtx;
+	void* ptr;
+	void Destroy();
+	void Destructor();
+	void WeakDestructor();
 };
 
 class VEngine;
 class PtrWeakLink;
-class VENGINE_DLL_COMMON PtrLink {
+class PtrLinkBase {
+public:
+	LinkHeap* heapPtr;
+	size_t offset = 0;
+};
+class VENGINE_DLL_COMMON PtrLink : public PtrLinkBase {
 	friend class VEngine;
 	friend class PtrWeakLink;
 
 public:
-	LinkHeap* heapPtr;
-	size_t offset = 0;
-	inline PtrLink() noexcept : heapPtr(nullptr) {
+	inline PtrLink() noexcept {
+		heapPtr = nullptr;
 	}
 	void Dispose() noexcept;
 	template<typename T>
@@ -38,32 +44,56 @@ public:
 		heapPtr = LinkHeap::GetHeap(obj, disposer);
 	}
 
-	PtrLink(const PtrLink& p) noexcept;
-	PtrLink(PtrLink&& p) noexcept;
-	void operator=(const PtrLink& p) noexcept;
-	void operator=(PtrLink&& p) noexcept;
-	PtrLink(const PtrWeakLink& link) noexcept;
-	PtrLink(PtrWeakLink&& link) noexcept;
+	PtrLink(const PtrLinkBase& p) noexcept;
+	PtrLink(PtrLinkBase&& p) noexcept;
 
+	PtrLink(PtrLink const& p);
+	PtrLink(PtrLink&& p);
+	PtrLink(PtrWeakLink const& p);
+	PtrLink(PtrWeakLink&& p);
+
+	void operator=(const PtrLinkBase& p) noexcept;
+	void operator=(PtrLinkBase&& p) noexcept;
+
+	inline void operator=(const PtrLink& p) noexcept;
+	inline void operator=(PtrLink&& p) noexcept;
+	inline void operator=(const PtrWeakLink& p) noexcept;
+	inline void operator=(PtrWeakLink&& p) noexcept;
 	void Destroy() noexcept;
 	~PtrLink() noexcept {
 		Dispose();
 	}
 };
-class VENGINE_DLL_COMMON PtrWeakLink {
+class VENGINE_DLL_COMMON PtrWeakLink : public PtrLinkBase {
 public:
-	LinkHeap* heapPtr;
-	size_t offset = 0;
-	PtrWeakLink() noexcept : heapPtr(nullptr) {
+	PtrWeakLink() noexcept {
+		heapPtr = nullptr;
 	}
 
 	void Dispose() noexcept;
-	PtrWeakLink(const PtrLink& p) noexcept;
-	PtrWeakLink(const PtrWeakLink& p) noexcept;
-	PtrWeakLink(PtrWeakLink&& p) noexcept;//TODO
-	void operator=(const PtrLink& p) noexcept;
-	void operator=(const PtrWeakLink& p) noexcept;
-	void operator=(PtrWeakLink&& p) noexcept;//TODO
+	PtrWeakLink(const PtrLinkBase& p) noexcept;
+	PtrWeakLink(PtrLinkBase&& p) noexcept;//TODO
+	void operator=(const PtrLinkBase& p) noexcept;
+	void operator=(PtrLinkBase&& p) noexcept;
+
+	PtrWeakLink(PtrLink const& p) : PtrWeakLink(static_cast<const PtrLinkBase&>(p)) {}
+	PtrWeakLink(PtrLink&& p) : PtrWeakLink(static_cast<PtrLinkBase&&>(p)) {}
+	PtrWeakLink(PtrWeakLink const& p) : PtrWeakLink(static_cast<const PtrLinkBase&>(p)) {}
+	PtrWeakLink(PtrWeakLink&& p) : PtrWeakLink(static_cast<PtrLinkBase&&>(p)) {}
+
+	void operator=(const PtrLink& p) noexcept {
+		operator=(static_cast<const PtrLinkBase&>(p));
+	}
+	void operator=(PtrLink&& p) noexcept {
+		operator=(static_cast<PtrLinkBase&&>(p));
+	}
+	void operator=(const PtrWeakLink& p) noexcept {
+		operator=(static_cast<const PtrLinkBase&>(p));
+	}
+	void operator=(PtrWeakLink&& p) noexcept {
+		operator=(static_cast<PtrLinkBase&&>(p));
+	}
+
 	void Destroy() noexcept;
 
 	inline ~PtrWeakLink() noexcept {
@@ -110,7 +140,7 @@ public:
 		if (link.heapPtr == nullptr) {
 			return 0;
 		}
-		return reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire));
+		return reinterpret_cast<size_t>(link.heapPtr->ptr);
 	}
 	inline void operator=(const SharedWeakFlag& other) noexcept;
 	inline void operator=(const SharedFlag& other) noexcept {
@@ -145,7 +175,7 @@ public:
 		if (link.heapPtr == nullptr) {
 			return 0;
 		}
-		return reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire));
+		return reinterpret_cast<size_t>(link.heapPtr->ptr);
 	}
 };
 
@@ -167,7 +197,7 @@ private:
 	inline ObjectPtr(T* ptr, funcPtr_t<void(void*)> disposer) noexcept : link(ptr, disposer) {
 	}
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
 	}
 
 public:
@@ -214,7 +244,7 @@ public:
 	static ObjectPtr<T> MakePtr(ObjectPtr<T>) noexcept = delete;
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
 	}
 	inline bool operator!() const {
 		return !operator bool();
@@ -312,7 +342,7 @@ private:
 	inline ObjectPtr(T* ptr, funcPtr_t<void(void*)> disposer) noexcept : link(ptr, disposer) {
 	}
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
 	}
 
 public:
@@ -345,7 +375,7 @@ public:
 	static ObjectPtr<T[]> MakePtr(ObjectPtr<T[]>) noexcept = delete;
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
 	}
 	bool operator!() const {
 		return !operator bool();
@@ -430,7 +460,7 @@ private:
 	friend class ObjectPtr<T>;
 	PtrWeakLink link;
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
 	}
 
 public:
@@ -443,6 +473,8 @@ public:
 	}
 	inline ObjWeakPtr(const ObjectPtr<T>& ptr) noexcept : link(ptr.link) {
 	}
+	inline ObjWeakPtr(ObjectPtr<T>&& ptr) noexcept : link(std::move(ptr.link)) {
+	}
 	ObjWeakPtr(const PtrWeakLink& link, size_t addOffset) noexcept : link(link) {
 		this->link.offset += addOffset;
 	}
@@ -451,7 +483,7 @@ public:
 	}
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
 	}
 	bool operator!() const {
 		return !operator bool();
@@ -505,6 +537,9 @@ public:
 	inline void operator=(const ObjectPtr<T>& other) noexcept {
 		link = other.link;
 	}
+	inline void operator=(ObjectPtr<T>&& other) noexcept {
+		link = std::move(other.link);
+	}
 
 	inline void operator=(T* other) noexcept = delete;
 	inline void operator=(void* other) noexcept = delete;
@@ -550,7 +585,7 @@ private:
 	friend class ObjectPtr<T[]>;
 	PtrWeakLink link;
 	T* GetPtr() const noexcept {
-		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr.load(std::memory_order_acquire)) + link.offset);
+		return reinterpret_cast<T*>(reinterpret_cast<size_t>(link.heapPtr->ptr) + link.offset);
 	}
 
 public:
@@ -563,6 +598,8 @@ public:
 	}
 	inline ObjWeakPtr(const ObjectPtr<T[]>& ptr) noexcept : link(ptr.link) {
 	}
+	inline ObjWeakPtr(ObjectPtr<T[]>&& ptr) noexcept : link(std::move(ptr.link)) {
+	}
 	ObjWeakPtr(const PtrWeakLink& link, size_t addOffset) noexcept : link(link) {
 		this->link.offset += addOffset;
 	}
@@ -571,7 +608,7 @@ public:
 	}
 
 	inline operator bool() const noexcept {
-		return link.heapPtr != nullptr && link.heapPtr->ptr.load(std::memory_order_acquire) != nullptr;
+		return link.heapPtr != nullptr && link.heapPtr->ptr != nullptr;
 	}
 	bool operator!() const {
 		return !operator bool();
@@ -603,7 +640,9 @@ public:
 	inline void operator=(const ObjectPtr<T[]>& other) noexcept {
 		link = other.link;
 	}
-
+	inline void operator=(ObjectPtr<T[]>&& other) noexcept {
+		link = std::move(other.link);
+	}
 	inline void operator=(T* other) noexcept = delete;
 	inline void operator=(void* other) noexcept = delete;
 	inline void operator=(std::nullptr_t t) noexcept {
@@ -674,3 +713,20 @@ template<typename T>
 inline static ObjectPtr<T> MakeObjectPtr(T* ptr, funcPtr_t<void(void*)> disposer) noexcept {
 	return ObjectPtr<T>::MakePtr(ptr, disposer);
 }
+
+inline void PtrLink::operator=(const PtrLink& p) noexcept {
+	operator=(static_cast<const PtrLinkBase&>(p));
+}
+inline void PtrLink::operator=(PtrLink&& p) noexcept {
+	operator=(static_cast<PtrLinkBase&&>(p));
+}
+inline void PtrLink::operator=(const PtrWeakLink& p) noexcept {
+	operator=(static_cast<const PtrLinkBase&>(p));
+}
+inline void PtrLink::operator=(PtrWeakLink&& p) noexcept {
+	operator=(static_cast<PtrLinkBase&&>(p));
+}
+inline PtrLink::PtrLink(PtrLink const& p) : PtrLink(static_cast<const PtrLinkBase&>(p)) {}
+inline PtrLink::PtrLink(PtrLink&& p) : PtrLink(static_cast<PtrLinkBase&&>(p)) {}
+inline PtrLink::PtrLink(PtrWeakLink const& p) : PtrLink(static_cast<const PtrLinkBase&>(p)) {}
+inline PtrLink::PtrLink(PtrWeakLink&& p) : PtrLink(static_cast<PtrLinkBase&&>(p)) {}
