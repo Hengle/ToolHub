@@ -160,28 +160,28 @@ void ThreadTaskHandle::AddDepend(ThreadTaskHandle const& handle) const {
 
 void ThreadTaskHandle::AddDepend(std::span<ThreadTaskHandle const> handles) const {
 
-	auto func = [&](ObjectPtr<TaskData> const& selfPtr, ObjectPtr<TaskData> const& dep) {
+	auto func = [&](ObjectPtr<TaskData> const& selfPtr, ObjectPtr<TaskData> const& dep, uint64& dependAdd) {
 		TaskData* p = dep;
-		TaskState state = static_cast<TaskState>(p->state.load(std::memory_order_acquire));
-		if (state != TaskState::Waiting) {
-			VEngine_Log("Try To depend on a executed job!\n");
-			VENGINE_EXIT;
-		}
 		TaskData* self = selfPtr;
-		self->dependingJob.push_back(dep);
-		p->dependedJobs.push_back(selfPtr);
+		std::unique_lock lck(p->mtx);
+		TaskState state = static_cast<TaskState>(p->state.load(std::memory_order_acquire));
+		if ((uint8_t)state < (uint8_t)TaskState::Finished) {
+			p->dependedJobs.push_back(selfPtr);
+			lck.unlock();
+			self->dependingJob.push_back(dep);
+			dependAdd++;
+		}
 	};
 	auto executeSelf = [&](ObjectPtr<TaskData> const& self, ThreadTaskHandle const& handle) {
+		uint64 v = 0;
 		if (handle.isArray) {
 			for (auto& i : *handle.taskFlags) {
-				func(self, i);
+				func(self, i, v);
 			}
-			self->dependCount.fetch_add(handle.taskFlags->size(), std::memory_order_relaxed);
-
 		} else {
-			func(self, *handle.taskFlag);
-			self->dependCount.fetch_add(1, std::memory_order_relaxed);
+			func(self, *handle.taskFlag, v);
 		}
+		self->dependCount.fetch_add(v, std::memory_order_relaxed);
 	};
 	for (auto& handle : handles) {
 		if (isArray) {

@@ -79,13 +79,13 @@ void ThreadPool::ThreadExecute(ThreadTaskHandle::TaskData* ptr) {
 	uint8_t expected = static_cast<uint8_t>(ThreadTaskHandle::TaskState::Executed);
 
 	if (!ptr->state.compare_exchange_strong(
-			expected, static_cast<uint8_t>(ThreadTaskHandle::TaskState::Working), std::memory_order_acq_rel)) {
+			expected, static_cast<uint8_t>(ThreadTaskHandle::TaskState::Working), std::memory_order_acq_rel, std::memory_order_relaxed)) {
 		return;
 	}
 	ptr->func();
 	{
-		ptr->state.store(static_cast<uint8_t>(ThreadTaskHandle::TaskState::Finished), std::memory_order_release);
 		std::lock_guard lck(ptr->mtx);
+		ptr->state.store(static_cast<uint8_t>(ThreadTaskHandle::TaskState::Finished), std::memory_order_release);
 		ptr->cv.notify_one();
 	}
 	for (auto& i : ptr->dependedJobs) {
