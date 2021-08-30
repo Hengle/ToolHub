@@ -81,6 +81,30 @@ Guid::Guid(std::array<uint8_t, sizeof(GuidData)> const& data) {
 	memcpy(&this->data, data.data(), sizeof(GuidData));
 }
 
+vstd::string Guid::ToCompressedString() const {
+	vstd::string result;
+	result.resize(20);
+	ToCompressedString(result.data());
+	return result;
+}
+void Guid::ToCompressedString(char* result) const {
+	static vstd::string_view strv = "`1234567890-=qwertyuiop[]asdfghjkl;zxcvbnm,.~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:ZXCVBNM<>?"_sv;
+	size_t index = 0;
+	auto AddName = [&](uint64 v, uint64 tarByte) {
+		while (v > 0) {
+			auto bit = v % strv.size();
+			result[index] = strv[bit];
+			index++;
+			v /= strv.size();
+		}
+		for (; index < tarByte; ++index) {
+			result[index] = strv[0];
+		}
+	};
+	AddName(data.data0, 10);
+	AddName(data.data1, 20);
+}
+
 void Guid::ReGenerate() {
 #ifdef _WIN32
 	static_assert(sizeof(data) == sizeof(_GUID), "Size mismatch");
@@ -154,5 +178,10 @@ VENGINE_UNITY_EXTERN void vguid_to_string(
 	char* result,
 	bool upper) {
 	guidData->ToString(result, upper);
+}
+VENGINE_UNITY_EXTERN void vguid_to_compress_str(
+	vstd::Guid const* guidData,
+	char* result) {
+	guidData->ToCompressedString(result);
 }
 #endif

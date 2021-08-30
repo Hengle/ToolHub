@@ -168,14 +168,6 @@ struct SerDeAll_Impl;
 
 template<typename Ret, typename... Args>
 struct SerDeAll_Impl<Ret(Args...)> {
-	template<typename Func>
-	static decltype(auto) Call(
-		Func&& func) {
-		return [f = std::forward<Func>(func)](std::span<uint8_t const> data) {
-			return std::apply(f, std::tuple<Args...>{SerDe<std::remove_cvref_t<Args>>::Get(data)...});
-		};
-	}
-
 	template<typename Class, typename Func>
 	static Ret CallMemberFunc(Class* ptr, Func func, std::span<uint8_t const> data) {
 		auto closureFunc = [&](Args&&... args) {
@@ -190,6 +182,15 @@ struct SerDeAll_Impl<Ret(Args...)> {
 		auto lst = {(SerDe<std::remove_cvref_t<Args>>::Set(args, vec), ' ')...};
 		return vec;
 	}
+
+	template<typename Func>
+	static decltype(auto) Call(
+		Func&& func) {
+		return [f = std::forward<Func>(func)](std::span<uint8_t const> data) {
+			return std::apply(f, std::tuple<Args...>{SerDe<std::remove_cvref_t<Args>>::Get(data)...});
+		};
+	}
+
 };
 
 template<typename Func>

@@ -44,6 +44,8 @@ void jsonTest(
 			rootObj->Set("dict", std::move(middleArr));
 		}
 	}
+	std::cout << db->Print() << '\n';
+	return;
 	auto cloneDB = database->CreateDatabase();
 	cloneDB->Read(db->Serialize());
 	{

@@ -2,35 +2,52 @@
 #include <JobSystem/ThreadTaskHandle.h>
 #include <JobSystem/ThreadPool.h>
 ThreadTaskHandle::TaskData::TaskData(
-	ObjectPtr<PoolType> const& p,
 	Runnable<void()>&& func)
-	: func(std::move(func)),
-	  poolPtr(p) {
+	: func(std::move(func)) {
+	mainThreadLocker.New();
 	state.store(static_cast<uint8_t>(TaskState::Waiting), std::memory_order_release);
 }
-ThreadTaskHandle::PoolType::PoolType() : pool(256) {}
+ThreadTaskHandle::TaskData::TaskData() {
+	mainThreadLocker.New();
+	state.store(static_cast<uint8_t>(TaskState::Waiting), std::memory_order_release);
+}
+ThreadTaskHandle::TaskData::~TaskData() {
+	if (refCount > 0) {
+		mainThreadLocker.Delete();
+	}
+}
 
-ThreadTaskHandle::PoolType::~PoolType() {}
-ThreadTaskHandle::TaskData::~TaskData() {}
+std::pair<std::mutex, std::condition_variable>* ThreadTaskHandle::TaskData::GetThreadLocker() {
+	std::lock_guard lck(lockerMtx);
+	if (refCount == 0) return nullptr;
+	refCount++;
+	return mainThreadLocker;
+}
+void ThreadTaskHandle::TaskData::ReleaseThreadLocker() {
+	std::unique_lock lck(lockerMtx);
+	if ((--refCount) == 0) {
+		lck.unlock();
+		mainThreadLocker.Delete();
+	}
+}
 
 ThreadTaskHandle::ThreadTaskHandle(
-	ThreadPool* pool,
-	ObjectPtr<PoolType> const& tPool,
-	Runnable<void()>&& func) : pool(pool) {
+	ThreadPool* pool) : pool(pool) {
 	isArray = false;
 	auto ptr = MakeObjectPtr(
-		tPool->pool.New_Lock(tPool->mtx, tPool, std::move(func)),
-		[](void* ptr) {
-			TaskData* pp = reinterpret_cast<TaskData*>(ptr);
-			ObjectPtr<PoolType> pt = std::move(pp->poolPtr);
-			pt->pool.Delete_Lock(pt->mtx, pp);
-		});
+		new TaskData());
+	taskFlag.New(std::move(ptr));
+}
+ThreadTaskHandle::ThreadTaskHandle(
+	ThreadPool* pool,
+	Runnable<void()>&& func) : pool(pool) {
+	isArray = false;
+	auto ptr = MakeObjectPtr(new TaskData(std::move(func)));
 	taskFlag.New(std::move(ptr));
 }
 
 ThreadTaskHandle::ThreadTaskHandle(
 	ThreadPool* tPool,
-	ObjectPtr<PoolType> const& pool,
 	Runnable<void(size_t)>&& func,
 	size_t parallelCount,
 	size_t threadCount) : pool(tPool) {
@@ -40,20 +57,14 @@ ThreadTaskHandle::ThreadTaskHandle(
 	auto&& tasks = *taskFlags;
 	size_t eachJobCount = parallelCount / threadCount;
 	tasks.reserve(eachJobCount + 1);
-	auto&& pp = pool->pool;
-	auto&& pm = pool->mtx;
+
 	auto AddTask = [&](size_t beg, size_t ed) {
 		tasks.emplace_back(MakeObjectPtr(
-			pp.New_Lock(pm, pool, [=]() {
+			new TaskData([=]() {
 				for (auto c : vstd::range(beg, ed)) {
 					func(c);
 				}
-			}),
-			[](void* ptr) {
-				auto pp = reinterpret_cast<ThreadTaskHandle::TaskData*>(ptr);
-				ObjectPtr<PoolType> pt = std::move(pp->poolPtr);
-				pt->pool.Delete_Lock(pt->mtx, pp);
-			}));
+			})));
 	};
 	for (size_t i = 0; i < threadCount; ++i) {
 		AddTask(i * eachJobCount, (i + 1) * eachJobCount);
@@ -67,7 +78,6 @@ ThreadTaskHandle::ThreadTaskHandle(
 
 ThreadTaskHandle::ThreadTaskHandle(
 	ThreadPool* tPool,
-	ObjectPtr<PoolType> const& pool,
 	Runnable<void(size_t, size_t)>&& func,
 	size_t parallelCount,
 	size_t threadCount) : pool(tPool) {
@@ -77,18 +87,11 @@ ThreadTaskHandle::ThreadTaskHandle(
 	auto&& tasks = *taskFlags;
 	size_t eachJobCount = parallelCount / threadCount;
 	tasks.reserve(eachJobCount + 1);
-	auto&& pp = pool->pool;
-	auto&& pm = pool->mtx;
 	auto AddTask = [&](size_t beg, size_t ed) {
 		tasks.emplace_back(MakeObjectPtr(
-			pp.New_Lock(pm, pool, [=]() {
+			new TaskData([=]() {
 				func(beg, ed);
-			}),
-			[](void* ptr) {
-				auto pp = reinterpret_cast<ThreadTaskHandle::TaskData*>(ptr);
-				ObjectPtr<PoolType> pt = std::move(pp->poolPtr);
-				pt->pool.Delete_Lock(pt->mtx, pp);
-			}));
+			})));
 	};
 	for (size_t i = 0; i < threadCount; ++i) {
 		AddTask(i * eachJobCount, (i + 1) * eachJobCount);
@@ -120,9 +123,17 @@ void ThreadTaskHandle::Complete() const {
 	auto func = [&](TaskData* p) {
 		auto state = static_cast<TaskState>(p->state.load(std::memory_order_acquire));
 		if (state == TaskState::Finished) return;
-		std::unique_lock lck(p->mtx);
-		while (p->state.load(std::memory_order_acquire) != static_cast<uint8_t>(TaskState::Finished)) {
-			p->cv.wait(lck);
+		auto mtxPtr = p->GetThreadLocker();
+		if (mtxPtr) {
+			auto disp = vstd::create_disposer([&]() {
+				p->ReleaseThreadLocker();
+			});
+			{
+				std::unique_lock lck(mtxPtr->first);
+				while (p->state.load(std::memory_order_acquire) != static_cast<uint8_t>(TaskState::Finished)) {
+					mtxPtr->second.wait(lck);
+				}
+			}
 		}
 	};
 	if (isArray) {
@@ -163,13 +174,21 @@ void ThreadTaskHandle::AddDepend(std::span<ThreadTaskHandle const> handles) cons
 	auto func = [&](ObjectPtr<TaskData> const& selfPtr, ObjectPtr<TaskData> const& dep, uint64& dependAdd) {
 		TaskData* p = dep;
 		TaskData* self = selfPtr;
-		std::unique_lock lck(p->mtx);
-		TaskState state = static_cast<TaskState>(p->state.load(std::memory_order_acquire));
-		if ((uint8_t)state < (uint8_t)TaskState::Finished) {
-			p->dependedJobs.push_back(selfPtr);
-			lck.unlock();
-			self->dependingJob.push_back(dep);
-			dependAdd++;
+		auto mtxPtr = p->GetThreadLocker();
+		if (mtxPtr) {
+			auto disp = vstd::create_disposer([&]() {
+				p->ReleaseThreadLocker();
+			});
+			{
+				std::unique_lock lck(mtxPtr->first);
+				TaskState state = static_cast<TaskState>(p->state.load(std::memory_order_acquire));
+				if ((uint8_t)state < (uint8_t)TaskState::Finished) {
+					p->dependedJobs.push_back(selfPtr);
+					lck.unlock();
+					self->dependingJob.push_back(dep);
+					dependAdd++;
+				}
+			}
 		}
 	};
 	auto executeSelf = [&](ObjectPtr<TaskData> const& self, ThreadTaskHandle const& handle) {

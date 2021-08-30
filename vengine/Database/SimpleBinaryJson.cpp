@@ -16,6 +16,9 @@ void SimpleBinaryJson::Read(
 	root->Reset();
 	root->LoadFromSer(data);
 }
+vstd::string SimpleBinaryJson::Print() {
+	return root->Print();
+}
 IJsonDict* SimpleBinaryJson::GetRootNode() {
 	return root;
 }

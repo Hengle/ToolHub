@@ -37,11 +37,6 @@ namespace Network
             void MakeMethods(MethodInfo method, Type clsType)
             {
                 var pars = method.GetParameters();
-                if (pars.Length != 0 && (pars.Length != 1
-                    || pars[0].ParameterType.GetCustomAttribute(typeof(SerializableAttribute)) == null))
-                {
-                    throw new FormatException("Illegal RPC function format: " + clsType.Name + "::" + method.Name);
-                }
                 if (method.ReturnType != typeof(void))
                 {
                     throw new FormatException("Currently RPC do not support return value: " + clsType.Name + "::" + method.Name);
@@ -57,10 +52,19 @@ namespace Network
                         else
                             method.Invoke(null, emptyArr);
                     }
-                    else
+                    else if (isObjectContained == 1)
                     {
                         var par = fmt.Deserialize(stream);
                         method.Invoke(null, new object[] { par });
+                    }
+                    else
+                    {
+                        object[] objs = new object[isObjectContained];
+                        for (int i = 0; i < objs.Length; ++i)
+                        {
+                            objs[i] = fmt.Deserialize(stream);
+                        }
+                        method.Invoke(null, objs);
                     }
                 };
                 string name = clsType.Name + '#' + method.Name;
@@ -116,6 +120,45 @@ namespace Network
                 *ptr = 1;
                 stream.Write(sp);
                 formatter.Serialize(stream, arg);
+            }
+
+        }
+        public static void CallFunc(
+            Stream stream,
+            BinaryFormatter formatter,
+            string className,
+            string funcName,
+            object[] arg)
+        {
+            int strSize = 4 + className.Length + funcName.Length + 2;
+            byte* ptr = stackalloc byte[strSize];
+            *(int*)ptr = className.Length + funcName.Length + 1;
+            ReadOnlySpan<byte> sp = new ReadOnlySpan<byte>(ptr, strSize);
+            ptr += 4;
+            foreach (char i in className)
+            {
+                *ptr = (byte)i;
+                ptr++;
+            }
+            *ptr = (byte)'#';
+            ptr++;
+            foreach (char i in funcName)
+            {
+                *ptr = (byte)i;
+                ptr++;
+            }
+
+            if (arg == null)
+            {
+                *ptr = 0;
+                stream.Write(sp);
+            }
+            else
+            {
+                *ptr = (byte)arg.Length;
+                stream.Write(sp);
+                foreach (var i in arg)
+                    formatter.Serialize(stream, i);
             }
 
         }

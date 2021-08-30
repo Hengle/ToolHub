@@ -107,25 +107,19 @@ public:
 		return true;
 	}
 	vstd::optional<T> Pop() {
-		std::lock_guard<spin_mutex> lck(mtx);
-		if (head == tail)
+		mtx.lock();
+		if (head == tail) {
+			mtx.unlock();
 			return vstd::optional<T>();
-
+		}
 		auto&& value = arr[GetIndex(tail++, capacity)];
-		auto disp = vstd::create_disposer([&]() {
+		auto disp = vstd::create_disposer([value, this]() {
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				value.~T();
 			}
+			mtx.unlock();
 		});
 		return vstd::optional<T>(std::move(value));
-	}
-	bool DisposeLast() {
-		std::lock_guard<spin_mutex> lck(mtx);
-		if (head == tail)
-			return false;
-		auto&& value = arr[GetIndex(tail++, capacity)];
-		value.~T();
-		return true;
 	}
 	~LockFreeArrayQueue() {
 		if constexpr (!std::is_trivially_destructible_v<T>) {

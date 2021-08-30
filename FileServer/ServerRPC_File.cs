@@ -33,7 +33,7 @@ namespace FileServer
                     message = "File " + uploadCmd.filePath + " added success!"
                 };
             }
-            var rpc = RPCSocket.ThreadLocalRPC;
+            var rpc = RPCSocket.Current;
             rpc.CallRemoteFunction(
                   "ClientRPC_File",
                   "UploadCallback",
@@ -73,12 +73,15 @@ namespace FileServer
                     }
                     break;
             }
-            var rpc = RPCSocket.ThreadLocalRPC;
+            var rpc = RPCSocket.Current;
             rpc.CallRemoteFunction(
                 "ClientRPC_File",
                 "DownloadCallback",
                 callback);
         }
+
+        public static void LockFile(vstd.Guid guid) { }
+        public static void Unlockfile(vstd.Guid guid) { }
         //public static void DownloadRequest()
     }
 }

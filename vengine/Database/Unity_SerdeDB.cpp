@@ -6,7 +6,8 @@ namespace toolhub::db {
 enum class CSharpKeyType : uint {
 	Int64,
 	String,
-	Guid
+	Guid,
+	None
 };
 enum class CSharpValueType : uint {
 	Int64,
@@ -14,7 +15,8 @@ enum class CSharpValueType : uint {
 	String,
 	Dict,
 	Array,
-	Guid
+	Guid,
+	None
 
 };
 VENGINE_UNITY_EXTERN void db_get_new(SimpleBinaryJson** pp) {
@@ -41,6 +43,9 @@ VENGINE_UNITY_EXTERN void db_deser(SimpleBinaryJson* db, uint8_t* ptr, uint64 le
 }
 VENGINE_UNITY_EXTERN void db_dispose_arr(SimpleJsonValueArray* p) {
 	p->Dispose();
+}
+VENGINE_UNITY_EXTERN void db_print(SimpleBinaryJson* db, funcPtr_t<void(vstd::string_view)> ptr) {
+	ptr(db->Print());
 }
 ////////////////// Dict Area
 using DictIterator = decltype(std::declval<SimpleJsonValueDict>().vars)::Iterator;
@@ -82,6 +87,26 @@ void SetCSharpKey(void* ptr, CSharpKeyType keyType, Key const& key) {
 					: vstd::string_view(nullptr, (size_t)0);
 		} break;
 	}
+}
+CSharpKeyType SetCSharpKey(void* ptr, Key const& key) {
+	CSharpKeyType keyType;
+	switch (key.GetType()) {
+		case Key::IndexOf<int64>:
+			*reinterpret_cast<int64*>(ptr) = key.force_get<int64>();
+			keyType = CSharpKeyType::Int64;
+			break;
+		case Key::IndexOf<vstd::string_view>:
+			*reinterpret_cast<vstd::string_view*>(ptr) = key.force_get<vstd::string_view>();
+			keyType = CSharpKeyType::String;
+			break;
+		case Key::IndexOf<vstd::Guid>:
+			*reinterpret_cast<vstd::Guid*>(ptr) = key.force_get<vstd::Guid>();
+			keyType = CSharpKeyType::Guid;
+			break;
+		default:
+			keyType = CSharpKeyType::None;
+	}
+	return keyType;
 }
 WriteJsonVariant GetCSharpWriteValue(void* ptr, CSharpValueType valueType) {
 	switch (valueType) {
@@ -146,6 +171,40 @@ void SetCSharpReadValue(void* ptr, CSharpValueType valueType, ReadJsonVariant co
 	}
 }
 
+CSharpValueType SetCSharpReadValue(void* ptr, ReadJsonVariant const& readValue) {
+	CSharpValueType resultType;
+	switch (readValue.GetType()) {
+		case ReadJsonVariant::IndexOf<int64>:
+			*reinterpret_cast<int64*>(ptr) = readValue.force_get<int64>();
+			resultType = CSharpValueType::Int64;
+			break;
+		case ReadJsonVariant::IndexOf<double>:
+			*reinterpret_cast<int64*>(ptr) = readValue.force_get<double>();
+			resultType = CSharpValueType::Double;
+			break;
+		case ReadJsonVariant::IndexOf<vstd::string_view>:
+			*reinterpret_cast<vstd::string_view*>(ptr) = readValue.force_get<vstd::string_view>();
+			resultType = CSharpValueType::String;
+			break;
+		case ReadJsonVariant::IndexOf<vstd::Guid>:
+			*reinterpret_cast<vstd::Guid*>(ptr) = readValue.force_get<vstd::Guid>();
+			resultType = CSharpValueType::Guid;
+			break;
+		case ReadJsonVariant::IndexOf<IJsonDict*>:
+			*reinterpret_cast<IJsonDict**>(ptr) = readValue.force_get<IJsonDict*>();
+			resultType = CSharpValueType::Dict;
+			break;
+		case ReadJsonVariant::IndexOf<IJsonArray*>:
+			*reinterpret_cast<IJsonArray**>(ptr) = readValue.force_get<IJsonArray*>();
+			resultType = CSharpValueType::Array;
+			break;
+		default:
+			resultType = CSharpValueType::None;
+			break;
+	}
+	return resultType;
+}
+
 VENGINE_UNITY_EXTERN void db_dict_set(
 	SimpleJsonValueDict* dict,
 	void* keyPtr,
@@ -164,6 +223,15 @@ VENGINE_UNITY_EXTERN void db_dict_get(
 	void* valuePtr) {
 	SetCSharpReadValue(valuePtr, targetValueType, dict->Get(GetCSharpKey(keyPtr, keyType)));
 }
+VENGINE_UNITY_EXTERN void db_dict_get_variant(
+	SimpleJsonValueDict* dict,
+	void* keyPtr,
+	CSharpKeyType keyType,
+	CSharpValueType* targetValueType,
+	void* valuePtr) {
+	auto value = dict->Get(GetCSharpKey(keyPtr, keyType));
+	*targetValueType = SetCSharpReadValue(valuePtr, value);
+}
 VENGINE_UNITY_EXTERN void db_dict_remove(SimpleJsonValueDict* dict, void* keyPtr, CSharpKeyType keyType) {
 	dict->Remove(GetCSharpKey(keyPtr, keyType));
 }
@@ -174,9 +242,15 @@ VENGINE_UNITY_EXTERN void db_dict_ite_next(DictIterator* end) { (*end)++; }
 VENGINE_UNITY_EXTERN void db_dict_ite_get(DictIterator ite, void* valuePtr, CSharpValueType valueType) {
 	SetCSharpReadValue(valuePtr, valueType, ite->second.GetVariant());
 }
+VENGINE_UNITY_EXTERN void db_dict_ite_get_variant(DictIterator ite, void* valuePtr, CSharpValueType* valueType) {
+	*valueType = SetCSharpReadValue(valuePtr, ite->second.GetVariant());
+}
 
 VENGINE_UNITY_EXTERN void db_dict_ite_getkey(DictIterator ite, void* keyPtr, CSharpKeyType keyType) {
 	SetCSharpKey(keyPtr, keyType, ite->first.GetKey());
+}
+VENGINE_UNITY_EXTERN void db_dict_ite_getkey_variant(DictIterator ite, void* keyPtr, CSharpKeyType* keyType) {
+	*keyType = SetCSharpKey(keyPtr, ite->first.GetKey());
 }
 ////////////////// Array Area
 VENGINE_UNITY_EXTERN void db_arr_len(SimpleJsonValueArray* arr, int32* sz) {
@@ -184,6 +258,9 @@ VENGINE_UNITY_EXTERN void db_arr_len(SimpleJsonValueArray* arr, int32* sz) {
 }
 VENGINE_UNITY_EXTERN void db_arr_get_value(SimpleJsonValueArray* arr, int32 index, void* valuePtr, CSharpValueType valueType) {
 	SetCSharpReadValue(valuePtr, valueType, arr->Get(index));
+}
+VENGINE_UNITY_EXTERN void db_arr_get_value_variant(SimpleJsonValueArray* arr, int32 index, void* valuePtr, CSharpValueType* valueType) {
+	*valueType = SetCSharpReadValue(valuePtr, arr->Get(index));
 }
 VENGINE_UNITY_EXTERN void db_arr_set_value(SimpleJsonValueArray* arr, int32 index, void* valuePtr, CSharpValueType valueType) {
 	arr->Set(index, GetCSharpWriteValue(valuePtr, valueType));
@@ -206,5 +283,7 @@ VENGINE_UNITY_EXTERN void db_arr_ite_next(SimpleJsonValueArray* arr, ArrayIterat
 VENGINE_UNITY_EXTERN void db_arr_ite_get(ArrayIterator ite, void* valuePtr, CSharpValueType valueType) {
 	SetCSharpReadValue(valuePtr, valueType, ite->GetVariant());
 }
-
+VENGINE_UNITY_EXTERN void db_arr_ite_get_variant(ArrayIterator ite, void* valuePtr, CSharpValueType* valueType) {
+	*valueType = SetCSharpReadValue(valuePtr, ite->GetVariant());
+}
 }// namespace toolhub::db

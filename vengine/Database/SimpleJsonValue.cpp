@@ -201,7 +201,7 @@ void SimpleJsonValueArray::Remove(size_t index) {
 
 void SimpleJsonValueArray::Add(WriteJsonVariant&& value) {
 	if (value.valid())
-	arr.emplace_back(std::move(value));
+		arr.emplace_back(std::move(value));
 }
 
 WriteJsonVariant SimpleJsonValueArray::GetAndSet(size_t index, WriteJsonVariant&& newValue) {
@@ -229,5 +229,98 @@ vstd::unique_ptr<vstd::linq::Iterator<const ReadJsonVariant>> SimpleJsonValueArr
 				return var.GetVariant();
 			})
 		.MoveNew();
+}
+static void PrintSimpleJsonVariant(SimpleJsonVariant const& v, vstd::string& str, size_t layer, size_t valueLayer, bool emptySpaceBeforeOb) {
+	auto func = [&](auto&& v) {
+		str.push_back_all(' ', valueLayer);
+		vstd::to_string(v, str);
+	};
+	v.value.visit(
+		func,
+		func,
+		[&](vstd::string const& s) {
+			str.push_back_all(' ', valueLayer);
+			str << '\"'
+				<< s
+				<< '\"';
+		},
+		[&](vstd::unique_ptr<IJsonDict> const& ptr) {
+			if (emptySpaceBeforeOb)
+				str << '\n';
+			static_cast<SimpleJsonValueDict*>(ptr.get())->M_Print(str, layer);
+		},
+		[&](vstd::unique_ptr<IJsonArray> const& ptr) {
+			if (emptySpaceBeforeOb)
+				str << '\n';
+			static_cast<SimpleJsonValueArray*>(ptr.get())->M_Print(str, layer);
+		},
+		[&](vstd::Guid const& guid) {
+			str.push_back_all(' ', valueLayer);
+			size_t offst = str.size();
+			str.resize(offst + 32);
+			guid.ToString(str.data() + offst, false);
+		});
+}
+static void PrintKeyVariant(SimpleJsonKey const& v, vstd::string& str) {
+	auto func = [&](auto&& v) {
+		vstd::to_string(v, str);
+	};
+	v.value.visit(
+		func,
+		[&](vstd::string const& s) {
+			str << '\"'
+				<< s
+				<< '\"';
+		},
+		[&](vstd::Guid const& guid) {
+			size_t offst = str.size();
+			str.resize(offst + 32);
+			guid.ToString(str.data() + offst, false);
+		});
+}
+void SimpleJsonValueDict::M_Print(vstd::string& str, size_t space) {
+	str.push_back_all(' ', space);
+	str << "{\n"_sv;
+	space += 2;
+	auto disp = vstd::create_disposer([&]() {
+		space -= 2;
+		str.push_back_all(' ', space);
+		str << '}';
+	});
+	size_t varsSize = vars.size() - 1;
+	size_t index = 0;
+	for (auto&& i : vars) {
+		str.push_back_all(' ', space);
+		PrintKeyVariant(i.first, str);
+		str << " : "_sv;
+		PrintSimpleJsonVariant(i.second, str, space, 0, true);
+		if (index == varsSize) {
+			str << '\n';
+		} else {
+			str << ",\n"_sv;
+		}
+		index++;
+	}
+}
+void SimpleJsonValueArray::M_Print(vstd::string& str, size_t space) {
+	str.push_back_all(' ', space);
+	str << "[\n"_sv;
+	space += 2;
+	auto disp = vstd::create_disposer([&]() {
+		space -= 2;
+		str.push_back_all(' ', space);
+		str << ']';
+	});
+	size_t arrSize = arr.size() - 1;
+	size_t index = 0;
+	for (auto&& i : arr) {
+		PrintSimpleJsonVariant(i, str, space, space, false);
+		if (index == arrSize) {
+			str << '\n';
+		} else {
+			str << ",\n"_sv;
+		}
+		index++;
+	}
 }
 }// namespace toolhub::db

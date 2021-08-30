@@ -75,6 +75,7 @@ void SimpleJsonLoader::Serialize(SimpleJsonVariant const& v, vstd::vector<uint8_
 		},
 		func);
 }
+
 static void SetVariantDict(
 	WriteJsonVariant& value,
 	IJsonDict* d) {

@@ -5,13 +5,6 @@
 #include <JobSystem/ThreadTaskHandle.h>
 class VENGINE_DLL_COMMON ThreadPool final {
 	friend class ThreadTaskHandle;
-	class ThreadPoolMethod {
-
-		void operator()() {
-		}
-	};
-	using PoolType = typename ThreadTaskHandle::PoolType;
-	ObjectPtr<PoolType> pool;
 	vstd::vector<std::thread> threads;
 	vstd::vector<std::thread> backupThreads;
 	LockFreeArrayQueue<ObjectPtr<ThreadTaskHandle::TaskData>> taskList;
@@ -30,7 +23,6 @@ class VENGINE_DLL_COMMON ThreadPool final {
 	Runnable<void(size_t)> runBackupThread;
 	int64_t waitingBackupThread = 0;
 	std::atomic_int64_t pausedWorkingThread = 0;
-	static void DoNothing() {}
 public:
 	//Thread Execute
 	ThreadPool(size_t targetThreadCount);

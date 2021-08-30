@@ -10,18 +10,46 @@
 //#include "BinaryLinkedAllocator.h"
 #include <Common/LinkedList.h>
 #include <Common/VAllocator.h>
+#include <Common/DXMath/DXMath.h>
 namespace v_mimalloc {
 funcPtr_t<void*(size_t)> mallocFunc = nullptr;
 funcPtr_t<void(void*)> freeFunc = nullptr;
 funcPtr_t<void*(void*, size_t)> reallocFunc = nullptr;
 struct MAllocator {
-	DynamicDLL dll;
-	MAllocator(vstd::string_view path) : dll(path) {
-		dll.GetDLLFunc(mallocFunc, "mi_malloc"_sv);
-		dll.GetDLLFunc(freeFunc, "mi_free"_sv);
-		dll.GetDLLFunc(reallocFunc, "mi_realloc"_sv);
+	vstd::optional<DynamicDLL> dll;
+	MAllocator(char const* path){
+		dll.New(path);
+		dll->GetDLLFunc(mallocFunc, "mi_malloc"_sv);
+		dll->GetDLLFunc(freeFunc, "mi_free"_sv);
+		dll->GetDLLFunc(reallocFunc, "mi_realloc"_sv);
 	}
-	MAllocator() : MAllocator("mimalloc.dll") {}
+	static char const* ReadFile() {
+		static char dd[4096];
+		static char const* dllName = "mimalloc.dll";
+		static size_t dllNameLen = strlen(dllName);
+		dd[0] = 0;
+		auto handle = fopen("dll_path", "rb");
+		auto disp = vstd::create_disposer([&]() {
+			if (handle != nullptr)
+				fclose(handle);
+		});
+		size_t sz = 0;
+		if (handle != nullptr) {
+			fseek(handle, 0L, SEEK_END);
+			sz = ftell(handle);
+			sz = Min(sz, (size_t)4095 - dllNameLen);
+			if (sz > 0) {
+				fseek(handle, 0L, SEEK_SET);
+				fread(dd, sz, 1, handle);
+			}
+		}
+		memcpy(dd + sz, dllName, dllNameLen);
+		dd[sz + dllNameLen] = 0;
+		return dd;
+	}
+	MAllocator() : MAllocator("mimalloc.dll") {
+	
+	}
 	~MAllocator() {
 		mallocFunc = [](size_t) -> void* { return nullptr; };
 		freeFunc = [](void* ptr) {};
@@ -111,6 +139,16 @@ void string::push_back_all(char const* c, size_t newStrLen) noexcept {
 	size_t newCapacity = lenSize + newStrLen + 1;
 	reserve(newCapacity);
 	memcpy(ptr + lenSize, c, newStrLen);
+	lenSize = newCapacity - 1;
+	ptr[lenSize] = 0;
+}
+void string::push_back_all(char c, size_t newStrLen) noexcept {
+	size_t newCapacity = lenSize + newStrLen + 1;
+	reserve(newCapacity);
+	auto originPtr = ptr + lenSize;
+	for (auto&& i : vstd::ptr_range(originPtr, originPtr + newStrLen)) {
+		i = c;
+	}
 	lenSize = newCapacity - 1;
 	ptr[lenSize] = 0;
 }

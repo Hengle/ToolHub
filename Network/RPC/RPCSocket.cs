@@ -13,14 +13,13 @@ namespace Network
     public class RPCSocket : IDisposable
     {
         private static ThreadLocal<RPCSocket> localRpc = new ThreadLocal<RPCSocket>();
-        public static RPCSocket ThreadLocalRPC
+        public static RPCSocket Current
         {
             get
             {
                 return localRpc.Value;
             }
         }
-        TcpListener listener = null;
         NetworkStream stream;
         TcpClient client;
         Task readTask;
@@ -84,19 +83,30 @@ namespace Network
                     CallCmd cmd;
                     while (writeCmd.TryDequeue(out cmd))
                     {
-                        RPCReflector.CallFunc(
-                            stream,
-                            formatter,
-                            cmd.className,
-                            cmd.funcName,
-                            cmd.argument);
+                        if (cmd.argument.GetType() == typeof(object[]))
+                        {
+                            RPCReflector.CallFunc(
+                               stream,
+                               formatter,
+                               cmd.className,
+                               cmd.funcName,
+                               (object[])cmd.argument);
+                        }
+                        else
+                        {
+                            RPCReflector.CallFunc(
+                                stream,
+                                formatter,
+                                cmd.className,
+                                cmd.funcName,
+                                cmd.argument);
+                        }
                     }
                 }
             });
         }
         public RPCSocket(TcpListener listener, int port)
         {
-            this.listener = listener;
             client = listener.AcceptTcpClient();
             stream = client.GetStream();
             StartThread();

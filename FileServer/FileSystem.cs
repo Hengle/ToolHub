@@ -19,7 +19,6 @@ namespace FileServer
     }
     public unsafe static class FileSystem
     {
-        static object locker = new object();
 
         public static vstd.MD5 CalcFileMD5(string filePath, out long fileLen)
         {
@@ -38,7 +37,7 @@ namespace FileServer
             out FileData result)
         {
             BsonDocument doc;
-            lock (locker)
+            lock(dbCollect)
             {
                 var v = dbCollect.Find(
                     Builders<BsonDocument>.Filter.And(
@@ -53,7 +52,7 @@ namespace FileServer
                     return false;
                 }
 
-                doc = v.First();
+                doc = v.FirstOrDefault();
             }
             result = new FileData
             {
@@ -72,7 +71,7 @@ namespace FileServer
             out FileData result)
         {
             BsonDocument doc;
-            lock (locker)
+            lock(dbCollect)
             {
                 string guidStr = guid.ToString();
                 var v = dbCollect.Find(
@@ -87,7 +86,7 @@ namespace FileServer
                     result = new FileData();
                     return false;
                 }
-                doc = v.First();
+                doc = v.FirstOrDefault();
             }
             result = new FileData
             {
@@ -104,7 +103,7 @@ namespace FileServer
             out FileData result)
         {
             BsonDocument doc;
-            lock (locker)
+            lock(dbCollect)
             {
                 var v = dbCollect.Find(
               Builders<BsonDocument>.Filter.And(
@@ -118,7 +117,7 @@ namespace FileServer
                     result = new FileData();
                     return false;
                 }
-                doc = v.First();
+                doc = v.FirstOrDefault();
             }
             result = new FileData
             {
@@ -149,7 +148,7 @@ namespace FileServer
                 md5 = new vstd.MD5(b, (ulong)bytes.LongLength);
             }
             bool isUpdate;
-            lock (locker)
+            lock(dbCollect)
             {
                 var result = dbCollect.FindOneAndUpdate(
                 Builders<BsonDocument>.Filter.And(
@@ -185,7 +184,7 @@ namespace FileServer
             in vstd.Guid guid,
             in string newPath)
         {
-            lock (locker)
+            lock(dbCollect)
             {
                 var doc = dbCollect.FindOneAndUpdate(
                 Builders<BsonDocument>.Filter.And(
@@ -202,7 +201,7 @@ namespace FileServer
             in IMongoCollection<BsonDocument> dbCollect,
             in string guid)
         {
-            lock (locker)
+            lock(dbCollect)
             {
                 var doc = dbCollect.FindOneAndDelete(
                 Builders<BsonDocument>.Filter.And(
@@ -229,11 +228,11 @@ namespace FileServer
             out byte[] fileBytes,
             out byte[] fileMetaBytes)
         {
-            lock (locker)
+            lock(dbCollect)
             {
                 var doc = dbCollect.Find(
                 Builders<BsonDocument>.Filter.Eq("guid", guid.ToString()));
-                var bson = doc.First();
+                var bson = doc.FirstOrDefault();
                 if (bson == null)
                 {
                     filePath = null;
@@ -245,6 +244,32 @@ namespace FileServer
                 fileBytes = File.ReadAllBytes(filePath);
                 fileMetaBytes = File.ReadAllBytes(filePath + ".meta");
                 return (fileBytes == null || fileMetaBytes == null) ? 2 : 0;
+            }
+        }
+        public static bool TryLockFile(
+            in IMongoCollection<BsonDocument> dbCollect,
+            in vstd.Guid fileGuid)
+        {
+            string fileGuidStr = fileGuid.ToString();
+            lock(dbCollect)
+            {
+                var doc = dbCollect.FindOneAndUpdate(
+                    Builders<BsonDocument>.Filter.Eq("guid", fileGuidStr),
+                    Builders<BsonDocument>.Update.Set("lock", true));
+                return !doc.GetValue("lock").AsBoolean;
+            }
+        }
+
+        public static void UnlockFile(
+            in IMongoCollection<BsonDocument> dbCollect,
+           in vstd.Guid fileGuid)
+        {
+            string fileGuidStr = fileGuid.ToString();
+            lock(dbCollect)
+            {
+                dbCollect.FindOneAndUpdate(
+                    Builders<BsonDocument>.Filter.Eq("guid", fileGuidStr),
+                    Builders<BsonDocument>.Update.Set("lock", false));
             }
         }
     }

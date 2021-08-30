@@ -39,6 +39,7 @@ public:
 	virtual vstd::vector<uint8_t> GetSerData() = 0;
 	virtual void Reset() = 0;
 	virtual bool IsEmpty() = 0;
+	virtual vstd::string Print() = 0;
 };
 
 class IJsonDict : public IJsonObject {

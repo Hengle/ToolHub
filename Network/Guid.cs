@@ -68,6 +68,11 @@ namespace vstd
         IntPtr callBack,
         char* filePath,
         uint filePathLen);
+
+        [DllImport("Yaml_CPP.dll")]
+        static extern void vguid_to_compress_str(
+        Guid* guidData,
+        byte* result);
         static ThreadLocal<List<string>> localGuidList = new ThreadLocal<List<string>>();
         delegate void GetGuidCallBackType(IntPtr ptr, uint sz);
         static GetGuidCallBackType getGuidCallback = (charPtr, charSize) =>
@@ -76,6 +81,17 @@ namespace vstd
             sbyte* bytes = (sbyte*)charPtr.ToPointer();
             value.Add(new string(bytes, 0, (int)charSize));
         };
+        public string ToCompressString()
+        {
+            byte* bytes = stackalloc byte[20];
+            fixed (Guid* ptr = &this)
+            {
+                vguid_to_compress_str(
+                    ptr,
+                    bytes);
+            }
+            return new string((sbyte*)bytes, 0, 20);
+        }
         public static uint TryReadUnityAssetRefGuid(
             string filePath,
             List<string> result)

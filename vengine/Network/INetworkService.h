@@ -36,13 +36,8 @@ protected:
 		using ClassType = Class;
 	};
 
-	template<typename Class, typename _Ret, typename... Args>
-	struct memFuncPtr<_Ret (Class::*)(Args...) const> {
-		using ClassType = Class;
-	};
-
 	template<typename Func>
-	using MemberClassT = typename memFuncPtr<Func>::ClassType;
+	using MemberClassT = typename memFuncPtr<std::remove_const_t<Func>>::ClassType;
 
 public:
 	virtual vstd::Guid const& GetSelfGuid() = 0;

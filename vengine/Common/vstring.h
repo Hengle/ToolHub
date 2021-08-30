@@ -70,6 +70,7 @@ public:
 		return operator=(data);
 	}
 	void push_back_all(char const* c, size_t newStrLen) noexcept;
+	void push_back_all(char c, size_t newStrLen) noexcept;
 	inline string& assign(char data) noexcept {
 		return operator=(data);
 	}

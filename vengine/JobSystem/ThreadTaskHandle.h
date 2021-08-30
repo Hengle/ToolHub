@@ -16,28 +16,25 @@ public:
 	};
 
 private:
-	struct PoolType;
-	struct VENGINE_DLL_COMMON TaskData {
+	struct VENGINE_DLL_COMMON TaskData : public vstd::IOperatorNewBase {
 		std::atomic_uint8_t state;
-		ObjectPtr<PoolType> poolPtr;
 		Runnable<void()> func;
 		//ThreadPool Set
-		std::mutex mtx;
-		std::condition_variable cv;
+		/* std::mutex mtx;
+		std::condition_variable cv;*/
+		int64 refCount = 1;
+		StackObject<std::pair<std::mutex, std::condition_variable>> mainThreadLocker;
+		spin_mutex lockerMtx;
 		vstd::vector<ObjectPtr<TaskData>> dependedJobs;
 		vstd::vector<ObjectPtr<TaskData>> dependingJob;
 		std::atomic_size_t dependCount = 0;
-		TaskData(
-			ObjectPtr<PoolType> const& p,
-			Runnable<void()>&& func);
+		TaskData();
+		TaskData(Runnable<void()>&& func);
 		~TaskData();
+		std::pair<std::mutex, std::condition_variable>* GetThreadLocker();
+		void ReleaseThreadLocker();
 	};
-	struct VENGINE_DLL_COMMON PoolType {
-		Pool<TaskData, VEngine_AllocType::VEngine, true> pool;
-		std::mutex mtx;
-		PoolType();
-		~PoolType();
-	};
+
 	bool isArray;
 	union {
 		StackObject<ObjectPtr<TaskData>> taskFlag;
@@ -45,18 +42,17 @@ private:
 	};
 	ThreadPool* pool;
 	ThreadTaskHandle(
+		ThreadPool* pool);
+	ThreadTaskHandle(
 		ThreadPool* pool,
-		ObjectPtr<PoolType> const& tPool,
 		Runnable<void()>&& func);
 	ThreadTaskHandle(
 		ThreadPool* pool,
-		ObjectPtr<PoolType> const& tPool,
 		Runnable<void(size_t)>&& func,
 		size_t parallelCount,
 		size_t threadCount);
 	ThreadTaskHandle(
 		ThreadPool* pool,
-		ObjectPtr<PoolType> const& tPool,
 		Runnable<void(size_t, size_t)>&& func,
 		size_t parallelCount,
 		size_t threadCount);
@@ -71,7 +67,7 @@ public:
 		AddDepend(std::span<ThreadTaskHandle const>(handles.begin(), handles.end()));
 	}
 	ThreadTaskHandle(ThreadTaskHandle&& v);
-	void operator=(ThreadTaskHandle const& v){
+	void operator=(ThreadTaskHandle const& v) {
 		this->~ThreadTaskHandle();
 		new (this) ThreadTaskHandle(v);
 	}

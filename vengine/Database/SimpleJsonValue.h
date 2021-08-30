@@ -152,6 +152,12 @@ public:
 	bool IsEmpty() override { return vars.size() == 0; }
 	WriteJsonVariant GetAndSet(Key const& key, WriteJsonVariant&& newValue) override;
 	WriteJsonVariant GetAndRemove(Key const& key) override;
+	void M_Print(vstd::string& str, size_t space);
+	vstd::string Print() override {
+		vstd::string str;
+		M_Print(str, 0);
+		return str;
+	}
 };
 
 class SimpleJsonValueArray final : public IJsonArray, public SimpleJsonValue {
@@ -179,5 +185,11 @@ public:
 	bool IsEmpty() override { return arr.size() == 0; }
 	WriteJsonVariant GetAndSet(size_t index, WriteJsonVariant&& newValue) override;
 	WriteJsonVariant GetAndRemove(size_t) override;
+	void M_Print(vstd::string& str, size_t space);
+	vstd::string Print() override {
+		vstd::string str;
+		M_Print(str, 0);
+		return str;
+	}
 };
 }// namespace toolhub::db

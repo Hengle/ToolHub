@@ -16,6 +16,7 @@ public:
 	vstd::vector<uint8_t> Serialize() override;
 	void Read(
 		std::span<uint8_t const> data) override;
+	vstd::string Print() override;
 	IJsonDict* GetRootNode() override;
 	vstd::unique_ptr<IJsonDict> CreateDict() override;
 	vstd::unique_ptr<IJsonArray> CreateArray() override;

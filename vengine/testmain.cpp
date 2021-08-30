@@ -6,6 +6,9 @@
 #include <Network/ISocket.h>
 #include <Network/FunctionSerializer.h>
 #include <Database/DatabaseExample.h>
+#include <JobSystem/ThreadPool.h>
+#include <Common/LockFreeArrayQueue.h>
+#include <array>
 void server() {
 	using namespace toolhub::net;
 	DllFactoryLoader<NetWork> loader("VEngine_Network.dll", "NetWork_GetFactory");
@@ -54,11 +57,58 @@ void server() {
 		}
 	}
 }
+ThreadTaskHandle TaskWithDepend(ThreadPool& pool, ThreadTaskHandle const& externalTask) {
+	auto task0 = pool.GetTask([]() {
+		// costly task
+	});
+	task0.AddDepend(externalTask);
+	auto task1 = pool.GetTask([]() {
+
+	});
+	task1.AddDepend(task0);
+	auto task2 = pool.GetTask([]() {
+
+	});
+	task2.AddDepend(task0);
+
+	auto finalTask = pool.GetTask([]() {
+
+	});
+	finalTask.AddDepend({task1, task2});
+	return finalTask;
+}
+
+ThreadTaskHandle TaskLayer(ThreadPool& pool, ThreadTaskHandle& externalTask) {
+	return pool.GetTask(
+		[&, externalTask = std::move(externalTask)]() {
+			externalTask.Complete();
+			auto task0 = pool.GetTask([]() {
+				// costly task
+			});
+			auto task1 = pool.GetTask([]() {
+				// costly task
+			});
+			auto finalTask = pool.GetTask([]() {
+				// costly task
+			});
+			task0.Execute();
+			task1.Execute();
+
+			task0.Complete();
+			task1.Complete();
+
+			finalTask.Complete();
+		});
+}
 int main() {
-
-	DllFactoryLoader<toolhub::db::Database> loader("VEngine_Database.dll", "Database_GetFactory");
-	auto factory = loader();
-	jsonTest(factory);
-
+	ThreadPool pool(16);
+	auto bg = clock();
+	for (int i = 0; i < 3; ++i) {
+		auto task0 = pool.GetTask([]() {
+			// costly task
+		});
+		TaskLayer(pool, task0).Complete();
+	}
+	auto ed = clock();
 	return 0;
 }
