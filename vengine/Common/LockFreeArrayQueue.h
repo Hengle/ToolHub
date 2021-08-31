@@ -13,14 +13,15 @@ class LockFreeArrayQueue {
 	mutable spin_mutex mtx;
 	T* arr;
 	VAllocHandle<allocType> allocHandle;
-	
+
 	static constexpr size_t GetIndex(size_t index, size_t capacity) noexcept {
 		return index & capacity;
 	}
 	using SelfType = LockFreeArrayQueue<T, allocType>;
+
 public:
 	LockFreeArrayQueue(size_t capacity) : head(0), tail(0) {
-		if (capacity < 32) capacity = 32; 
+		if (capacity < 32) capacity = 32;
 		capacity = [](size_t capacity) {
 			size_t ssize = 1;
 			while (ssize < capacity)
@@ -107,9 +108,8 @@ public:
 		return true;
 	}
 	vstd::optional<T> Pop() {
-		mtx.lock();
+		std::lock_guard lck(mtx);
 		if (head == tail) {
-			mtx.unlock();
 			return vstd::optional<T>();
 		}
 		auto&& value = arr[GetIndex(tail++, capacity)];
@@ -117,7 +117,6 @@ public:
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				value.~T();
 			}
-			mtx.unlock();
 		});
 		return vstd::optional<T>(std::move(value));
 	}
@@ -142,7 +141,6 @@ class SingleThreadArrayQueue {
 	size_t capacity;
 	T* arr;
 	VAllocHandle<allocType> allocHandle;
-
 
 	static constexpr size_t GetIndex(size_t index, size_t capacity) noexcept {
 		return index & capacity;

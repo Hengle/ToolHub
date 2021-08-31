@@ -10,6 +10,10 @@ namespace vstd
     {
         public ulong data0;
         public ulong data1;
+        public bool IsCreated
+        {
+            get { return data0 != 0 && data1 != 0; }
+        }
         public Guid(ulong data0, ulong data1)
         {
             this.data0 = data0;

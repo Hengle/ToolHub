@@ -100,15 +100,34 @@ ThreadTaskHandle TaskLayer(ThreadPool& pool, ThreadTaskHandle& externalTask) {
 			finalTask.Complete();
 		});
 }
+#include <Common/LockFreeStepQueue.h>
+#define COUNT 2000000
 int main() {
+
+	LockFreeStepQueue<uint8_t, 4> vv(COUNT);
+
 	ThreadPool pool(16);
+	auto a = pool.GetParallelTask(
+		[&](size_t) {
+			for (auto i : vstd::range(COUNT)) {
+				vv.Push(0);
+			}
+		},
+		8);
+	auto b = pool.GetParallelTask(
+		[&](size_t) {
+			uint8_t v;
+			for (auto i : vstd::range(COUNT)) {
+				vv.Pop();
+			}
+		},
+		8);
+	a.Execute();
+	b.Execute();
 	auto bg = clock();
-	for (int i = 0; i < 3; ++i) {
-		auto task0 = pool.GetTask([]() {
-			// costly task
-		});
-		TaskLayer(pool, task0).Complete();
-	}
+	a.Complete();
+	b.Complete();
 	auto ed = clock();
+	std::cout << (ed - bg) << '\n';
 	return 0;
 }

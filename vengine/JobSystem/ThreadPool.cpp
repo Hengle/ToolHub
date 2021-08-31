@@ -13,7 +13,7 @@ ThreadPool::ThreadPool(size_t workerThreadCount){
 	auto LockThread = [this](std::mutex& mtx, std::condition_variable& cv, auto&& beforeLock, auto&& afterLock) {
 		std::unique_lock lck(mtx);
 		beforeLock();
-		while (enabled.test(std::memory_order_acquire) && taskList.Length() == 0) {
+		while (enabled.test(std::memory_order_acquire)) {
 			cv.wait(lck);
 		}
 		afterLock();

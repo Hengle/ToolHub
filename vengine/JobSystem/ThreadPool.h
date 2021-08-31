@@ -1,13 +1,13 @@
 #pragma once
 #include <Common/Common.h>
 #include <Common/VObject.h>
-#include <Common/LockFreeArrayQueue.h>
+#include <Common/LockFreeStepQueue.h>
 #include <JobSystem/ThreadTaskHandle.h>
 class VENGINE_DLL_COMMON ThreadPool final {
 	friend class ThreadTaskHandle;
 	vstd::vector<std::thread> threads;
 	vstd::vector<std::thread> backupThreads;
-	LockFreeArrayQueue<ObjectPtr<ThreadTaskHandle::TaskData>> taskList;
+	LockFreeStepQueue<ObjectPtr<ThreadTaskHandle::TaskData>, 2> taskList;
 	void ThreadExecute(ThreadTaskHandle::TaskData*);
 	std::atomic_flag enabled;
 	std::mutex threadLock;

@@ -125,7 +125,7 @@ void ThreadTaskHandle::Complete() const {
 		if (state == TaskState::Finished) return;
 		auto mtxPtr = p->GetThreadLocker();
 		if (mtxPtr) {
-			auto disp = vstd::create_disposer([&]() {
+			auto disp = vstd::create_disposer([p]() {
 				p->ReleaseThreadLocker();
 			});
 			{
@@ -176,7 +176,7 @@ void ThreadTaskHandle::AddDepend(std::span<ThreadTaskHandle const> handles) cons
 		TaskData* self = selfPtr;
 		auto mtxPtr = p->GetThreadLocker();
 		if (mtxPtr) {
-			auto disp = vstd::create_disposer([&]() {
+			auto disp = vstd::create_disposer([p]() {
 				p->ReleaseThreadLocker();
 			});
 			{

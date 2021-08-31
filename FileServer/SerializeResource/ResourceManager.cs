@@ -8,15 +8,20 @@ namespace FileServer
 
     public static class ResourceManager
     {
-        public static Dictionary<vstd.Guid, SerializeResource> openedFiles = new Dictionary<vstd.Guid, SerializeResource>();
+        public class OpenFile
+        {
+            public SerializeResource resource;
+            public vstd.Guid writingUser;
+        }
+        public static Dictionary<vstd.Guid, OpenFile> openedFiles = new Dictionary<vstd.Guid, OpenFile>();
         public static bool CreateFile(
             in MongoDatabase db,
             in string name,
-            in vstd.Guid guid,
-            in vstd.Guid userID)
+            in long version,
+            out vstd.Guid guid)
         {
-            string guidStr = guid.ToCompressString();
-            string userStr = userID.ToCompressString();
+            guid = new vstd.Guid(true);
+            string guidStr = guid.ToString();
             var dbCollect = db.serCollect;
             lock (dbCollect)
             {
@@ -26,9 +31,7 @@ namespace FileServer
                     List<BsonElement> elements = new List<BsonElement>();
                     elements.Add(new BsonElement("id", guidStr));
                     elements.Add(new BsonElement("name", name));
-                    elements.Add(new BsonElement("is_writing", true));
-                    elements.Add(new BsonElement("is_stable", false));
-                    elements.Add(new BsonElement("write_user", userStr));
+                    elements.Add(new BsonElement("version", version));
                     dbCollect.InsertOne(new BsonDocument(elements));
                     return true;
                 }
@@ -40,78 +43,42 @@ namespace FileServer
             in MongoDatabase db,
             in vstd.Guid guid)
         {
-            string guidStr = guid.ToCompressString();
+            string guidStr = guid.ToString();
             var dbCollect = db.serCollect;
 
-            var v = dbCollect.FindOneAndDelete(
-                Builders<BsonDocument>.Filter.And(
-                Builders<BsonDocument>.Filter.Eq("id", guidStr),
-                Builders<BsonDocument>.Filter.Eq("is_writing", false)));
+            var v = dbCollect.FindOneAndDelete(Builders<BsonDocument>.Filter.Eq("id", guidStr));
             return (v != null);
         }
-        public static bool OpenReadonlyFile(
+        public static bool FindFile(
             in MongoDatabase db,
-            in vstd.Guid guid,
-            in bool onlyStable)
+            in vstd.Guid guid)
         {
             var dbCollect = db.serCollect;
-            var guidStr = guid.ToCompressString();
-            FilterDefinition<BsonDocument> filter;
-            if (onlyStable) filter = Builders<BsonDocument>.Filter.Eq("id", guidStr);
-            else filter =
-                    Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("id", guidStr),
-                    Builders<BsonDocument>.Filter.Eq("is_stable", true));
+            var guidStr = guid.ToString();
+            FilterDefinition<BsonDocument> filter = Builders<BsonDocument>.Filter.Eq("id", guidStr);
             var v = dbCollect.Find(
-                filter);
+                filter).FirstOrDefault();
             bool result = (v != null);
-            if (result)
-            {
-
-            }
             return result;
 
         }
-        public static bool OpenWritableFile(
+        public static vstd.Guid FindFile(
             in MongoDatabase db,
-            in vstd.Guid userID,
-            in vstd.Guid guid)
+            in string name,
+            in long version)
         {
             var dbCollect = db.serCollect;
-            var guidStr = guid.ToCompressString();
-            var userStr = userID.ToCompressString();
-            var v = dbCollect.FindOneAndUpdate(
+            FilterDefinition<BsonDocument> filter =
                 Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("id", guidStr),
-                    Builders<BsonDocument>.Filter.Eq("is_writing", false)
-                ),
-
-                Builders<BsonDocument>.Update.Combine(
-                    Builders<BsonDocument>.Update.Set("is_writing", true),
-                    Builders<BsonDocument>.Update.Set("write_user", userStr)
-                )
-            );
-            return (v != null);
-        }
-
-        public static bool CloseWritableFile(
-           in MongoDatabase db,
-            in vstd.Guid userID,
-            in vstd.Guid guid)
-        {
-            var dbCollect = db.serCollect;
-            var guidStr = guid.ToCompressString();
-            var userStr = userID.ToCompressString();
-            var v = dbCollect.FindOneAndUpdate(
-                Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("id", guidStr),
-                    Builders<BsonDocument>.Filter.Eq("is_writing", true),
-                    Builders<BsonDocument>.Filter.Eq("write_user", userStr)
-                ),
-                Builders<BsonDocument>.Update.Set("is_writing", false)
-
-            );
-            return v != null;
+                Builders<BsonDocument>.Filter.Eq("name", name),
+                Builders<BsonDocument>.Filter.Eq("version", version));
+            var v = dbCollect.Find(
+                filter).FirstOrDefault();
+            if(v == null)
+            {
+                return new vstd.Guid(0, 0);
+            }
+            return new vstd.Guid(v.GetValue("id").AsString);
         }
     }
 }

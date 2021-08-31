@@ -43,7 +43,6 @@ namespace FileServer
             switch (valueType)
             {
                 case SerializeValueType.Reference:
-                case SerializeValueType.Guid:
                 case SerializeValueType.Structure:
                     if (isArray)
                     {
@@ -168,7 +167,6 @@ namespace FileServer
             {
                 case SerializeValueType.Structure:
                 case SerializeValueType.Reference:
-                case SerializeValueType.Guid:
                     if (v.isArray)
                     {
                         var arr = serObj.CreateNewArray();

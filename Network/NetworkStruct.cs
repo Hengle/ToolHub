@@ -51,7 +51,6 @@ namespace Network
         Int,
         Float,
         Reference,
-        Guid,
         Num
     };
     [System.Serializable]
