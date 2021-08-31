@@ -9,7 +9,7 @@ namespace FileServer
     public unsafe class SerializeResource : IDisposable
     {
         public vstd.SerializeObject serObj { get; private set; }
-        string path;
+        public string path { get; private set; }
         public vstd.Guid rootGuid;
         public SerializeResource(string path, bool createNew, in vstd.Guid rootGuid)
         {

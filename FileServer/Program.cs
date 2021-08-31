@@ -35,7 +35,6 @@ namespace FileServer
         const int PORT = 2002;
         static void Server()
         {
-            ServerRPC_File.db = new MongoDatabase();
 
             RPCReflector.LoadRPCFunctor(System.Reflection.Assembly.GetExecutingAssembly(), RPCLayer.All);
             Console.WriteLine("Start server");
@@ -43,6 +42,7 @@ namespace FileServer
             listener.Start();
             while (true)
             {
+                Console.WriteLine("Waiting clients!");
                 RPCSocket rpcSocket = new RPCSocket(listener, PORT);
                 Console.WriteLine("Connected to client!");
             }
@@ -81,6 +81,7 @@ namespace FileServer
         }
         static void Main(string[] args)
         {
+            SerializeRPC.db = new MongoDatabase();
             Server();
         }
     }

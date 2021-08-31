@@ -49,6 +49,15 @@ namespace FileServer
             var v = dbCollect.FindOneAndDelete(Builders<BsonDocument>.Filter.Eq("id", guidStr));
             return (v != null);
         }
+        public static void DeleteFileNoCheck(
+            in MongoDatabase db,
+            in vstd.Guid guid)
+        {
+            string guidStr = guid.ToString();
+            var dbCollect = db.serCollect;
+
+         dbCollect.DeleteOne(Builders<BsonDocument>.Filter.Eq("id", guidStr));
+        }
         public static bool FindFile(
             in MongoDatabase db,
             in vstd.Guid guid)

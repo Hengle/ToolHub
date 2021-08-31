@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
-using Native;
+using System.Threading;
 namespace Network
 {
 
@@ -32,6 +32,18 @@ namespace Network
         }
         static Dictionary<string, Action<Stream, BinaryFormatter>> executableFuncs = new Dictionary<string, Action<Stream, BinaryFormatter>>();
         static object[] emptyArr = new object[] { null };
+        static ThreadLocal<byte[]> bytesArr = new ThreadLocal<byte[]>();
+        static byte[] TLocalBytesArray
+        {
+            get
+            {
+                if (bytesArr.Value == null)
+                {
+                    bytesArr.Value = new byte[4096];
+                }
+                return bytesArr.Value;
+            }
+        }
         public static void LoadRPCFunctor(Assembly assembly, RPCLayer layer)
         {
             void MakeMethods(MethodInfo method, Type clsType)
@@ -43,17 +55,15 @@ namespace Network
                 }
                 Action<Stream, BinaryFormatter> callable = (stream, fmt) =>
                 {
-                    byte isObjectContained = 0;
-                    stream.Read(new Span<byte>(&isObjectContained, 1));
+                    byte[] bytesArr = TLocalBytesArray;
+                    stream.Read(bytesArr, 0, 1);
+                    byte isObjectContained = bytesArr[0];
                     if (isObjectContained == 0)
                     {
                         if (pars.Length == 0)
-                        {
                             method.Invoke(null, null);
-                        }
                         else
                             method.Invoke(null, emptyArr);
-
                     }
                     else if (isObjectContained == 1)
                     {
@@ -68,6 +78,7 @@ namespace Network
                             objs[i] = fmt.Deserialize(stream);
                         }
                         method.Invoke(null, objs);
+
                     }
                 };
                 string name = clsType.Name + '#' + method.Name;
@@ -96,72 +107,78 @@ namespace Network
             object arg)
         {
             int strSize = 4 + className.Length + funcName.Length + 2;
-            byte* ptr = stackalloc byte[strSize];
-            *(int*)ptr = className.Length + funcName.Length + 1;
-            ReadOnlySpan<byte> sp = new ReadOnlySpan<byte>(ptr, strSize);
-            ptr += 4;
-            foreach (char i in className)
+            byte[] arr = new byte[strSize];
+            fixed (byte* originPtr = arr)
             {
-                *ptr = (byte)i;
+                byte* ptr = originPtr;
+                *(int*)ptr = className.Length + funcName.Length + 1;
+                ptr += 4;
+                foreach (char i in className)
+                {
+                    *ptr = (byte)i;
+                    ptr++;
+                }
+                *ptr = (byte)'#';
                 ptr++;
-            }
-            *ptr = (byte)'#';
-            ptr++;
-            foreach (char i in funcName)
-            {
-                *ptr = (byte)i;
-                ptr++;
-            }
+                foreach (char i in funcName)
+                {
+                    *ptr = (byte)i;
+                    ptr++;
+                }
 
-            if (arg == null)
-            {
-                *ptr = 0;
-                stream.Write(sp);
-            }
-            else
-            {
-                *ptr = 1;
-                stream.Write(sp);
-                formatter.Serialize(stream, arg);
+                if (arg == null)
+                {
+                    *ptr = 0;
+                    stream.Write(arr, 0, arr.Length);
+                }
+                else
+                {
+                    *ptr = 1;
+                    stream.Write(arr, 0, arr.Length);
+                    formatter.Serialize(stream, arg);
+                }
             }
 
         }
         public static void CallFunc(
-            Stream stream,
-            BinaryFormatter formatter,
-            string className,
-            string funcName,
-            object[] arg)
+           Stream stream,
+           BinaryFormatter formatter,
+           string className,
+           string funcName,
+           object[] arg)
         {
             int strSize = 4 + className.Length + funcName.Length + 2;
-            byte* ptr = stackalloc byte[strSize];
-            *(int*)ptr = className.Length + funcName.Length + 1;
-            ReadOnlySpan<byte> sp = new ReadOnlySpan<byte>(ptr, strSize);
-            ptr += 4;
-            foreach (char i in className)
+            byte[] arr = new byte[strSize];
+            fixed (byte* originPtr = arr)
             {
-                *ptr = (byte)i;
+                byte* ptr = originPtr;
+                *(int*)ptr = className.Length + funcName.Length + 1;
+                ptr += 4;
+                foreach (char i in className)
+                {
+                    *ptr = (byte)i;
+                    ptr++;
+                }
+                *ptr = (byte)'#';
                 ptr++;
-            }
-            *ptr = (byte)'#';
-            ptr++;
-            foreach (char i in funcName)
-            {
-                *ptr = (byte)i;
-                ptr++;
-            }
+                foreach (char i in funcName)
+                {
+                    *ptr = (byte)i;
+                    ptr++;
+                }
 
-            if (arg == null)
-            {
-                *ptr = 0;
-                stream.Write(sp);
-            }
-            else
-            {
-                *ptr = (byte)arg.Length;
-                stream.Write(sp);
-                foreach (var i in arg)
-                    formatter.Serialize(stream, i);
+                if (arg == null)
+                {
+                    *ptr = 0;
+                    stream.Write(arr, 0, arr.Length);
+                }
+                else
+                {
+                    *ptr = (byte)arg.Length;
+                    stream.Write(arr, 0, arr.Length);
+                    foreach (var i in arg)
+                        formatter.Serialize(stream, i);
+                }
             }
 
         }
@@ -169,30 +186,36 @@ namespace Network
             Stream stream,
             BinaryFormatter formatter)
         {
-            int strLen = 0;
-            Span<byte> lenSpan = new Span<byte>((byte*)&strLen, 4);
-            stream.Read(lenSpan);
-            if (strLen == 0) 
-                return false;
-            sbyte* funcNamePtr = stackalloc sbyte[strLen];
-            stream.Read(new Span<byte>(funcNamePtr, strLen));
-            string funcName = new string(funcNamePtr, 0, strLen);
-            lock (executableFuncs)
+            byte[] byteArr = TLocalBytesArray;
+            stream.Read(byteArr, 0, sizeof(int));
+            int strLen;
+            fixed (byte* ptr = byteArr)
             {
-                Action<Stream, BinaryFormatter> func;
-                if (executableFuncs.TryGetValue(funcName, out func))
+                strLen = *(int*)ptr;
+            }
+            if (strLen == 0)
+                return false;
+            fixed (byte* bPtr = byteArr)
+            {
+                sbyte* funcNamePtr = (sbyte*)bPtr;
+                stream.Read(byteArr, 0, strLen);
+                string funcName = new string(funcNamePtr, 0, strLen);
+                lock (executableFuncs)
                 {
-                    func(stream, formatter);
-
-
-                }
-                else
-                {
-                    Console.WriteLine("Erorr: Try call non-exists function " + funcName);
-                    throw new Exception();
+                    Action<Stream, BinaryFormatter> func;
+                    if (executableFuncs.TryGetValue(funcName, out func))
+                    {
+                        func(stream, formatter);
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.Log("Erorr: Try call non-exists function " + funcName);
+                        throw new Exception();
+                    }
                 }
             }
             return true;
+
         }
     }
 }

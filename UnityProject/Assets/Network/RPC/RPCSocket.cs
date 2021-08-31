@@ -20,16 +20,6 @@ namespace Network
                 return localRpc.Value;
             }
         }
-        public static void DisposeCurrent()
-        {
-            var v = localRpc.Value;
-            if (v != null)
-            {
-                v.readingThreadFlag = false;
-
-                localRpc.Value = null;
-            }
-        }
         NetworkStream stream;
         TcpClient client;
         Task readTask;
@@ -37,7 +27,6 @@ namespace Network
         BinaryFormatter formatter;
         AutoResetEvent writeThreadLocker;
         bool classEnabled = true;
-        bool readingThreadFlag = true;
         public struct CallCmd
         {
             public string className;
@@ -66,17 +55,16 @@ namespace Network
                     while (classEnabled)
                     {
                         if (!RPCReflector.ExecuteStream(
-                            stream,
-                            formatter) || !readingThreadFlag)
+                             stream,
+                             formatter))
                         {
                             return;
                         }
                     }
-
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.Message);
+                    UnityEngine.Debug.Log(e.Message);
                 }
                 finally
                 {
@@ -90,21 +78,14 @@ namespace Network
                         writeTask.Wait();
                         writeThreadLocker.Dispose();
                     }
-                    Console.WriteLine("Disconnect!");
-
                 }
             });
             writeTask = Task.Run(() =>
             {
-
                 localRpc.Value = this;
                 while (classEnabled)
                 {
                     writeThreadLocker.WaitOne();
-                    if (!classEnabled)
-                    {
-                        return;
-                    }
                     CallCmd cmd;
                     while (writeCmd.TryDequeue(out cmd))
                     {
@@ -128,7 +109,6 @@ namespace Network
                         }
                     }
                 }
-
             });
         }
         public RPCSocket(TcpListener listener, int port)
@@ -161,8 +141,6 @@ namespace Network
         {
             if (classEnabled)
             {
-                Console.WriteLine("Dispose socket!");
-
                 classEnabled = false;
                 stream.Dispose();
                 client.Dispose();
