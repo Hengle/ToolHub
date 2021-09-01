@@ -5,7 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 namespace vstd
 {
-    [Serializable]
+    [Network.VSerializable]
     public unsafe struct Guid
     {
         public ulong data0;

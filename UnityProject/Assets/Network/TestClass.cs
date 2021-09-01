@@ -56,6 +56,7 @@ public unsafe class TestClass : MonoBehaviour
     public string fileID;
     public string userID = "";
     public static TestClass current = null;
+
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Alpha1))
@@ -77,14 +78,14 @@ public unsafe class TestClass : MonoBehaviour
             socket.CallRemoteFunction(
                 "SerializeRPC",
                 "DeleteFile",
-                new object[] { fileID, userID });
+                new object[] { new vstd.Guid(fileID), new vstd.Guid(userID) });
         }
         if (Input.GetKeyDown(KeyCode.Alpha4))
         {
             socket.CallRemoteFunction(
                 "SerializeRPC",
                 "OpenWritableFile",
-                new object[] { fileID, userID });
+                new object[] { new vstd.Guid(fileID), new vstd.Guid(userID) });
         }
         if (Input.GetKeyDown(KeyCode.Space))
         {

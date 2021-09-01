@@ -38,6 +38,16 @@ VENGINE_UNITY_EXTERN void db_serialize(SimpleBinaryJson* db, funcPtr_t<void(uint
 	auto vec = db->Serialize();
 	callback(vec.data(), vec.size());
 }
+VENGINE_UNITY_EXTERN void db_serialize_tofile(SimpleBinaryJson* db, vstd::string_view filePath) {
+	auto vec = db->Serialize();
+	auto file = fopen(filePath.begin(), "wb");
+	if (file != nullptr) {
+		auto disp = vstd::create_disposer([&]() {
+			fclose(file);
+		});
+		fwrite(vec.data(), vec.size(), 1, file);
+	}
+}
 VENGINE_UNITY_EXTERN void db_deser(SimpleBinaryJson* db, uint8_t* ptr, uint64 len) {
 	db->Read(std::span<uint8_t const>(ptr, len));
 }
