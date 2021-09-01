@@ -5,6 +5,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Threading;
+using UnityEngine;
 namespace vstd
 {
     public struct FatPtr
@@ -88,13 +89,19 @@ namespace vstd
         public void Read(byte* b, ulong len)
         {
             db_deser(ptr, b, len);
-
+        }
+        public void Read(byte[] bytes)
+        {
+            fixed (byte* b = bytes)
+            {
+                db_deser(ptr, b, (ulong)bytes.LongLength);
+            }
         }
         delegate void PrintDelegate(CSString str);
         static PrintDelegate printStr = (str) =>
         {
             string s = new string((sbyte*)str.bytes, 0, (int)str.len);
-            Console.WriteLine(s);
+            Debug.Log(s);
         };
         public void Print()
         {

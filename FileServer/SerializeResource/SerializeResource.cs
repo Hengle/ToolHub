@@ -18,6 +18,10 @@ namespace FileServer
             this.rootGuid = rootGuid;
             if (!createNew)
                 serObj.ReadFromFile(path);
+            else
+            {
+                serObj.GetRootNode().SetDict(rootGuid, serObj.CreateNewDict().Move());
+            }
         }
         private SerializeMember GetMember(vstd.SerializeDict memberDict)
         {
@@ -27,7 +31,7 @@ namespace FileServer
                 if (valueTypeInt == 0 || valueTypeInt >= (long)SerializeValueType.Num)
                     return new SerializeMember
                     {
-                        type = SerializeValueType.None,
+                        type = (byte)SerializeValueType.None,
                         isArray = false,
                         value = null
                     };
@@ -36,7 +40,7 @@ namespace FileServer
             bool isArray = memberDict.GetInt("is_array") != 0;
             SerializeMember member = new SerializeMember
             {
-                type = valueType,
+                type = (byte)valueType,
                 isArray = isArray,
                 value = null
             };
@@ -135,7 +139,7 @@ namespace FileServer
         {
             SerializeStruct result = new SerializeStruct
             {
-                members = new Dictionary<string, SerializeMember>(dict.Length)
+                members = new List<Pair>(dict.Length)
             };
             for (var memIte = dict.Begin(); !dict.End(memIte); dict.GetNext(ref memIte))
             {
@@ -143,9 +147,25 @@ namespace FileServer
                 var memberDict = dict.GetDict(memIte);
                 if (s == null || !memberDict.IsCreated) continue;
 
-                result.members.Add(s, GetMember(memberDict));
+                result.members.Add(new Pair { first = s, second = GetMember(memberDict) });
             }
             return result;
+        }
+        public void GetAllStruct(
+            List<Pair> allStruct)
+        {
+            var root = serObj.GetRootNode();
+            for (var ite = root.Begin(); !root.End(ite); root.GetNext(ref ite))
+            {
+                var guid = root.GetKeyGuid(ite);
+                var dict = root.GetDict(ite);
+                if (!guid.IsCreated || !dict.IsCreated) continue;
+                allStruct.Add(new Pair
+                {
+                    first = guid,
+                    second = GetStruct(dict)
+                });
+            }
         }
         public SerializeStruct GetStruct(in vstd.Guid id)
         {
@@ -163,7 +183,7 @@ namespace FileServer
             string name,
             in SerializeMember v)
         {
-            switch (v.type)
+            switch ((SerializeValueType)v.type)
             {
                 case SerializeValueType.Structure:
                 case SerializeValueType.Reference:
@@ -253,8 +273,8 @@ namespace FileServer
         {
             foreach (var kv in st.members)
             {
-                var v = kv.Value;
-                SetValueToDict(dict, kv.Key, v);
+                var v = (SerializeMember)kv.second;
+                SetValueToDict(dict, (string)kv.first, v);
             }
         }
         public void SetStruct(in vstd.Guid id, SerializeStruct st)
@@ -352,7 +372,7 @@ namespace FileServer
             {
                 return new SerializeMember
                 {
-                    type = SerializeValueType.None
+                    type = (byte)SerializeValueType.None
                 };
             }
             return GetMember(dict);

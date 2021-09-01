@@ -4,16 +4,29 @@ using UnityEngine;
 using Network;
 namespace Network
 {
-    [System.Serializable]
-    public struct CreateSerFileResult
+    [VSerializable]
+    public struct SerializeMember
     {
-        public bool isSuccess;
-        public string fileName;
+        /**
+         * Value possible type:
+         * vstd.Guid List<vstd.Guid>
+         * string List<string>
+         * bool List<bool>
+         * long List<long>
+         * double List<double>
+         * vstd.Guid List<vstd.Guid>
+         * */
+        public object value;
+        public byte type;//SerializeValueType
+        public bool isArray;
     }
-}
-namespace FileServer
-{
 
+    [VSerializable]
+    public struct SerializeStruct
+    {
+        //string, SerializeMember
+        public List<Pair> members;
+    }
 }
 [Network.RPC(RPCLayer.All)]
 public static class Print_Client
@@ -86,6 +99,13 @@ public unsafe class TestClass : MonoBehaviour
                 "SerializeRPC",
                 "OpenWritableFile",
                 new object[] { new vstd.Guid(fileID), new vstd.Guid(userID) });
+        }
+        if (Input.GetKeyDown(KeyCode.Alpha5))
+        {
+            socket.CallRemoteFunction(
+                "SerializeRPC",
+                "GetFileStructure",
+                new object[] { new vstd.Guid(fileID) });
         }
         if (Input.GetKeyDown(KeyCode.Space))
         {

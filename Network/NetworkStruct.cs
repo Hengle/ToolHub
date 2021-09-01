@@ -1,12 +1,14 @@
 using System.Collections.Generic;
+
 namespace Network
 {
-    [System.Serializable]
-    public struct StructTest
+    [VSerializable]
+    public struct Pair
     {
-        public string v;
+        public object first;
+        public object second;
     }
-    [System.Serializable]
+    [VSerializable]
     public struct UploadCmd
     {
         public vstd.Guid guid;
@@ -14,12 +16,12 @@ namespace Network
         public byte[] fileData;
         public byte[] metaData;
     }
-    [System.Serializable]
+    [VSerializable]
     public struct DownloadCmd
     {
         public vstd.Guid tarGuid;
     }
-    [System.Serializable]
+    [VSerializable]
     public struct DownloadResult
     {
         public bool success;
@@ -28,20 +30,20 @@ namespace Network
         public byte[] fileResult;
         public byte[] metaFileResult;
     }
-    [System.Serializable]
+    [VSerializable]
     public enum FileUploadState : byte
     {
         Upload,
         Added
     }
-    [System.Serializable]
+    [VSerializable]
     public struct UploadResult
     {
         public bool isSuccess;
         public FileUploadState uploadState;
         public string message;
     }
-    [System.Serializable]
+    [VSerializable]
     public enum SerializeValueType : byte
     {
         None,
@@ -53,7 +55,7 @@ namespace Network
         Reference,
         Num
     };
-    [System.Serializable]
+    [VSerializable]
     public struct SerializeMember
     {
         /**
@@ -66,18 +68,19 @@ namespace Network
          * vstd.Guid List<vstd.Guid>
          * */
         public object value;
-        public SerializeValueType type;
+        public byte type;//SerializeValueType
         public bool isArray;
     }
 
-    [System.Serializable]
+    [VSerializable]
     public struct SerializeStruct
     {
-        public Dictionary<string, SerializeMember> members;
+        //string, SerializeMember
+        public List<Pair> members;
     }
 
 
-    [System.Serializable]
+    [VSerializable]
     public struct CreateSerFileResult
     {
         public bool isSuccess;

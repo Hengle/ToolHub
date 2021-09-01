@@ -14,21 +14,6 @@ using System.Net.Sockets;
 namespace FileServer
 {
 
-    [Network.RPC(RPCLayer.All)]
-    public static class Print_Server
-    {
-        public static void Print(string str, string str1)
-        {
-            Console.WriteLine("From Client: " + str);
-            RPCSocket.Current.CallRemoteFunction(
-                "Print_Client",
-                "Print",
-                new object[] {
-                "calling me " + str + "? and",
-                "calling me " + str1 + "?"
-                });
-        }
-    }
 
     unsafe class Program
     {
@@ -63,16 +48,20 @@ namespace FileServer
             {
                 using (SerializeResource res = new SerializeResource("fuckTest.bytes", true, guid))
                 {
-                    SerializeStruct strct = new SerializeStruct { members = new Dictionary<string, SerializeMember>() };
-                    strct.members.Add("string_key", new SerializeMember
+                    SerializeStruct strct = new SerializeStruct { members = new List<Pair>() };
+                    strct.members.Add(new Pair
                     {
-                        isArray = true,
-                        type = SerializeValueType.String,
-                        value = new List<string> {
+                        first = "string_key",
+                        second = new SerializeMember
+                        {
+                            isArray = true,
+                            type = (byte)SerializeValueType.String,
+                            value = new List<string> {
                             "string_value0" ,
                             "string_value1" ,
                             "string_value2" ,
                             "string_value3"
+                        }
                         }
                     });
                     res.SetStruct(new vstd.Guid(true), strct);

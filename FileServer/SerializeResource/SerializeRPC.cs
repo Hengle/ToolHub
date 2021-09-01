@@ -3,7 +3,25 @@ using Network;
 
 namespace FileServer
 {
+    public static class SerUtil
+    {
+        public static ResourceManager.OpenFile GetReadonlyFile(in vstd.Guid fileID)
+        {
+            ResourceManager.OpenFile res;
+            if (!ResourceManager.openedFiles.TryGetValue(fileID, out res)) return null;
+            return res;
+        }
+        public static ResourceManager.OpenFile GetWritableFile(
+            in vstd.Guid fileID,
+            in vstd.Guid userID)
+        {
+            var res = GetReadonlyFile(fileID);
+            if (res == null) return null;
+            if (res.writingUser != userID) return null;
+            return res;
+        }
 
+    }
     [RPC(RPCLayer.All)]
     public static class SerializeRPC
     {
@@ -23,14 +41,14 @@ namespace FileServer
                 RPCSocket.Current.CallRemoteFunction(
                      "SerializeRPC",
                      "CreateFileSuccess",
-                     new object[] { name, version, guid.ToString() });
+                     new object[] { name, version, guid });
             }
             else
             {
                 RPCSocket.Current.CallRemoteFunction(
                      "SerializeRPC",
                      "CreateFileFail",
-                     new object[] { name, version, guid.ToString() });
+                     new object[] { name, version, guid });
             }
 
         }
@@ -42,127 +60,107 @@ namespace FileServer
             RPCSocket.Current.CallRemoteFunction(
                 "SerializeRPC",
                 "FileFindResult",
-                new object[] { name, version, guid.ToString() });
+                new object[] { name, version, guid });
         }
         public static void OpenWritableFile(
-            string fileIDStr,
-            string userIDStr)
+            vstd.Guid fileID,
+            vstd.Guid userID)
         {
-            try
+            var dict = ResourceManager.openedFiles;
+            uint state = 0;
+            lock (dict)
             {
-                vstd.Guid fileID = new vstd.Guid(fileIDStr);
-                vstd.Guid userID = new vstd.Guid(userIDStr);
-                var dict = ResourceManager.openedFiles;
-                uint state = 0;
-                lock (dict)
+                ResourceManager.OpenFile file;
+                if (!dict.TryGetValue(fileID, out file))
                 {
-                    ResourceManager.OpenFile file;
-                    if (!dict.TryGetValue(fileID, out file))
+                    if (ResourceManager.FindFile(db, fileID))
                     {
-                        if (ResourceManager.FindFile(db, fileID))
-                        {
-                            file = new ResourceManager.OpenFile();
-                            file.resource = new SerializeResource(fileID.ToString(), true, fileID);
-                            dict.Add(fileID, file);
-                        }
-                        else
-                        {
-                            state = 1; //non-exist
-                            file = null;
-                        }
+                        file = new ResourceManager.OpenFile();
+                        file.resource = new SerializeResource(fileID.ToString(), true, fileID);
+                        dict.Add(fileID, file);
                     }
-                    if (file != null)
+                    else
                     {
-                        if (file.writingUser.IsCreated
-                             && file.writingUser != userID)
-                        {
-                            state = 2; //opened;
-                        }
-                        else
-                        {
-                            file.writingUser = userID;
-                        }
+                        state = 1; //non-exist
+                        file = null;
                     }
                 }
-                switch (state)
+                if (file != null)
                 {
-                    case 0:
-                        RPCSocket.Current.CallRemoteFunction(
-                        "SerializeRPC",
-                        "RWFileOpenSuccess",
-                        fileID.ToString());
-                        break;
-                    case 1:
-                        RPCSocket.Current.CallRemoteFunction(
-                      "SerializeRPC",
-                      "RWFileNonExist",
-                      fileID.ToString());
-                        break;
-                    case 2:
-                        RPCSocket.Current.CallRemoteFunction(
-                        "SerializeRPC",
-                        "RWFileOpenedByOthers",
-                        fileID.ToString());
-                        break;
+                    if (file.writingUser.IsCreated
+                         && file.writingUser != userID)
+                    {
+                        state = 2; //opened;
+                    }
+                    else
+                    {
+                        file.writingUser = userID;
+                    }
                 }
             }
-            catch (ArgumentException ex)
+            switch (state)
             {
-                Console.WriteLine(ex.Message.ToString());
+                case 0:
+                    RPCSocket.Current.CallRemoteFunction(
+                    "SerializeRPC",
+                    "RWFileOpenSuccess",
+                    fileID);
+                    break;
+                case 1:
+                    RPCSocket.Current.CallRemoteFunction(
+                  "SerializeRPC",
+                  "RWFileNonExist",
+                  fileID);
+                    break;
+                case 2:
+                    RPCSocket.Current.CallRemoteFunction(
+                    "SerializeRPC",
+                    "RWFileOpenedByOthers",
+                    fileID);
+                    break;
+            }
 
-                RPCSocket.Current.CallRemoteFunction(
-                "SerializeRPC",
-                "WrongGuidFormat");
-            }
         }
         public static void OpenReadableFile(
-            string fileIDStr)
+            vstd.Guid fileID)
         {
-            try
-            {
-                vstd.Guid fileID = new vstd.Guid(fileIDStr);
-                var dict = ResourceManager.openedFiles;
 
-                bool success = true;
-                lock (dict)
+            var dict = ResourceManager.openedFiles;
+
+            bool success = true;
+            lock (dict)
+            {
+                ResourceManager.OpenFile file;
+                if (!dict.TryGetValue(fileID, out file))
                 {
-                    ResourceManager.OpenFile file;
-                    if (!dict.TryGetValue(fileID, out file))
+                    if (ResourceManager.FindFile(db, fileID))
                     {
-                        if (ResourceManager.FindFile(db, fileID))
-                        {
-                            file = new ResourceManager.OpenFile();
-                            file.resource = new SerializeResource(fileID.ToString(), false, fileID);
-                            dict.Add(fileID, file);
-                        }
-                        else
-                        {
-                            success = false;
-                            return;
-                        }
+                        file = new ResourceManager.OpenFile();
+                        file.resource = new SerializeResource(fileID.ToString(), false, fileID);
+                        dict.Add(fileID, file);
+                    }
+                    else
+                    {
+                        success = false;
+                        return;
                     }
                 }
-                if (success)
-                {
-                    RPCSocket.Current.CallRemoteFunction(
-                        "SerializeRPC",
-                        "FileOpenSuccess",
-                        fileID.ToString());
-                }
-                else
-                {
-                    RPCSocket.Current.CallRemoteFunction(
-                        "SerializeRPC",
-                        "TryOpenNonExistFile",
-                        fileID.ToString());
-                }
             }
-            catch (ArgumentException ex)
+            if (success)
             {
                 RPCSocket.Current.CallRemoteFunction(
-                "SerializeRPC",
-                "WrongGuidFormat");
+                    "SerializeRPC",
+                    "FileOpenSuccess",
+                    fileID);
             }
+            else
+            {
+                RPCSocket.Current.CallRemoteFunction(
+                    "SerializeRPC",
+                    "TryOpenNonExistFile",
+                    fileID);
+            }
+
         }
 
         public static void Disconnect()
@@ -170,74 +168,82 @@ namespace FileServer
             RPCSocket.DisposeCurrent();
         }
         public static void DeleteFile(
-            string fileIDStr,
-            string userIDStr)
+            vstd.Guid fileID,
+            vstd.Guid userID)
         {
-            try
+
+            uint state;
+            var dict = ResourceManager.openedFiles;
+            lock (dict)
             {
-                vstd.Guid fileID = new vstd.Guid(fileIDStr);
-                vstd.Guid userID = new vstd.Guid(userIDStr);
-                uint state;
-                var dict = ResourceManager.openedFiles;
-                lock (dict)
+                ResourceManager.OpenFile file;
+                if (!dict.TryGetValue(fileID, out file))
                 {
-                    ResourceManager.OpenFile file;
-                    if (!dict.TryGetValue(fileID, out file))
+                    if (ResourceManager.DeleteFile(db, fileID))
+                        state = 2;
+                    else
+                        state = 0;//Non Exists
+                }
+                else
+                {
+                    if (file.writingUser != userID)
                     {
-                        if (ResourceManager.DeleteFile(db, fileID))
-                            state = 2;
-                        else
-                            state = 0;//Non Exists
+                        state = 1; // No right
                     }
                     else
                     {
-                        if (file.writingUser != userID)
+                        ResourceManager.DeleteFileNoCheck(db, fileID);
+                        file.resource.Dispose();
+                        try
                         {
-                            state = 1; // No right
+                            System.IO.File.Delete(file.resource.path);
                         }
-                        else
-                        {
-                            ResourceManager.DeleteFileNoCheck(db, fileID);
-                            file.resource.Dispose();
-                            try
-                            {
-                                System.IO.File.Delete(file.resource.path);
-                            }
-                            catch { }
-                            dict.Remove(fileID);
-                            state = 2;
-                        }
+                        catch { }
+                        dict.Remove(fileID);
+                        state = 2;
                     }
                 }
-                switch (state)
-                {
-                    case 0:
-                        RPCSocket.Current.CallRemoteFunction(
-                        "SerializeRPC",
-                        "TryDeleteNonExistFile",
-                        fileID.ToString());
-                        break;
-                    case 1:
-                        RPCSocket.Current.CallRemoteFunction(
-                        "SerializeRPC",
-                        "TryDeleteNoRightFile",
-                        fileID.ToString());
-                        break;
-                    case 2:
-                        RPCSocket.Current.CallRemoteFunction(
-                        "SerializeRPC",
-                        "DeleteSuccess",
-                        fileID.ToString());
-                        break;
-                }
             }
-            catch (ArgumentException ex)
+            switch (state)
             {
-                RPCSocket.Current.CallRemoteFunction(
-                "SerializeRPC",
-                "WrongGuidFormat");
+                case 0:
+                    RPCSocket.Current.CallRemoteFunction(
+                    "SerializeRPC",
+                    "TryDeleteNonExistFile",
+                    fileID);
+                    break;
+                case 1:
+                    RPCSocket.Current.CallRemoteFunction(
+                    "SerializeRPC",
+                    "TryDeleteNoRightFile",
+                    fileID);
+                    break;
+                case 2:
+                    RPCSocket.Current.CallRemoteFunction(
+                    "SerializeRPC",
+                    "DeleteSuccess",
+                    fileID);
+                    break;
             }
         }
-
+        public static void GetFileStructure(
+            vstd.Guid fileID)
+        {
+            var file = SerUtil.GetReadonlyFile(fileID);
+            if (file == null)
+            {
+                RPCSocket.Current.CallRemoteFunction(
+                  "SerializeRPC",
+                  "FileNotOpened",
+                  fileID);
+            }
+            else
+            {
+                RPCSocket.Current.CallRemoteFunction(
+                    "SerializeRPC",
+                    "FileReadSuccess",
+                    file.resource.serObj.SerializeToByteArray());
+            }
+        }
     }
 }

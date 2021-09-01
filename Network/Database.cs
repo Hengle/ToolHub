@@ -50,18 +50,38 @@ namespace vstd
         {
             db_serialize(ptr, Marshal.GetFunctionPointerForDelegate(callback));
         }
-        static ThreadLocal<string> tLocalFilePath = new ThreadLocal<string>();
-        static SerializeCallback writeToFile = (bPtr, byteSize) =>
+        private static ThreadLocal<byte[]> tLocalBytes = new ThreadLocal<byte[]>();
+        private static SerializeCallback getBytes = (byte* bPtr, ulong byteSize) =>
         {
-            using (System.IO.BinaryWriter bin = new System.IO.BinaryWriter(new System.IO.FileStream(tLocalFilePath.Value, System.IO.FileMode.Create)))
+            byte[] bb = new byte[byteSize];
+            fixed (byte* bbPtr = bb)
             {
-                bin.Write(new ReadOnlySpan<byte>(bPtr, (int)byteSize));
+                Native.Memory.vengine_memcpy(bbPtr, bPtr, byteSize);
             }
+            tLocalBytes.Value = bb;
         };
+        public byte[] SerializeToByteArray()
+        {
+            Serialize(getBytes);
+            var v = tLocalBytes.Value;
+            tLocalBytes.Value = null;
+            return v;
+        }
+     
         public void SerializeToFile(string filePath)
         {
-            tLocalFilePath.Value = filePath;
-            Serialize(writeToFile);
+            byte* bytes = stackalloc byte[filePath.Length + 1];
+            for (int i = 0; i < filePath.Length; ++i)
+            {
+                bytes[i] = (byte)filePath[i];
+            }
+            bytes[filePath.Length] = 0;
+            CSString str = new CSString
+            {
+                bytes = bytes,
+                len = (ulong)filePath.Length
+            };
+            db_serialize_tofile(ptr, str);
         }
         //public void DeSerialize()
         public SerializeDict GetRootNode()
@@ -126,6 +146,9 @@ namespace vstd
         static extern void db_create_array(IntPtr db, IntPtr* ptr);
         [DllImport("VEngine_Database.dll")]
         static extern void db_serialize(IntPtr db, IntPtr callback);
+        [DllImport("VEngine_Database.dll")]
+        static extern void db_serialize_tofile(IntPtr db, CSString str);
+
         [DllImport("VEngine_Database.dll")]
         static extern void db_deser(IntPtr db, byte* ptr, ulong sz);
         [DllImport("VEngine_Database.dll")]
@@ -339,6 +362,7 @@ namespace vstd
         static extern void db_dict_ite_getkey(Iterator ite, void* keyPtr, BsonKeyType valueType);
         [DllImport("VEngine_Database.dll")]
         static extern void db_dict_ite_getkey_variant(Iterator ite, void* keyPtr, BsonKeyType* valueType);
+
         public struct Iterator
         {
             ulong placeHolder;

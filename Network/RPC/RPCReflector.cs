@@ -57,7 +57,7 @@ namespace Network
                     }
                     else if (isObjectContained == 1)
                     {
-                        var par = fmt.Deserialize(stream);
+                        var par = VSerializable.DeSerialize(pars[0].ParameterType, fmt, stream);
                         method.Invoke(null, new object[] { par });
                     }
                     else
@@ -65,7 +65,7 @@ namespace Network
                         object[] objs = new object[isObjectContained];
                         for (int i = 0; i < objs.Length; ++i)
                         {
-                            objs[i] = fmt.Deserialize(stream);
+                            objs[i] = VSerializable.DeSerialize(pars[i].ParameterType, fmt, stream);
                         }
                         method.Invoke(null, objs);
                     }
@@ -122,7 +122,7 @@ namespace Network
             {
                 *ptr = 1;
                 stream.Write(sp);
-                formatter.Serialize(stream, arg);
+                VSerializable.Serialize(arg, formatter, stream);
             }
 
         }
@@ -161,7 +161,7 @@ namespace Network
                 *ptr = (byte)arg.Length;
                 stream.Write(sp);
                 foreach (var i in arg)
-                    formatter.Serialize(stream, i);
+                    VSerializable.Serialize(i, formatter, stream);
             }
 
         }

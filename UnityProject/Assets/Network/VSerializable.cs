@@ -11,14 +11,22 @@ namespace Network
     {
         public VSerializable() { }
 
+
         public static void Serialize(
             object obj,
             BinaryFormatter formatter,
             Stream stream)
         {
             Type type = obj.GetType();
+
             if (type.GetCustomAttribute<VSerializable>() == null)
             {
+                if (type.GetConstructor(Type.EmptyTypes) == null)
+                {
+                    formatter.Serialize(stream, obj);
+                    return;
+                }
+
                 IList col = obj as IList;
                 if (col != null)
                 {
@@ -55,11 +63,19 @@ namespace Network
             BinaryFormatter formatter,
             Stream stream)
         {
+
             try
             {
+
+
                 object obj = Activator.CreateInstance(type);
+
                 if (type.GetCustomAttribute<VSerializable>() == null)
                 {
+                    if (type.GetConstructor(Type.EmptyTypes) == null)
+                    {
+                        return formatter.Deserialize(stream);
+                    }
                     IList col = obj as IList;
                     if (col != null)
                     {
@@ -77,7 +93,8 @@ namespace Network
                     }
                 }
                 return obj;
-            }catch(MissingMethodException exp)
+            }
+            catch (MissingMethodException exp)
             {
                 return formatter.Deserialize(stream);
             }
@@ -90,7 +107,7 @@ namespace Network
             array.Clear();
             Type t = array.GetType().GenericTypeArguments[0];
             long sz = (long)formatter.Deserialize(stream);
-            for(long v = 0; v < sz; ++v)
+            for (long v = 0; v < sz; ++v)
             {
                 array.Add(DeSerialize(t, formatter, stream));
             }

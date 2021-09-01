@@ -25,7 +25,11 @@ namespace FileServer
             var dbCollect = db.serCollect;
             lock (dbCollect)
             {
-                var v = dbCollect.Find(Builders<BsonDocument>.Filter.Eq("id", guidStr));
+                var v = dbCollect.Find(
+                     Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("name", name),
+                    Builders<BsonDocument>.Filter.Eq("version", version)
+                    ));
                 if (v.FirstOrDefault() == null)
                 {
                     List<BsonElement> elements = new List<BsonElement>();
@@ -56,7 +60,7 @@ namespace FileServer
             string guidStr = guid.ToString();
             var dbCollect = db.serCollect;
 
-         dbCollect.DeleteOne(Builders<BsonDocument>.Filter.Eq("id", guidStr));
+            dbCollect.DeleteOne(Builders<BsonDocument>.Filter.Eq("id", guidStr));
         }
         public static bool FindFile(
             in MongoDatabase db,
@@ -83,7 +87,7 @@ namespace FileServer
                 Builders<BsonDocument>.Filter.Eq("version", version));
             var v = dbCollect.Find(
                 filter).FirstOrDefault();
-            if(v == null)
+            if (v == null)
             {
                 return new vstd.Guid(0, 0);
             }

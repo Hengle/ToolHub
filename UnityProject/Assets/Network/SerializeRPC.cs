@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Network;
+using vstd;
 [VSerializable]
 public struct Pair
 {
@@ -70,8 +71,18 @@ public static class SerializeRPC
     {
         Debug.Log("Delete file " + guid + " success!");
     }
-    public static void WrongGuidFormat()
+
+    public static void FileNotOpened(vstd.Guid guid)
     {
-        Debug.Log("Sended wrong format guid!");
+        Debug.Log("Can not find file " + guid);
+
+    }
+    public static void FileReadSuccess(byte[] bytes)
+    {
+        using (SerializeObject obj = new SerializeObject(true))
+        {
+            obj.Read(bytes);
+            obj.Print();
+        }
     }
 }
